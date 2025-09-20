@@ -90,9 +90,14 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowSpecificOrigin",
         policy =>
         {
-            policy.WithOrigins("http://localhost:3000") // Your frontend URL
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
+             policy.WithOrigins(
+            "http://localhost:3000",    // Your React app
+            "https://localhost:3000",   
+            "http://localhost:3001"     // Alternative React port
+        )
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials();
         });
 });
 
@@ -104,10 +109,17 @@ app.UseSwaggerUI(c =>     // middleware to serve UI
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "MyApp API v1");
 });
 app.UseCors("AllowSpecificOrigin");
+app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// Also add a test endpoint to verify the server is working:
+app.MapGet("/api/test", () => new { 
+    message = "Server is running!", 
+    timestamp = DateTime.Now,
+    port = "5011"
+});
 
 // Seed admin (optional dev only)
 using (var scope = app.Services.CreateScope())

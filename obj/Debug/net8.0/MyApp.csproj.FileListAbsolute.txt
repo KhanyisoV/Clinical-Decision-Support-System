@@ -169,3 +169,7 @@ C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyAp
 C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\obj\Debug\net8.0\MyApp.pdb
 C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\obj\Debug\net8.0\MyApp.genruntimeconfig.cache
 C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\obj\Debug\net8.0\ref\MyApp.dll
+C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\obj\Debug\net8.0\MyApp.sourcelink.json
+C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\bin\Debug\net8.0\frontend\package-lock.json
+C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\bin\Debug\net8.0\frontend\package.json
+C:\Users\khany\Desktop\BIT\THIRD YEAR\Clinical-Decision-Support-System-main\MyApp\bin\Debug\net8.0\frontend\public\manifest.json
