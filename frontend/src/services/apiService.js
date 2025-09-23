@@ -1,123 +1,283 @@
-// Mock API service - replace with actual API calls
+import axios from 'axios';
+
+const API = axios.create({
+  baseURL: 'http://localhost:5011/api',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+// Add auth token to requests
+API.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Handle authentication errors and API responses
+API.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Authentication Service
 export const authService = {
   login: async (credentials) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Demo users for testing
-    const demoUsers = {
-      'admin': { 
-        id: 1, 
-        userName: 'admin', 
-        role: 'Admin',
-        token: 'demo-admin-token'
-      },
-      'doctor': { 
-        id: 2, 
-        userName: 'doctor', 
-        role: 'Doctor',
-        token: 'demo-doctor-token'
-      },
-      'client': { 
-        id: 3, 
-        userName: 'client', 
-        role: 'Client',
-        token: 'demo-client-token'
+    try {
+      const response = await API.post('/auth/login', credentials);
+      if (response.data.success) {
+        // Store token and user data
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify({
+          userName: response.data.data.userName,
+          role: response.data.data.role
+        }));
+        return response.data;
       }
-    };
-
-    if (demoUsers[credentials.userName] && credentials.password === 'password') {
-      return {
-        success: true,
-        data: demoUsers[credentials.userName]
-      };
-    } else {
-      throw new Error('Invalid credentials');
+      throw new Error(response.data.message || 'Login failed');
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.message || 'Login failed');
     }
   },
 
   register: async (userData) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      success: true,
-      data: { ...userData, id: Math.floor(Math.random() * 1000) }
-    };
+    try {
+      const response = await API.post('/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.message || 'Registration failed');
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   }
 };
 
-// Mock data for demonstration
-const mockClients = [
-  { id: 1, userName: 'john_doe', firstName: 'John', lastName: 'Doe', email: 'john@example.com', phone: '123-456-7890' },
-  { id: 2, userName: 'jane_smith', firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com', phone: '123-456-7891' },
-  { id: 3, userName: 'bob_wilson', firstName: 'Bob', lastName: 'Wilson', email: 'bob@example.com', phone: '123-456-7892' }
-];
-
-const mockDoctors = [
-  { id: 1, userName: 'dr_smith', firstName: 'Sarah', lastName: 'Smith', specialization: 'Cardiology' },
-  { id: 2, userName: 'dr_johnson', firstName: 'Mike', lastName: 'Johnson', specialization: 'Neurology' }
-];
-
+// Admin Service
 export const adminService = {
+  // Dashboard statistics
+  getDashboardStats: async () => {
+    try {
+      const response = await API.get('/admin/dashboard/stats');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch dashboard statistics');
+    }
+  },
+
+  // Client Management
   getAllClients: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { data: mockClients };
+    try {
+      const response = await API.get('/admin/clients');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch clients');
+    }
   },
-  
+
   createClient: async (clientData) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newClient = {
-      id: mockClients.length + 1,
-      ...clientData
-    };
-    mockClients.push(newClient);
-    return { data: newClient };
-  },
-  
-  updateClient: async (id, clientData) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const index = mockClients.findIndex(client => client.id === id);
-    if (index !== -1) {
-      mockClients[index] = { ...mockClients[index], ...clientData };
+    try {
+      const response = await API.post('/admin/clients', clientData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create client');
     }
-    return { data: mockClients[index] };
   },
-  
-  deleteClient: async (id) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const index = mockClients.findIndex(client => client.id === id);
-    if (index !== -1) {
-      mockClients.splice(index, 1);
+
+  updateClient: async (username, clientData) => {
+    try {
+      const response = await API.put(`/admin/clients/${username}`, clientData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update client');
     }
-    return { success: true };
   },
-  
+
+  deleteClient: async (username) => {
+    try {
+      const response = await API.delete(`/admin/clients/${username}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete client');
+    }
+  },
+
+  // Doctor Management
   getAllDoctors: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { data: mockDoctors };
+    try {
+      const response = await API.get('/admin/doctors');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch doctors');
+    }
   },
-  
+
   createDoctor: async (doctorData) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const newDoctor = {
-      id: mockDoctors.length + 1,
-      ...doctorData
-    };
-    mockDoctors.push(newDoctor);
-    return { data: newDoctor };
+    try {
+      const response = await API.post('/admin/doctors', doctorData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create doctor');
+    }
+  },
+
+  updateDoctor: async (username, doctorData) => {
+    try {
+      const response = await API.put(`/admin/doctors/${username}`, doctorData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update doctor');
+    }
+  },
+
+  deleteDoctor: async (username) => {
+    try {
+      const response = await API.delete(`/admin/doctors/${username}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete doctor');
+    }
+  },
+
+  // Admin Management
+  getAllAdmins: async () => {
+    try {
+      const response = await API.get('/admin');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch admins');
+    }
+  },
+
+  createAdmin: async (adminData) => {
+    try {
+      const response = await API.post('/admin', adminData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create admin');
+    }
   }
 };
 
+// Client Service
 export const clientService = {
-  getProfile: async (id) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const client = mockClients.find(c => c.id === id);
-    return { data: client };
+  getProfile: async (username) => {
+    try {
+      const response = await API.get(`/client/profile/${username}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch profile');
+    }
+  },
+
+  updateProfile: async (username, profileData) => {
+    try {
+      const response = await API.put(`/client/profile/${username}`, profileData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update profile');
+    }
   }
 };
 
+// Doctor Service
 export const doctorService = {
-  getClientsByDoctor: async (doctorId) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { data: mockClients };
+  getProfile: async (username) => {
+    try {
+      const response = await API.get(`/doctor/profile/${username}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch profile');
+    }
+  },
+
+  getAssignedClients: async (doctorUsername) => {
+    try {
+      const response = await API.get(`/doctor/clients/${doctorUsername}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch assigned clients');
+    }
   }
 };
+
+// Symptom Service
+export const symptomService = {
+  createSymptom: async (symptomData) => {
+    try {
+      const response = await API.post('/symptom', symptomData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create symptom');
+    }
+  },
+
+  getSymptomsByClient: async (clientUsername) => {
+    try {
+      const response = await API.get(`/symptom/client/${clientUsername}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch symptoms');
+    }
+  },
+
+  updateSymptom: async (symptomId, symptomData) => {
+    try {
+      const response = await API.put(`/symptom/${symptomId}`, symptomData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update symptom');
+    }
+  }
+};
+
+// Diagnosis Service
+export const diagnosisService = {
+  createDiagnosis: async (diagnosisData) => {
+    try {
+      const response = await API.post('/diagnosis', diagnosisData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to create diagnosis');
+    }
+  },
+
+  getDiagnosesByClient: async (clientUsername) => {
+    try {
+      const response = await API.get(`/diagnosis/client/${clientUsername}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch diagnoses');
+    }
+  },
+
+  updateDiagnosis: async (diagnosisId, diagnosisData) => {
+    try {
+      const response = await API.put(`/diagnosis/${diagnosisId}`, diagnosisData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to update diagnosis');
+    }
+  }
+};
+
+export default API;

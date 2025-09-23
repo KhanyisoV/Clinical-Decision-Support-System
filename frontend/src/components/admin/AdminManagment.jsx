@@ -1,45 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../services/apiService';
 
-const ClientManagement = () => {
-  const [clients, setClients] = useState([]);
-  const [doctors, setDoctors] = useState([]);
+const AdminManagement = () => {
+  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [editingClient, setEditingClient] = useState(null);
   const [formData, setFormData] = useState({
     userName: '',
     password: '',
     firstName: '',
     lastName: '',
-    email: '',
-    dateOfBirth: '',
-    assignedDoctorId: ''
+    email: ''
   });
 
   useEffect(() => {
-    loadData();
+    loadAdmins();
   }, []);
 
-  const loadData = async () => {
+  const loadAdmins = async () => {
     try {
       setLoading(true);
       setError(null);
+      const response = await adminService.getAllAdmins();
       
-      const [clientsResponse, doctorsResponse] = await Promise.all([
-        adminService.getAllClients(),
-        adminService.getAllDoctors()
-      ]);
-
-      if (clientsResponse.success) {
-        setClients(clientsResponse.data);
+      if (response.success) {
+        setAdmins(response.data);
       } else {
-        throw new Error(clientsResponse.message);
-      }
-
-      if (doctorsResponse.success) {
-        setDoctors(doctorsResponse.data);
+        throw new Error(response.message);
       }
     } catch (err) {
       setError(err.message);
@@ -51,47 +39,10 @@ const ClientManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (editingClient) {
-        // Update existing client
-        const updateData = { ...formData };
-        if (!updateData.password) delete updateData.password;
-        
-        await adminService.updateClient(editingClient.userName, updateData);
-      } else {
-        // Create new client
-        await adminService.createClient(formData);
-      }
-      
+      await adminService.createAdmin(formData);
       setShowModal(false);
       resetForm();
-      await loadData(); // Reload data
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleEdit = (client) => {
-    setEditingClient(client);
-    setFormData({
-      userName: client.userName,
-      password: '',
-      firstName: client.firstName || '',
-      lastName: client.lastName || '',
-      email: client.email || '',
-      dateOfBirth: client.dateOfBirth ? client.dateOfBirth.split('T')[0] : '',
-      assignedDoctorId: client.assignedDoctor?.userName || ''
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (username) => {
-    if (!window.confirm(`Are you sure you want to delete client "${username}"?`)) {
-      return;
-    }
-
-    try {
-      await adminService.deleteClient(username);
-      await loadData(); // Reload data
+      await loadAdmins();
     } catch (err) {
       setError(err.message);
     }
@@ -103,11 +54,8 @@ const ClientManagement = () => {
       password: '',
       firstName: '',
       lastName: '',
-      email: '',
-      dateOfBirth: '',
-      assignedDoctorId: ''
+      email: ''
     });
-    setEditingClient(null);
   };
 
   const handleModalClose = () => {
@@ -116,25 +64,25 @@ const ClientManagement = () => {
   };
 
   if (loading) {
-    return <div style={styles.loading}>Loading clients...</div>;
+    return <div style={styles.loading}>Loading admins...</div>;
   }
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2>Client Management</h2>
+        <h2>Admin Management</h2>
         <button
           onClick={() => setShowModal(true)}
           style={styles.addButton}
         >
-          + Add New Client
+          + Add New Admin
         </button>
       </div>
 
       {error && (
         <div style={styles.error}>
           <p>{error}</p>
-          <button onClick={loadData} style={styles.retryButton}>
+          <button onClick={loadAdmins} style={styles.retryButton}>
             Retry
           </button>
         </div>
@@ -143,60 +91,51 @@ const ClientManagement = () => {
       <div style={styles.tableContainer}>
         <table style={styles.table}>
           <thead>
-            <tr>
-              <th>Username</th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Date of Birth</th>
-              <th>Assigned Doctor</th>
-              <th>Created</th>
-              <th>Actions</th>
+            <tr style={styles.tableHeader}>
+              <th style={styles.th}>Username</th>
+              <th style={styles.th}>Name</th>
+              <th style={styles.th}>Email</th>
+              <th style={styles.th}>Role</th>
+              <th style={styles.th}>Created</th>
+              <th style={styles.th}>Last Updated</th>
             </tr>
           </thead>
           <tbody>
-            {clients.map((client) => (
-              <tr key={client.userName}>
-                <td>{client.userName}</td>
-                <td>{`${client.firstName || ''} ${client.lastName || ''}`.trim()}</td>
-                <td>{client.email || '-'}</td>
-                <td>{client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString() : '-'}</td>
-                <td>
-                  {client.assignedDoctor 
-                    ? `${client.assignedDoctor.firstName} ${client.assignedDoctor.lastName}` 
-                    : 'Not assigned'
-                  }
+            {admins.map((admin) => (
+              <tr key={admin.userName} style={styles.tableRow}>
+                <td style={styles.td}>{admin.userName}</td>
+                <td style={styles.td}>
+                  {`${admin.firstName || ''} ${admin.lastName || ''}`.trim() || '-'}
                 </td>
-                <td>{new Date(client.createdAt).toLocaleDateString()}</td>
-                <td>
-                  <button
-                    onClick={() => handleEdit(client)}
-                    style={styles.editButton}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(client.userName)}
-                    style={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
+                <td style={styles.td}>{admin.email || '-'}</td>
+                <td style={styles.td}>
+                  <span style={styles.roleBadge}>{admin.role}</span>
+                </td>
+                <td style={styles.td}>
+                  {new Date(admin.createdAt).toLocaleDateString()}
+                </td>
+                <td style={styles.td}>
+                  {admin.updatedAt 
+                    ? new Date(admin.updatedAt).toLocaleDateString() 
+                    : '-'
+                  }
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {clients.length === 0 && (
-          <div style={styles.noData}>No clients found</div>
+        {admins.length === 0 && (
+          <div style={styles.noData}>No admins found</div>
         )}
       </div>
 
-      {/* Modal for Add/Edit Client */}
+      {/* Modal for Add Admin */}
       {showModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <h3>{editingClient ? 'Edit Client' : 'Add New Client'}</h3>
+              <h3>Add New Admin</h3>
               <button onClick={handleModalClose} style={styles.closeButton}>
                 ×
               </button>
@@ -204,84 +143,63 @@ const ClientManagement = () => {
 
             <form onSubmit={handleSubmit} style={styles.form}>
               <div style={styles.formGroup}>
-                <label>Username*</label>
+                <label style={styles.label}>Username*</label>
                 <input
                   type="text"
                   value={formData.userName}
                   onChange={(e) => setFormData({...formData, userName: e.target.value})}
                   required
                   style={styles.input}
+                  placeholder="Enter username"
                 />
               </div>
 
               <div style={styles.formGroup}>
-                <label>Password{!editingClient && '*'}</label>
+                <label style={styles.label}>Password*</label>
                 <input
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  required={!editingClient}
-                  placeholder={editingClient ? 'Leave blank to keep current password' : ''}
+                  required
+                  minLength={6}
                   style={styles.input}
+                  placeholder="Enter password (minimum 6 characters)"
                 />
               </div>
 
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label>First Name</label>
+                  <label style={styles.label}>First Name</label>
                   <input
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                     style={styles.input}
+                    placeholder="Enter first name"
                   />
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label>Last Name</label>
+                  <label style={styles.label}>Last Name</label>
                   <input
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                     style={styles.input}
+                    placeholder="Enter last name"
                   />
                 </div>
               </div>
 
               <div style={styles.formGroup}>
-                <label>Email</label>
+                <label style={styles.label}>Email</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   style={styles.input}
+                  placeholder="Enter email address"
                 />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label>Date of Birth</label>
-                <input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label>Assigned Doctor</label>
-                <select
-                  value={formData.assignedDoctorId}
-                  onChange={(e) => setFormData({...formData, assignedDoctorId: e.target.value})}
-                  style={styles.select}
-                >
-                  <option value="">Select a doctor</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.userName} value={doctor.userName}>
-                      {`${doctor.firstName} ${doctor.lastName} - ${doctor.specialization || 'General'}`}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div style={styles.formActions}>
@@ -289,7 +207,7 @@ const ClientManagement = () => {
                   Cancel
                 </button>
                 <button type="submit" style={styles.submitButton}>
-                  {editingClient ? 'Update Client' : 'Create Client'}
+                  Create Admin
                 </button>
               </div>
             </form>
@@ -311,8 +229,8 @@ const styles = {
     marginBottom: '2rem'
   },
   addButton: {
-    backgroundColor: '#28a745',
-    color: 'white',
+    backgroundColor: '#ffc107',
+    color: '#000',
     border: 'none',
     padding: '0.75rem 1.5rem',
     borderRadius: '6px',
@@ -354,27 +272,36 @@ const styles = {
     width: '100%',
     borderCollapse: 'collapse'
   },
+  tableHeader: {
+    backgroundColor: '#f8f9fa'
+  },
+  th: {
+    padding: '1rem',
+    textAlign: 'left',
+    fontWeight: '600',
+    borderBottom: '2px solid #dee2e6',
+    color: '#495057'
+  },
+  tableRow: {
+    transition: 'background-color 0.2s ease'
+  },
+  td: {
+    padding: '1rem',
+    borderBottom: '1px solid #dee2e6'
+  },
+  roleBadge: {
+    backgroundColor: '#007bff',
+    color: 'white',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '15px',
+    fontSize: '0.85rem',
+    fontWeight: '500'
+  },
   noData: {
     textAlign: 'center',
     padding: '2rem',
-    color: '#666'
-  },
-  editButton: {
-    backgroundColor: '#17a2b8',
-    color: 'white',
-    border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    marginRight: '0.5rem'
-  },
-  deleteButton: {
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    color: '#666',
+    fontSize: '1.1rem'
   },
   modalOverlay: {
     position: 'fixed',
@@ -395,19 +322,24 @@ const styles = {
     width: '90%',
     maxWidth: '500px',
     maxHeight: '90vh',
-    overflowY: 'auto'
+    overflowY: 'auto',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
   },
   modalHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1.5rem'
+    marginBottom: '1.5rem',
+    paddingBottom: '1rem',
+    borderBottom: '1px solid #dee2e6'
   },
   closeButton: {
     background: 'none',
     border: 'none',
     fontSize: '1.5rem',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    color: '#666',
+    padding: '0.25rem'
   },
   form: {
     display: 'flex',
@@ -423,23 +355,25 @@ const styles = {
     display: 'flex',
     gap: '1rem'
   },
+  label: {
+    fontWeight: '500',
+    color: '#495057',
+    marginBottom: '0.25rem'
+  },
   input: {
     padding: '0.75rem',
     border: '1px solid #ddd',
     borderRadius: '4px',
-    fontSize: '1rem'
-  },
-  select: {
-    padding: '0.75rem',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '1rem'
+    fontSize: '1rem',
+    transition: 'border-color 0.2s ease'
   },
   formActions: {
     display: 'flex',
     gap: '1rem',
     justifyContent: 'flex-end',
-    marginTop: '1rem'
+    marginTop: '1.5rem',
+    paddingTop: '1rem',
+    borderTop: '1px solid #dee2e6'
   },
   cancelButton: {
     backgroundColor: '#6c757d',
@@ -447,7 +381,8 @@ const styles = {
     border: 'none',
     padding: '0.75rem 1.5rem',
     borderRadius: '4px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '1rem'
   },
   submitButton: {
     backgroundColor: '#007bff',
@@ -455,27 +390,10 @@ const styles = {
     border: 'none',
     padding: '0.75rem 1.5rem',
     borderRadius: '4px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '1rem',
+    fontWeight: '500'
   }
 };
 
-// Add table styles
-styles.table = {
-  ...styles.table,
-  'th': {
-    backgroundColor: '#f8f9fa',
-    padding: '1rem',
-    textAlign: 'left',
-    fontWeight: '600',
-    borderBottom: '2px solid #dee2e6'
-  },
-  'td': {
-    padding: '1rem',
-    borderBottom: '1px solid #dee2e6'
-  },
-  'tr:hover': {
-    backgroundColor: '#f8f9fa'
-  }
-};
-
-export default ClientManagement;
+export default AdminManagement;

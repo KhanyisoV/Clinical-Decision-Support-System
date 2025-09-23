@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "bxUMP+MI5ic=",
+  "dgSpecHash": "tRErrKGNWJw=",
   "success": true,
-  "projectFilePath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\MyApp.csproj",
+  "projectFilePath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\MyApp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\khany\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\khany\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",
