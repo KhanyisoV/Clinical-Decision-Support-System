@@ -1,167 +1,190 @@
-import React, { useState } from "react";
-import API from "../services/api";
-import { jwtDecode } from "jwt-decode";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
-function LoginForm() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+const LoginForm = () => {
+  const [credentials, setCredentials] = useState({
+    userName: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState("");
+  const { login, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate(`/${user.role.toLowerCase()}`, { replace: true });
+    }
+  }, [user, authLoading, navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    setError("");
-    setDebugInfo("");
-    
+
     try {
-      console.log("🔐 Login attempt:", { username, passwordLength: password.length });
+      const result = await login(credentials);
       
-      const res = await API.post("/auth/login", { 
-        UserName: username, 
-        Password: password  
-      });
-      
-      // Debug: Log the full response
-      console.log("📋 Full response object:", res);
-      console.log("📋 Response data:", res.data);
-      console.log("📋 Response status:", res.status);
-      console.log("📋 Response headers:", res.headers);
-      
-      // Set debug info for user to see
-      setDebugInfo(`
-Response Status: ${res.status}
-Response Data: ${JSON.stringify(res.data, null, 2)}
-Available Properties: ${Object.keys(res.data || {}).join(', ')}
-      `);
-      
-      // Check different possible property names
-      const token = res.data.Token || res.data.token || res.data.access_token || res.data.accessToken;
-      const role = res.data.Role || res.data.role || res.data.userRole;
-      
-      console.log("🔑 Token found:", token);
-      console.log("👤 Role found:", role);
-      
-      if (!token) {
-        // More specific error based on what we received
-        if (res.data && Object.keys(res.data).length > 0) {
-          throw new Error(`Server response missing token. Received: ${JSON.stringify(res.data)}`);
-        } else {
-          throw new Error("Server returned empty response");
-        }
-      }
-      
-      localStorage.setItem("token", token);
-
-      try {
-        const decoded = jwtDecode(token);
-        console.log("🔓 Decoded token:", decoded);
-      } catch (decodeError) {
-        console.error("❌ Token decode failed:", decodeError);
-        throw new Error(`Invalid token format: ${decodeError.message}`);
-      }
-      
-      if (!role) {
-        throw new Error("No role received from server");
-      }
-
-      console.log("✅ Login successful. Redirecting to:", role);
-      
-      if (role === "Doctor") navigate("/doctor");
-      else if (role === "Admin") navigate("/admin");
-      else if (role === "Client") navigate("/client");
-      else navigate("/not-found");
-      
-    } catch (err) {
-      console.error("❌ Login error:", err);
-      
-      if (err.response) {
-        console.error("❌ Error response:", {
-          status: err.response.status,
-          data: err.response.data,
-          headers: err.response.headers
-        });
-        
-        setDebugInfo(`
-Error Status: ${err.response.status}
-Error Data: ${JSON.stringify(err.response.data, null, 2)}
-        `);
-        
-        if (err.response.status === 401) {
-          setError("Invalid username or password");
-        } else if (err.response.status === 404) {
-          setError("Login endpoint not found - check your AuthController");
-        } else if (err.response.status === 500) {
-          setError(`Server error: ${err.response.data || 'Internal server error'}`);
-        } else {
-          setError(`HTTP ${err.response.status}: ${err.response.data || err.response.statusText}`);
-        }
+      if (result.success) {
+        // Force redirect after login
+        setTimeout(() => {
+          navigate(`/${result.data.role.toLowerCase()}`, { replace: true });
+        }, 100);
       } else {
-        setError(err.message || "Login failed");
+        setError(result.error || 'Login failed');
       }
+    } catch (error) {
+      setError('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-
-
   return (
-    <div className="login-container">
-      <h2>Login</h2>
-      
-
-      
-      {error && <div style={{ color: "red", marginBottom: '10px', padding: '10px', backgroundColor: '#ffe6e6' }}>
-        <strong>Error:</strong> {error}
-      </div>}
-      
-      {debugInfo && <div style={{ 
-        backgroundColor: '#f0f8ff', 
-        border: '1px solid #ccc',
-        padding: '10px', 
-        marginBottom: '10px',
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        whiteSpace: 'pre-wrap',
-        maxHeight: '200px',
-        overflow: 'auto'
-      }}>
-        <strong>Debug Info:</strong>
-        {debugInfo}
-      </div>}
-      
-      <form onSubmit={handleLogin}>
-        <div>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
+    <div style={styles.container}>
+      <div style={styles.loginBox}>
+        <h2 style={styles.title}>Medical System Login</h2>
+        
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Username:</label>
+            <input
+              type="text"
+              value={credentials.userName}
+              onChange={(e) => setCredentials({...credentials, userName: e.target.value})}
+              style={styles.input}
+              required
+              disabled={loading}
+              placeholder="Enter your username"
+            />
+          </div>
+          
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Password:</label>
+            <input
+              type="password"
+              value={credentials.password}
+              onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+              style={styles.input}
+              required
+              disabled={loading}
+              placeholder="Enter your password"
+            />
+          </div>
+          
+          {error && (
+            <div style={styles.error}>
+              {error}
+            </div>
+          )}
+          
+          <button 
+            type="submit" 
+            disabled={loading}
+            style={{
+              ...styles.button,
+              ...(loading ? styles.buttonDisabled : {})
+            }}
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+        
+        <div style={styles.links}>
+          <a href="/register" style={styles.link}>Register as Client</a>
+          <span style={styles.linkSeparator}>|</span>
+          <a href="/register-doctor" style={styles.link}>Register as Doctor</a>
         </div>
-        <br/>
-        <div>
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <br/>
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
-
+      </div>
     </div>
   );
-}
+};
+
+const styles = {
+  container: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh',
+    backgroundColor: '#f5f5f5',
+    padding: '20px'
+  },
+  loginBox: {
+    backgroundColor: 'white',
+    padding: '2rem',
+    borderRadius: '8px',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    width: '100%',
+    maxWidth: '400px'
+  },
+  title: {
+    textAlign: 'center',
+    marginBottom: '2rem',
+    color: '#333',
+    fontSize: '1.5rem'
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  formGroup: {
+    marginBottom: '1rem'
+  },
+  label: {
+    display: 'block',
+    marginBottom: '0.5rem',
+    color: '#555',
+    fontWeight: 'bold'
+  },
+  input: {
+    width: '100%',
+    padding: '0.75rem',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    fontSize: '1rem',
+    boxSizing: 'border-box'
+  },
+  error: {
+    color: '#dc3545',
+    marginBottom: '1rem',
+    padding: '0.75rem',
+    backgroundColor: '#f8d7da',
+    border: '1px solid #f5c6cb',
+    borderRadius: '4px',
+    fontSize: '0.9rem',
+    textAlign: 'center'
+  },
+  button: {
+    padding: '0.75rem',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    marginBottom: '1rem',
+    fontWeight: 'bold'
+  },
+  buttonDisabled: {
+    backgroundColor: '#6c757d',
+    cursor: 'not-allowed'
+  },
+  links: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '1rem',
+    fontSize: '0.9rem'
+  },
+  link: {
+    color: '#007bff',
+    textDecoration: 'none'
+  },
+  linkSeparator: {
+    color: '#6c757d'
+  }
+};
 
 export default LoginForm;

@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using FinalYearProject.Repositories;
 using FinalYearProject.Models;
+using FinalYearProject.DTOs;
+using FinalYearProject.Services;
 using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 
 namespace FinalYearProject.Controllers
@@ -13,57 +14,93 @@ namespace FinalYearProject.Controllers
     {
         private readonly IClientRepository _clientRepo;
         private readonly IPasswordHasher<Client> _passwordHasher;
-        private readonly ISymptomRepository _symptomRepo; // Added missing field
+        private readonly ISymptomRepository _symptomRepo;
+        private readonly IMappingService _mappingService;
 
-        // Fixed constructor - added ISymptomRepository parameter and field initialization
-        public ClientController(IClientRepository clientRepo, IPasswordHasher<Client> passwordHasher, ISymptomRepository symptomRepo)
+        public ClientController(
+            IClientRepository clientRepo, 
+            IPasswordHasher<Client> passwordHasher, 
+            ISymptomRepository symptomRepo,
+            IMappingService mappingService)
         {
             _clientRepo = clientRepo;
             _passwordHasher = passwordHasher;
             _symptomRepo = symptomRepo;
+            _mappingService = mappingService;
         }
 
-        // Register api for patient/client
+        // Register API for patient/client
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterRequest request)
+        public IActionResult Register([FromBody] ClientCreateDto request)
         {
             try
             {
                 if (_clientRepo.GetByUserName(request.UserName) != null)
-                    return BadRequest("Username already exists.");
+                {
+                    return BadRequest(new ApiResponseDto 
+                    { 
+                        Success = false, 
+                        Message = "Username already exists.",
+                        Errors = new List<string> { "Username is already taken." }
+                    });
+                }
 
-                var client = new Client { UserName = request.UserName };
+                var client = _mappingService.ToClient(request);
                 client.PasswordHash = _passwordHasher.HashPassword(client, request.Password);
 
                 _clientRepo.Add(client);
                 _clientRepo.Save();
 
-                return Ok(new { Message = "Client registered successfully.", ClientId = client.Id });
+                var clientDto = _mappingService.ToClientDto(client);
+                
+                return Ok(new ApiResponseDto<ClientDto>
+                {
+                    Success = true,
+                    Message = "Client registered successfully.",
+                    Data = clientDto
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred during registration.",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 
-        // Update client api
+        // Update client API
         [HttpPut("{id}")]
-        public IActionResult UpdateClient(int id, [FromBody] UpdateClientRequest request)
+        [Authorize(Roles = "Client,Admin")]
+        public IActionResult UpdateClient(int id, [FromBody] ClientUpdateDto request)
         {
             try
             {
                 var client = _clientRepo.GetById(id);
                 if (client == null)
-                    return NotFound($"Client with ID {id} not found.");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = $"Client with ID {id} not found."
+                    });
+                }
 
                 // Check if username is being changed and if it already exists
                 if (!string.IsNullOrEmpty(request.UserName) && request.UserName != client.UserName)
                 {
                     var existingClient = _clientRepo.GetByUserName(request.UserName);
                     if (existingClient != null && existingClient.Id != id)
-                        return BadRequest("Username already exists.");
-                    
-                    client.UserName = request.UserName;
+                    {
+                        return BadRequest(new ApiResponseDto
+                        {
+                            Success = false,
+                            Message = "Username already exists.",
+                            Errors = new List<string> { "Username is already taken." }
+                        });
+                    }
                 }
 
                 // Update password if provided
@@ -72,57 +109,134 @@ namespace FinalYearProject.Controllers
                     client.PasswordHash = _passwordHasher.HashPassword(client, request.Password);
                 }
 
+                _mappingService.UpdateClient(client, request);
+
                 _clientRepo.Update(client);
                 _clientRepo.Save();
 
-                return Ok("Client updated successfully.");
+                var clientDto = _mappingService.ToClientDto(client);
+
+                return Ok(new ApiResponseDto<ClientDto>
+                {
+                    Success = true,
+                    Message = "Client updated successfully.",
+                    Data = clientDto
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred during update.",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 
-        // Delete client api
+        // Delete client API
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public IActionResult DeleteClient(int id)
         {
             try
             {
                 var client = _clientRepo.GetById(id);
                 if (client == null)
-                    return NotFound($"Client with ID {id} not found.");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = $"Client with ID {id} not found."
+                    });
+                }
 
                 _clientRepo.Delete(client);
                 _clientRepo.Save();
 
-                return Ok("Client deleted successfully.");
+                return Ok(new ApiResponseDto
+                {
+                    Success = true,
+                    Message = "Client deleted successfully."
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred during deletion.",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 
         // Get client by ID
         [HttpGet("{id}")]
+        [Authorize(Roles = "Client,Doctor,Admin")]
         public IActionResult GetClient(int id)
         {
             try
             {
                 var client = _clientRepo.GetById(id);
                 if (client == null)
-                    return NotFound($"Client with ID {id} not found.");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = $"Client with ID {id} not found."
+                    });
+                }
 
-                // Return only necessary data, exclude sensitive information
-                return Ok(new { client.Id, client.UserName });
+                var clientDto = _mappingService.ToClientDto(client);
+
+                return Ok(new ApiResponseDto<ClientDto>
+                {
+                    Success = true,
+                    Message = "Client retrieved successfully.",
+                    Data = clientDto
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving client.",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 
+        // Get all clients (Admin only)
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public IActionResult GetAllClients()
+        {
+            try
+            {
+                var clients = _clientRepo.GetAll();
+                var clientDtos = clients.Select(c => _mappingService.ToClientDto(c)).ToList();
+
+                return Ok(new ApiResponseDto<List<ClientDto>>
+                {
+                    Success = true,
+                    Message = "Clients retrieved successfully.",
+                    Data = clientDtos
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving clients.",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
+
+        // Get client symptoms
         [HttpGet("{id}/symptoms")]
         [Authorize(Roles = "Client,Doctor,Admin")]
         public IActionResult GetClientSymptoms(int id)
@@ -131,27 +245,61 @@ namespace FinalYearProject.Controllers
             {
                 var client = _clientRepo.GetById(id);
                 if (client == null)
-                    return NotFound($"Client with ID {id} not found.");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = $"Client with ID {id} not found."
+                    });
+                }
 
                 var symptoms = _symptomRepo.GetActiveSymptomsByClientId(id);
-                return Ok(symptoms);
+                var symptomDtos = symptoms.Select(s => _mappingService.ToSymptomDto(s)).ToList();
+
+                return Ok(new ApiResponseDto<List<SymptomDto>>
+                {
+                    Success = true,
+                    Message = "Client symptoms retrieved successfully.",
+                    Data = symptomDtos
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving symptoms.",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
-    }
 
-    public class RegisterRequest
-    {
-        public string UserName { get; set; } = null!;
-        public string Password { get; set; } = null!;
-    }
+        // Get clients assigned to a specific doctor
+        [HttpGet("doctor/{doctorId}")]
+        [Authorize(Roles = "Doctor,Admin")]
+        public IActionResult GetClientsByDoctor(int doctorId)
+        {
+            try
+            {
+                var clients = _clientRepo.GetClientsByDoctorId(doctorId);
+                var clientDtos = clients.Select(c => _mappingService.ToClientDto(c)).ToList();
 
-    public class UpdateClientRequest
-    {
-        public string? UserName { get; set; }
-        public string? Password { get; set; }
+                return Ok(new ApiResponseDto<List<ClientDto>>
+                {
+                    Success = true,
+                    Message = "Doctor's clients retrieved successfully.",
+                    Data = clientDtos
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving doctor's clients.",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
     }
 }

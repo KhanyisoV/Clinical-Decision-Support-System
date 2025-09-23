@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using FinalYearProject.Repositories;
 using FinalYearProject.Models;
 using System.ComponentModel.DataAnnotations;
+using FinalYearProject.DTOs;
+using FinalYearProject.Services;
 
 namespace FinalYearProject.Controllers
 {

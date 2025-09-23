@@ -1,9 +1,6 @@
-﻿
+﻿using FinalYearProject.Models;
 using FinalYearProject.Data;
-using FinalYearProject.Models;
-using System.Linq;
 using Microsoft.EntityFrameworkCore;
-
 
 namespace FinalYearProject.Repositories
 {
@@ -15,20 +12,39 @@ namespace FinalYearProject.Repositories
         {
             _context = context;
         }
-        public Doctor GetById(int id)
+
+        public Doctor? GetByUserName(string username)
         {
-
-        // Example implementation using EF Core
-
-        return _context.Doctors.FirstOrDefault(d => d.Id == id);
+            return _context.Doctors
+                .FirstOrDefault(d => d.UserName == username);
         }
 
-        public Doctor? GetByUserName(string username) =>
-            _context.Doctors.FirstOrDefault(d => d.UserName == username);
+        public Doctor? GetById(int id)
+        {
+            return _context.Doctors
+                .FirstOrDefault(d => d.Id == id);
+        }
+
+        public IEnumerable<Doctor> GetAll()
+        {
+            return _context.Doctors.ToList();
+        }
 
         public void Add(Doctor doctor)
         {
+            // CreatedAt is set automatically by the model's default value
             _context.Doctors.Add(doctor);
+        }
+
+        public void Update(Doctor doctor)
+        {
+            doctor.UpdatedAt = DateTime.UtcNow;
+            _context.Doctors.Update(doctor);
+        }
+
+        public void Delete(Doctor doctor)
+        {
+            _context.Doctors.Remove(doctor);
         }
 
         public void Save()

@@ -4,6 +4,8 @@ using FinalYearProject.Data;
 using FinalYearProject.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using FinalYearProject.DTOs;
+using FinalYearProject.Services;
 
 namespace FinalYearProject.Controllers
 {
