@@ -4862,11 +4862,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\MyApp.csproj",
+      "projectUniqueName": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\MyApp.csproj",
       "projectName": "MyApp",
-      "projectPath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\MyApp.csproj",
+      "projectPath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\MyApp.csproj",
       "packagesPath": "C:\\Users\\khany\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\obj\\",
+      "outputPath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

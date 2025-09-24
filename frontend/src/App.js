@@ -1,89 +1,43 @@
+// App.js - Corrected with proper component names
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import LoginForm from './components/LoginForm';
-import DoctorDashboard from './pages/DoctorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import DoctorDashboard from './pages/DoctorDashboard';
 import ClientDashboard from './pages/ClientDashboard';
-import ClientRegisterForm from './components/ClientRegisterForm';
-import DoctorRegisterForm from './components/DoctorRegisterForm';
-import NotFound from './pages/NotFound';
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
 
-const AppRoutes = () => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '1.2rem',
-        color: '#666'
-      }}>
-        Loading...
-      </div>
-    );
+// Protected Route component
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  if (!token || !user.role) {
+    return <Navigate to="/login" replace />;
   }
+  
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role.toLowerCase())) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  
+  return children;
+};
 
-  return (
-    <Routes>
-      <Route 
-        path="/login" 
-        element={
-          user ? <Navigate to={`/${user.role.toLowerCase()}`} replace /> : <LoginForm />
-        } 
-      />
-      
-      <Route path="/register" element={<ClientRegisterForm />} />
-      <Route path="/register-doctor" element={<DoctorRegisterForm />} />
-      
-      <Route 
-        path="/admin/*" 
-        element={
-          <ProtectedRoute allowedRoles={['Admin']}>
-            <Layout>
-              <AdminDashboard />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/doctor/*" 
-        element={
-          <ProtectedRoute allowedRoles={['Doctor']}>
-            <Layout>
-              <DoctorDashboard />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/client/*" 
-        element={
-          <ProtectedRoute allowedRoles={['Client']}>
-            <Layout>
-              <ClientDashboard />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/" 
-        element={
-          <Navigate to={user ? `/${user.role.toLowerCase()}` : '/login'} replace />
-        } 
-      />
-      
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
+// Redirect component to handle dashboard routing based on user role
+const DashboardRedirect = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  switch (user.role?.toLowerCase()) {
+    case 'admin':
+      return <Navigate to="/admin/dashboard" replace />;
+    case 'doctor':
+      return <Navigate to="/doctor/dashboard" replace />;
+    case 'client':
+      return <Navigate to="/client/dashboard" replace />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
 };
 
 function App() {
@@ -91,7 +45,63 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <AppRoutes />
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={<LoginForm />} />
+            
+            {/* Dashboard redirect route */}
+            <Route path="/dashboard" element={<DashboardRedirect />} />
+            
+            {/* Protected Admin routes */}
+            <Route 
+              path="/admin/dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Protected Doctor routes */}
+            <Route 
+              path="/doctor/dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={['doctor']}>
+                  <DoctorDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Protected Client routes */}
+            <Route 
+              path="/client/dashboard" 
+              element={
+                <ProtectedRoute allowedRoles={['client']}>
+                  <ClientDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Unauthorized route */}
+            <Route 
+              path="/unauthorized" 
+              element={
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <h1>Unauthorized</h1>
+                  <p>You don't have permission to access this page.</p>
+                  <button onClick={() => window.location.href = '/login'}>
+                    Back to Login
+                  </button>
+                </div>
+              } 
+            />
+            
+            {/* Default route */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
         </div>
       </Router>
     </AuthProvider>

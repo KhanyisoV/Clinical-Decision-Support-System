@@ -1,5 +1,6 @@
+// context/AuthContext.js
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authService } from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -16,77 +17,76 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuthStatus();
+    // Check if user is logged in on app start
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    
+    if (token && userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        // Clear invalid data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+    setLoading(false);
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const savedUser = localStorage.getItem('user');
-      
-      if (token && savedUser) {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-      }
-    } catch (error) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    } finally {
-      setLoading(false);
-    }
+  const login = (userData) => {
+    console.log('=== AUTH CONTEXT LOGIN ===');
+    console.log('Setting user data:', userData);
+    setUser(userData);
+    // Data should already be stored in localStorage by authService
   };
 
-  const login = async (credentials) => {
-    try {
-      setLoading(true);
-      
-      const response = await authService.login(credentials);
-      
-      if (response.success && response.data) {
-        const userData = {
-          userName: response.data.userName,
-          role: response.data.role,
-          token: response.data.token,
-          firstName: response.data.firstName || response.data.userName,
-          lastName: response.data.lastName || ''
-        };
-        
-        localStorage.setItem('token', userData.token);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
-        
-        return { success: true, data: userData };
-      } else {
-        return { 
-          success: false, 
-          error: response.message || 'Login failed' 
-        };
-      }
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
+  const logout = () => {
+    console.log('=== AUTH CONTEXT LOGOUT ===');
+    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to login page
+    window.location.href = '/login';
   };
 
-  const logout = async () => {
-    try {
-      await authService.logout();
-    } catch (error) {
-      // Continue with logout even if API call fails
-    } finally {
-      setUser(null);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    }
+  const isAuthenticated = () => {
+    const token = localStorage.getItem('token');
+    return !!(token && user);
+  };
+
+  const hasRole = (role) => {
+    return user?.role?.toLowerCase() === role.toLowerCase();
   };
 
   const value = {
     user,
+    loading,
     login,
     logout,
-    loading
+    isAuthenticated,
+    hasRole
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
+export default AuthContext;

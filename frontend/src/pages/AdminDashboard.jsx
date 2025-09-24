@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/apiService';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({
     TotalClients: 0,
@@ -25,6 +27,11 @@ const AdminDashboard = () => {
   const [modalType, setModalType] = useState(''); // 'client', 'doctor', 'admin'
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     loadDashboardStats();
@@ -49,10 +56,6 @@ const AdminDashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [error]);
-
-  useEffect(() => {
-    loadDashboardStats();
-  }, []);
 
   useEffect(() => {
     if (activeTab === 'clients' && clients.length === 0) {
@@ -751,6 +754,9 @@ const AdminDashboard = () => {
         <div style={styles.userInfo}>
           <span>Welcome, {user?.firstName || user?.userName}</span>
           <span style={styles.role}>({user?.role})</span>
+          <button onClick={handleLogout} style={styles.logoutButton}>
+            Logout
+          </button>
         </div>
       </div>
 
@@ -823,6 +829,16 @@ const styles = {
     padding: '0.25rem 0.75rem',
     borderRadius: '15px',
     fontSize: '0.9rem'
+  },
+  logoutButton: {
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    padding: '0.5rem 1rem',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    marginLeft: '1rem'
   },
   tabContainer: {
     display: 'flex',
@@ -1141,3 +1157,4 @@ const styles = {
 };
 
 export default AdminDashboard;
+

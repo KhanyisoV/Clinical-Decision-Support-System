@@ -42,18 +42,40 @@ export const authService = {
   login: async (credentials) => {
     try {
       const response = await API.post('/auth/login', credentials);
+      console.log('Login response:', response.data); // Debug log
+      
+      // Handle the response structure from your backend
       if (response.data.success) {
+        const responseData = response.data.data || response.data;
+        
         // Store token and user data
-        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('token', responseData.token);
         localStorage.setItem('user', JSON.stringify({
-          userName: response.data.data.userName,
-          role: response.data.data.role
+          userName: responseData.userName,
+          role: responseData.role,
+          firstName: responseData.firstName,
+          lastName: responseData.lastName
         }));
-        return response.data;
+        
+        return {
+          success: true,
+          data: {
+            token: responseData.token,
+            userName: responseData.userName,
+            role: responseData.role,
+            firstName: responseData.firstName,
+            lastName: responseData.lastName
+          }
+        };
       }
       throw new Error(response.data.message || 'Login failed');
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Login failed');
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.[0] || 
+                          error.message || 
+                          'Login failed';
+      throw new Error(errorMessage);
     }
   },
 

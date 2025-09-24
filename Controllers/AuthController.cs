@@ -204,9 +204,10 @@ namespace FinalYearProject.Controllers
             }
         }
 
-        private string GenerateJwtToken(string username, string role)
+       private string GenerateJwtToken(string username, string role)
         {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
+            // Change "JwtSettings" to "Jwt" to match Program.cs
+            var jwtSettings = _configuration.GetSection("Jwt");
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
