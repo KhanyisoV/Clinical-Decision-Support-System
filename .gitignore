@@ -1,0 +1,18 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build folders
+bin/
+obj/
+
+# Node/npm
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+
+# Others
+*.DS_Store

@@ -4,6 +4,7 @@ using FinalYearProject.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MyApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251002111324_AddClinicalObservation")]
+    partial class AddClinicalObservation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,8 +115,6 @@ namespace MyApp.Migrations
                     b.ToTable("Clients");
                 });
 
-<<<<<<< HEAD
-=======
             modelBuilder.Entity("FinalYearProject.Models.ClinicalObservation", b =>
                 {
                     b.Property<int>("Id")
@@ -176,7 +177,6 @@ namespace MyApp.Migrations
                     b.ToTable("ClinicalObservations");
                 });
 
->>>>>>> master
             modelBuilder.Entity("FinalYearProject.Models.Diagnosis", b =>
                 {
                     b.Property<int>("Id")
@@ -356,8 +356,6 @@ namespace MyApp.Migrations
                     b.Navigation("AssignedDoctor");
                 });
 
-<<<<<<< HEAD
-=======
             modelBuilder.Entity("FinalYearProject.Models.ClinicalObservation", b =>
                 {
                     b.HasOne("FinalYearProject.Models.Client", "Client")
@@ -377,7 +375,6 @@ namespace MyApp.Migrations
                     b.Navigation("RecordedByDoctor");
                 });
 
->>>>>>> master
             modelBuilder.Entity("FinalYearProject.Models.Diagnosis", b =>
                 {
                     b.HasOne("FinalYearProject.Models.Client", "Client")

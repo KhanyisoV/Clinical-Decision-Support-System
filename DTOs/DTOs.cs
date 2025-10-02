@@ -328,4 +328,81 @@ namespace FinalYearProject.DTOs
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }
+<<<<<<< HEAD
+=======
+
+
+    public class ClinicalObservationDto
+    {
+        public int Id { get; set; }
+
+        public string? Gender { get; set; }
+        public int? Age { get; set; }
+        public double? Height { get; set; }   // cm
+        public double? Weight { get; set; }   // kg
+        public string? BloodPressure { get; set; } // e.g. "120/80 mmHg"
+        public int? HeartRate { get; set; }   // bpm
+        public DateTime ObservationDate { get; set; }
+
+        public string ObservationType { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public string? Notes { get; set; }
+
+        // Navigation summaries
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto RecordedByDoctor { get; set; } = null!;
+
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    // DTO for creating a new observation
+    public class ClinicalObservationCreateDto
+    {
+        [Required]
+        public string? Gender { get; set; }
+
+        [Required]
+        public int? Age { get; set; }
+
+        public double? Height { get; set; }
+        public double? Weight { get; set; }
+        public string? BloodPressure { get; set; }
+        public int? HeartRate { get; set; }
+
+        [Required]
+        public DateTime ObservationDate { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string ObservationType { get; set; } = string.Empty;
+
+        [Required]
+        public string Value { get; set; } = string.Empty;
+
+        public string? Notes { get; set; }
+
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        public int RecordedByDoctorId { get; set; }
+    }
+
+    // DTO for updating an observation
+    public class ClinicalObservationUpdateDto
+    {
+        public string? Gender { get; set; }
+        public int? Age { get; set; }
+        public double? Height { get; set; }
+        public double? Weight { get; set; }
+        public string? BloodPressure { get; set; }
+        public int? HeartRate { get; set; }
+        public DateTime? ObservationDate { get; set; }
+
+        public string? ObservationType { get; set; }
+        public string? Value { get; set; }
+        public string? Notes { get; set; }
+    }
+>>>>>>> master
 }
