@@ -26,10 +26,9 @@ builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
 builder.Services.AddScoped<ISymptomRepository, SymptomRepository>();
 builder.Services.AddScoped<IDiagnosisRepository, DiagnosisRepository>();
-<<<<<<< HEAD
-=======
 builder.Services.AddScoped<IClinicalObservationRepository, ClinicalObservationRepository>();
->>>>>>> master
+builder.Services.AddScoped<IRecommendationRepository, RecommendationRepository>();
+
 
 
 // DTO's

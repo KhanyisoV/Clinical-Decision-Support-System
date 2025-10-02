@@ -35,6 +35,7 @@ namespace FinalYearProject.Models
         // Navigation property for diagnoses
         public ICollection<Diagnosis> Diagnoses { get; set; } = new List<Diagnosis>();
 
+        public ICollection<Recommendation> Recommendations { get; set; } = new List<Recommendation>(); // in Client
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }

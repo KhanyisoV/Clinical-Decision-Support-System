@@ -12,10 +12,9 @@ namespace FinalYearProject.Data
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<Symptom> Symptoms { get; set; }
         public DbSet<Diagnosis> Diagnoses { get; set; }
-<<<<<<< HEAD
-=======
         public DbSet<ClinicalObservation> ClinicalObservations { get; set; }
->>>>>>> master
+        public DbSet<Recommendation> Recommendations { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -54,8 +53,7 @@ namespace FinalYearProject.Data
                 .HasForeignKey(d => d.DiagnosedByDoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-<<<<<<< HEAD
-=======
+
             // Configure ClinicalObservation-Client relationship
             modelBuilder.Entity<ClinicalObservation>()
                 .HasOne(co => co.Client)
@@ -69,8 +67,20 @@ namespace FinalYearProject.Data
                 .WithMany()
                 .HasForeignKey(co => co.RecordedByDoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            
+            modelBuilder.Entity<Recommendation>()
+        .HasOne(r => r.Client)
+        .WithMany(c => c.Recommendations)
+        .HasForeignKey(r => r.ClientId)
+        .OnDelete(DeleteBehavior.Cascade);
 
->>>>>>> master
+            modelBuilder.Entity<Recommendation>()
+                .HasOne(r => r.Doctor)
+                .WithMany(d => d.RecommendationsGiven)
+                .HasForeignKey(r => r.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             base.OnModelCreating(modelBuilder);
         }
     }

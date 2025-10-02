@@ -27,6 +27,7 @@ namespace FinalYearProject.Models
         public ICollection<Client> AssignedClients { get; set; } = new List<Client>();
         public ICollection<Symptom> SymptomsAdded { get; set; } = new List<Symptom>();
         public ICollection<Diagnosis> DiagnosesMade { get; set; } = new List<Diagnosis>();
+        public ICollection<Recommendation> RecommendationsGiven { get; set; } = new List<Recommendation>(); // in Doctor
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }

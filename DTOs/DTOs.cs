@@ -328,8 +328,6 @@ namespace FinalYearProject.DTOs
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }
-<<<<<<< HEAD
-=======
 
 
     public class ClinicalObservationDto
@@ -388,6 +386,42 @@ namespace FinalYearProject.DTOs
         [Required]
         public int RecordedByDoctorId { get; set; }
     }
+    public class RecommendationDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime DateGiven { get; set; }
+        public bool IsActive { get; set; } = true;
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto Doctor { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+
+    public class RecommendationCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        [Required]
+        public string Description { get; set; } = string.Empty;
+
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        public int DoctorId { get; set; }
+    }
+
+    public class RecommendationUpdateDto
+    {
+        [MaxLength(200)]
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public bool? IsActive { get; set; }
+    }
 
     // DTO for updating an observation
     public class ClinicalObservationUpdateDto
@@ -404,5 +438,4 @@ namespace FinalYearProject.DTOs
         public string? Value { get; set; }
         public string? Notes { get; set; }
     }
->>>>>>> master
 }

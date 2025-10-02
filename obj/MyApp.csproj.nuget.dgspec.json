@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\MyApp.csproj": {}
+    "C:\\Users\\s224252941\\Downloads\\Clinical-Decision-Support-System-main\\Clinical-Decision-Support-System-main\\MyApp.csproj": {}
   },
   "projects": {
-    "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\MyApp.csproj": {
+    "C:\\Users\\s224252941\\Downloads\\Clinical-Decision-Support-System-main\\Clinical-Decision-Support-System-main\\MyApp.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\MyApp.csproj",
+        "projectUniqueName": "C:\\Users\\s224252941\\Downloads\\Clinical-Decision-Support-System-main\\Clinical-Decision-Support-System-main\\MyApp.csproj",
         "projectName": "MyApp",
-        "projectPath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\MyApp.csproj",
-        "packagesPath": "C:\\Users\\khany\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\khany\\Desktop\\BIT\\THIRD YEAR\\Clinical-Decision-Support-System-main\\MyApp\\Clinical-Decision-Support-System\\Clinical-Decision-Support-System\\obj\\",
+        "projectPath": "C:\\Users\\s224252941\\Downloads\\Clinical-Decision-Support-System-main\\Clinical-Decision-Support-System-main\\MyApp.csproj",
+        "packagesPath": "C:\\Users\\s224252941\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\s224252941\\Downloads\\Clinical-Decision-Support-System-main\\Clinical-Decision-Support-System-main\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\khany\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\s224252941\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -44,7 +44,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "9.0.300"
       },
       "frameworks": {
         "net8.0": {
@@ -100,7 +101,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.403/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
