@@ -9,6 +9,7 @@ namespace FinalYearProject.Repositories
         IEnumerable<Symptom> GetByClientId(int clientId);
         IEnumerable<Symptom> GetByDoctorId(int doctorId);
         IEnumerable<Symptom> GetActiveSymptomsByClientId(int clientId);
+        IEnumerable<Symptom> GetResolvedSymptomsByClientId(int clientId); 
         void Add(Symptom symptom);
         void Update(Symptom symptom);
         void Delete(Symptom symptom);

@@ -589,7 +589,65 @@ namespace FinalYearProject.DTOs
         public DoctorBasicDto ProvidedByDoctor { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
     }
-    
+      public class ClientHistoryDto
+    {
+        public ClientDto Client { get; set; } = null!;
+        public List<DiagnosisDto> Diagnoses { get; set; } = new();
+        public List<TreatmentDto> Treatments { get; set; } = new();
+        public List<AppointmentDto> Appointments { get; set; } = new();
+        public List<PrescriptionDto> Prescriptions { get; set; } = new();
+        public List<SymptomDto> Symptoms { get; set; } = new();
+        public List<ClinicalObservationDto> ClinicalObservations { get; set; } = new();
+        public List<RecommendationDto> Recommendations { get; set; } = new();
+        public List<ProgressDto> ProgressRecords { get; set; } = new();
+        public ClientHistorySummaryDto Summary { get; set; } = null!;
+    }
+
+    // Summary statistics
+    public class ClientHistorySummaryDto
+    {
+        public int TotalDiagnoses { get; set; }
+        public int ActiveDiagnoses { get; set; }
+        public int TotalTreatments { get; set; }
+        public int ActiveTreatments { get; set; }
+        public int TotalAppointments { get; set; }
+        public int CompletedAppointments { get; set; }
+        public int UpcomingAppointments { get; set; }
+        public int TotalPrescriptions { get; set; }
+        public int ActivePrescriptions { get; set; }
+        public int TotalSymptoms { get; set; }
+        public int ActiveSymptoms { get; set; }
+        public int TotalObservations { get; set; }
+        public int TotalRecommendations { get; set; }
+        public int TotalProgressRecords { get; set; }
+        public DateTime? LastAppointmentDate { get; set; }
+        public DateTime? NextAppointmentDate { get; set; }
+        public DateTime? LastObservationDate { get; set; }
+        public List<string> CurrentDoctors { get; set; } = new();
+    }
+
+    // Timeline event for chronological view
+    public class ClientTimelineEventDto
+    {
+        public DateTime EventDate { get; set; }
+        public string EventType { get; set; } = string.Empty; // Diagnosis, Treatment, Appointment, etc.
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string? Status { get; set; }
+        public string? DoctorName { get; set; }
+        public int? RelatedId { get; set; }
+    }
+
+    // Filtered history request
+    public class ClientHistoryFilterDto
+    {
+        public int ClientId { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public List<string>? EventTypes { get; set; } // Diagnosis, Treatment, Appointment, etc.
+        public bool IncludeInactive { get; set; } = false;
+        public int? DoctorId { get; set; }
+    }
     // Diagnosis DTOs
     public class DiagnosisDto
     {

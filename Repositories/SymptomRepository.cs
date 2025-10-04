@@ -28,6 +28,14 @@ namespace FinalYearProject.Repositories
                 .Include(s => s.AddedByDoctor)
                 .ToList();
         }
+        public IEnumerable<Symptom> GetResolvedSymptomsByClientId(int clientId)
+        {
+            return _context.Symptoms
+                .Include(s => s.Client)
+                .Include(s => s.AddedByDoctor)
+                .Where(s => s.ClientId == clientId && !s.IsActive)
+                .ToList();
+        }
 
         public IEnumerable<Symptom> GetByClientId(int clientId)
         {
