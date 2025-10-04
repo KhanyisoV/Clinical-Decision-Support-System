@@ -31,6 +31,7 @@ namespace FinalYearProject.Models
         public ICollection<Recommendation> Recommendations { get; set; } = new List<Recommendation>();
         public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
         public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
+        public ICollection<Treatment> Treatments { get; set; } = new List<Treatment>();
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }

@@ -16,7 +16,8 @@ namespace FinalYearProject.Data
         public DbSet<Recommendation> Recommendations { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<Prescription> Prescriptions { get; set; }
-        public DbSet<AppointmentHistory> AppointmentHistories { get; set; } // ADD THIS LINE
+        public DbSet<AppointmentHistory> AppointmentHistories { get; set; }
+        public DbSet<Treatment> Treatments { get; set; } // ADD THIS LINE
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -111,13 +112,48 @@ namespace FinalYearProject.Data
                 .HasForeignKey(p => p.PrescribedByDoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // ADD THESE LINES FOR APPOINTMENT HISTORY
             // Configure AppointmentHistory-Appointment relationship
             modelBuilder.Entity<AppointmentHistory>()
                 .HasOne(ah => ah.Appointment)
                 .WithMany()
                 .HasForeignKey(ah => ah.AppointmentId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ADD THESE LINES FOR TREATMENT
+            // Configure Treatment-Client relationship
+            modelBuilder.Entity<Treatment>()
+                .HasOne(t => t.Client)
+                .WithMany(c => c.Treatments)
+                .HasForeignKey(t => t.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure Treatment-Doctor relationship
+            modelBuilder.Entity<Treatment>()
+                .HasOne(t => t.ProvidedByDoctor)
+                .WithMany(d => d.TreatmentsProvided)
+                .HasForeignKey(t => t.ProvidedByDoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Treatment-Prescription relationship (optional)
+            modelBuilder.Entity<Treatment>()
+                .HasOne(t => t.Prescription)
+                .WithMany()
+                .HasForeignKey(t => t.PrescriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Treatment-NextAppointment relationship (optional)
+            modelBuilder.Entity<Treatment>()
+                .HasOne(t => t.NextAppointment)
+                .WithMany()
+                .HasForeignKey(t => t.NextAppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Treatment-Diagnosis relationship (optional)
+            modelBuilder.Entity<Treatment>()
+                .HasOne(t => t.Diagnosis)
+                .WithMany()
+                .HasForeignKey(t => t.DiagnosisId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             base.OnModelCreating(modelBuilder);
         }

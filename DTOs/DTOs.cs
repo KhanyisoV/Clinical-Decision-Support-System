@@ -409,6 +409,108 @@ namespace FinalYearProject.DTOs
         public int? DoctorId { get; set; }
     }
 
+     public class TreatmentDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string Status { get; set; } = "Active";
+        public string? TreatmentPlan { get; set; }
+        public string? Goals { get; set; }
+        public string? ProgressNotes { get; set; }
+        public int? PrescriptionId { get; set; }
+        public int? NextAppointmentId { get; set; }
+        public int? DiagnosisId { get; set; }
+        
+        // Related data
+        public PrescriptionDto? Prescription { get; set; }
+        public AppointmentDto? NextAppointment { get; set; }
+        public DiagnosisDto? Diagnosis { get; set; }
+        
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto ProvidedByDoctor { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class TreatmentCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        [Required]
+        public string Description { get; set; } = string.Empty;
+
+        [Required]
+        public DateTime StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+
+        [MaxLength(50)]
+        public string Status { get; set; } = "Active";
+
+        public string? TreatmentPlan { get; set; }
+
+        public string? Goals { get; set; }
+
+        public string? ProgressNotes { get; set; }
+
+        public int? PrescriptionId { get; set; }
+
+        public int? NextAppointmentId { get; set; }
+
+        public int? DiagnosisId { get; set; }
+
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        public int ProvidedByDoctorId { get; set; }
+    }
+
+    public class TreatmentUpdateDto
+    {
+        [MaxLength(200)]
+        public string? Title { get; set; }
+
+        public string? Description { get; set; }
+
+        public DateTime? StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+
+        [MaxLength(50)]
+        public string? Status { get; set; }
+
+        public string? TreatmentPlan { get; set; }
+
+        public string? Goals { get; set; }
+
+        public string? ProgressNotes { get; set; }
+
+        public int? PrescriptionId { get; set; }
+
+        public int? NextAppointmentId { get; set; }
+
+        public int? DiagnosisId { get; set; }
+    }
+
+    // Summary DTO for listing treatments
+    public class TreatmentSummaryDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string Status { get; set; } = "Active";
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto ProvidedByDoctor { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+    }
+
     // Diagnosis DTOs
     public class DiagnosisDto
     {

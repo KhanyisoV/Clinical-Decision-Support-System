@@ -31,6 +31,7 @@ builder.Services.AddScoped<IRecommendationRepository, RecommendationRepository>(
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<IPrescriptionRepository, PrescriptionRepository>();
 builder.Services.AddScoped<IAppointmentHistoryRepository, AppointmentHistoryRepository>();
+builder.Services.AddScoped<ITreatmentRepository, TreatmentRepository>();
 
 
 
