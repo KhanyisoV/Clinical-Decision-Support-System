@@ -23,19 +23,15 @@ namespace FinalYearProject.Models
         public string? Email { get; set; }
         public DateTime? DateOfBirth { get; set; }
 
-        // Foreign key for assigned doctor (nullable)
         public int? AssignedDoctorId { get; set; }
-
-        // Navigation property - made nullable to fix warning
         public Doctor? AssignedDoctor { get; set; }
 
-        // Navigation property for symptoms
         public ICollection<Symptom> Symptoms { get; set; } = new List<Symptom>();
-
-        // Navigation property for diagnoses
         public ICollection<Diagnosis> Diagnoses { get; set; } = new List<Diagnosis>();
+        public ICollection<Recommendation> Recommendations { get; set; } = new List<Recommendation>();
+        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+        public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
 
-        public ICollection<Recommendation> Recommendations { get; set; } = new List<Recommendation>(); // in Client
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
     }

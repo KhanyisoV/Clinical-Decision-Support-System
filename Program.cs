@@ -28,6 +28,9 @@ builder.Services.AddScoped<ISymptomRepository, SymptomRepository>();
 builder.Services.AddScoped<IDiagnosisRepository, DiagnosisRepository>();
 builder.Services.AddScoped<IClinicalObservationRepository, ClinicalObservationRepository>();
 builder.Services.AddScoped<IRecommendationRepository, RecommendationRepository>();
+builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+builder.Services.AddScoped<IPrescriptionRepository, PrescriptionRepository>();
+builder.Services.AddScoped<IAppointmentHistoryRepository, AppointmentHistoryRepository>();
 
 
 

@@ -219,6 +219,196 @@ namespace FinalYearProject.DTOs
         public string? Notes { get; set; }
     }
 
+     public class PrescriptionDto
+    {
+        public int Id { get; set; }
+        public string MedicationName { get; set; } = string.Empty;
+        public string Dosage { get; set; } = string.Empty;
+        public string Frequency { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? Instructions { get; set; }
+        public string? Notes { get; set; }
+        public string Status { get; set; } = "Active";
+        public bool IsActive { get; set; }
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto PrescribedByDoctor { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class PrescriptionCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        public string MedicationName { get; set; } = string.Empty;
+
+        [Required]
+        public string Dosage { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string Frequency { get; set; } = string.Empty;
+
+        [Required]
+        public DateTime StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+
+        public string? Instructions { get; set; }
+
+        public string? Notes { get; set; }
+
+        [MaxLength(50)]
+        public string Status { get; set; } = "Active";
+
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        public int PrescribedByDoctorId { get; set; }
+    }
+
+    public class PrescriptionUpdateDto
+    {
+        [MaxLength(200)]
+        public string? MedicationName { get; set; }
+
+        public string? Dosage { get; set; }
+
+        [MaxLength(100)]
+        public string? Frequency { get; set; }
+
+        public DateTime? StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+
+        public string? Instructions { get; set; }
+
+        public string? Notes { get; set; }
+
+        [MaxLength(50)]
+        public string? Status { get; set; }
+
+        public bool? IsActive { get; set; }
+    }
+    public class AppointmentHistoryDto
+    {
+        public int Id { get; set; }
+        public int AppointmentId { get; set; }
+        public string AppointmentTitle { get; set; } = string.Empty;
+        public DateTime AppointmentDate { get; set; }
+        public string PreviousStatus { get; set; } = string.Empty;
+        public string NewStatus { get; set; } = string.Empty;
+        public string? ChangeReason { get; set; }
+        public string? Notes { get; set; }
+        public string ChangedBy { get; set; } = string.Empty;
+        public string ChangedByRole { get; set; } = string.Empty;
+        public DateTime ChangedAt { get; set; }
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto Doctor { get; set; } = null!;
+    }
+
+    public class AppointmentHistoryCreateDto
+    {
+        [Required]
+        public int AppointmentId { get; set; }
+
+        [Required]
+        [MaxLength(50)]
+        public string PreviousStatus { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(50)]
+        public string NewStatus { get; set; } = string.Empty;
+
+        public string? ChangeReason { get; set; }
+
+        public string? Notes { get; set; }
+    }
+
+    // Extended DTO for viewing appointment with its history
+    public class AppointmentWithHistoryDto
+    {
+        public AppointmentDto Appointment { get; set; } = null!;
+        public List<AppointmentHistoryDto> History { get; set; } = new List<AppointmentHistoryDto>();
+    }
+
+    public class AppointmentDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public DateTime AppointmentDate { get; set; }
+        public TimeSpan StartTime { get; set; }
+        public TimeSpan EndTime { get; set; }
+        public string Status { get; set; } = "Scheduled";
+        public string? Location { get; set; }
+        public string? Notes { get; set; }
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto Doctor { get; set; } = null!;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class AppointmentCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        [Required]
+        public DateTime AppointmentDate { get; set; }
+
+        [Required]
+        public TimeSpan StartTime { get; set; }
+
+        [Required]
+        public TimeSpan EndTime { get; set; }
+
+        [MaxLength(50)]
+        public string Status { get; set; } = "Scheduled";
+
+        [MaxLength(100)]
+        public string? Location { get; set; }
+
+        public string? Notes { get; set; }
+
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        public int DoctorId { get; set; }
+    }
+
+    public class AppointmentUpdateDto
+    {
+        [MaxLength(200)]
+        public string? Title { get; set; }
+
+        public string? Description { get; set; }
+
+        public DateTime? AppointmentDate { get; set; }
+
+        public TimeSpan? StartTime { get; set; }
+
+        public TimeSpan? EndTime { get; set; }
+
+        [MaxLength(50)]
+        public string? Status { get; set; }
+
+        [MaxLength(100)]
+        public string? Location { get; set; }
+
+        public string? Notes { get; set; }
+
+        public int? ClientId { get; set; }
+
+        public int? DoctorId { get; set; }
+    }
+
     // Diagnosis DTOs
     public class DiagnosisDto
     {

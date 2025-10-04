@@ -134,6 +134,78 @@ namespace FinalYearProject.Controllers
             }
         }
 
+        // Add this method to your AdminController to include appointment statistics
+
+        [HttpGet("dashboard/stats")]
+        public async Task<IActionResult> GetDashboardStats()
+        {
+            try
+            {
+                var today = DateTime.UtcNow.Date;
+                var thisWeek = today.AddDays(-7);
+                var thisMonth = today.AddDays(-30);
+
+                var stats = new
+                {
+                    TotalClients = await _db.Clients.CountAsync(),
+                    TotalDoctors = await _db.Doctors.CountAsync(),
+                    TotalAdmins = await _db.Admins.CountAsync(),
+                    ActiveDiagnoses = await _db.Diagnoses.CountAsync(d => d.IsActive),
+                    RecentRegistrations = await _db.Clients
+                        .Where(c => c.CreatedAt >= thisMonth)
+                        .CountAsync(),
+                    
+                    // Appointment Statistics
+                    TotalAppointments = await _db.Appointments.CountAsync(),
+                    UpcomingAppointments = await _db.Appointments
+                        .CountAsync(a => a.AppointmentDate >= today && a.Status == "Scheduled"),
+                    TodaysAppointments = await _db.Appointments
+                        .CountAsync(a => a.AppointmentDate.Date == today && a.Status == "Scheduled"),
+                    CompletedAppointmentsThisWeek = await _db.Appointments
+                        .CountAsync(a => a.AppointmentDate >= thisWeek && a.Status == "Completed"),
+                    CancelledAppointmentsThisMonth = await _db.Appointments
+                        .CountAsync(a => a.AppointmentDate >= thisMonth && a.Status == "Cancelled"),
+                    
+                    // Recent Appointments
+                    RecentAppointments = await _db.Appointments
+                        .Include(a => a.Client)
+                        .Include(a => a.Doctor)
+                        .Where(a => a.AppointmentDate >= today)
+                        .OrderBy(a => a.AppointmentDate)
+                        .ThenBy(a => a.StartTime)
+                        .Take(5)
+                        .Select(a => new
+                        {
+                            a.Id,
+                            a.Title,
+                            a.AppointmentDate,
+                            a.StartTime,
+                            a.Status,
+                            ClientName = $"{a.Client.FirstName} {a.Client.LastName}",
+                            DoctorName = $"{a.Doctor.FirstName} {a.Doctor.LastName}"
+                        })
+                        .ToListAsync()
+                };
+
+                return Ok(new ApiResponseDto<object>
+                {
+                    Success = true,
+                    Data = stats,
+                    Message = "Dashboard statistics retrieved successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving dashboard statistics",
+                    Errors = new List<string> { ex.Message }
+                });
+            }
+        }
+
+
         // Client Management
         [HttpGet("clients")]
         public async Task<IActionResult> GetAllClients()
@@ -574,39 +646,6 @@ namespace FinalYearProject.Controllers
             }
         }
 
-        // Dashboard Statistics
-        [HttpGet("dashboard/stats")]
-        public async Task<IActionResult> GetDashboardStats()
-        {
-            try
-            {
-                var stats = new
-                {
-                    TotalClients = await _db.Clients.CountAsync(),
-                    TotalDoctors = await _db.Doctors.CountAsync(),
-                    TotalAdmins = await _db.Admins.CountAsync(),
-                    ActiveDiagnoses = await _db.Diagnoses.CountAsync(d => d.IsActive),
-                    RecentRegistrations = await _db.Clients
-                        .Where(c => c.CreatedAt >= DateTime.UtcNow.AddDays(-30))
-                        .CountAsync()
-                };
-
-                return Ok(new ApiResponseDto<object>
-                {
-                    Success = true,
-                    Data = stats,
-                    Message = "Dashboard statistics retrieved successfully"
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while retrieving dashboard statistics",
-                    Errors = new List<string> { ex.Message }
-                });
-            }
-        }
+        
     }
 }

@@ -1,55 +1,62 @@
-﻿using FinalYearProject.Models;
-using FinalYearProject.Data;
+﻿using FinalYearProject.Data;
+using FinalYearProject.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FinalYearProject.Repositories
 {
+    public interface IDoctorRepository
+    {
+        IEnumerable<Doctor> GetAll();
+        Doctor? GetById(int id);
+        Doctor? GetByUserName(string username);
+        void Add(Doctor doctor);
+        void Update(Doctor doctor);
+        void Delete(Doctor doctor);
+        void Save();
+    }
+
     public class DoctorRepository : IDoctorRepository
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext _db;
 
-        public DoctorRepository(AppDbContext context)
+        public DoctorRepository(AppDbContext db)
         {
-            _context = context;
-        }
-
-        public Doctor? GetByUserName(string username)
-        {
-            return _context.Doctors
-                .FirstOrDefault(d => d.UserName == username);
-        }
-
-        public Doctor? GetById(int id)
-        {
-            return _context.Doctors
-                .FirstOrDefault(d => d.Id == id);
+            _db = db;
         }
 
         public IEnumerable<Doctor> GetAll()
         {
-            return _context.Doctors.ToList();
+            return _db.Doctors.ToList();
+        }
+
+        public Doctor? GetById(int id)
+        {
+            return _db.Doctors.Find(id);
+        }
+
+        public Doctor? GetByUserName(string username)
+        {
+            return _db.Doctors.FirstOrDefault(d => d.UserName == username);
         }
 
         public void Add(Doctor doctor)
         {
-            // CreatedAt is set automatically by the model's default value
-            _context.Doctors.Add(doctor);
+            _db.Doctors.Add(doctor);
         }
 
         public void Update(Doctor doctor)
         {
-            doctor.UpdatedAt = DateTime.UtcNow;
-            _context.Doctors.Update(doctor);
+            _db.Doctors.Update(doctor);
         }
 
         public void Delete(Doctor doctor)
         {
-            _context.Doctors.Remove(doctor);
+            _db.Doctors.Remove(doctor);
         }
 
         public void Save()
         {
-            _context.SaveChanges();
+            _db.SaveChanges();
         }
     }
 }
