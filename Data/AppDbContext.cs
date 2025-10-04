@@ -14,7 +14,9 @@ namespace FinalYearProject.Data
         public DbSet<Diagnosis> Diagnoses { get; set; }
         public DbSet<ClinicalObservation> ClinicalObservations { get; set; }
         public DbSet<Recommendation> Recommendations { get; set; }
-
+        public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<Prescription> Prescriptions { get; set; }
+        public DbSet<AppointmentHistory> AppointmentHistories { get; set; } // ADD THIS LINE
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -53,7 +55,6 @@ namespace FinalYearProject.Data
                 .HasForeignKey(d => d.DiagnosedByDoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
             // Configure ClinicalObservation-Client relationship
             modelBuilder.Entity<ClinicalObservation>()
                 .HasOne(co => co.Client)
@@ -68,18 +69,55 @@ namespace FinalYearProject.Data
                 .HasForeignKey(co => co.RecordedByDoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
             
-            
+            // Configure Recommendation-Client relationship
             modelBuilder.Entity<Recommendation>()
-        .HasOne(r => r.Client)
-        .WithMany(c => c.Recommendations)
-        .HasForeignKey(r => r.ClientId)
-        .OnDelete(DeleteBehavior.Cascade);
+                .HasOne(r => r.Client)
+                .WithMany(c => c.Recommendations)
+                .HasForeignKey(r => r.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
 
+            // Configure Recommendation-Doctor relationship
             modelBuilder.Entity<Recommendation>()
                 .HasOne(r => r.Doctor)
                 .WithMany(d => d.RecommendationsGiven)
                 .HasForeignKey(r => r.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Appointment-Client relationship
+            modelBuilder.Entity<Appointment>()
+                .HasOne(a => a.Client)
+                .WithMany(c => c.Appointments)
+                .HasForeignKey(a => a.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure Appointment-Doctor relationship
+            modelBuilder.Entity<Appointment>()
+                .HasOne(a => a.Doctor)
+                .WithMany(d => d.Appointments)
+                .HasForeignKey(a => a.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Prescription-Client relationship
+            modelBuilder.Entity<Prescription>()
+                .HasOne(p => p.Client)
+                .WithMany(c => c.Prescriptions)
+                .HasForeignKey(p => p.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure Prescription-Doctor relationship
+            modelBuilder.Entity<Prescription>()
+                .HasOne(p => p.PrescribedByDoctor)
+                .WithMany(d => d.PrescriptionsGiven)
+                .HasForeignKey(p => p.PrescribedByDoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ADD THESE LINES FOR APPOINTMENT HISTORY
+            // Configure AppointmentHistory-Appointment relationship
+            modelBuilder.Entity<AppointmentHistory>()
+                .HasOne(ah => ah.Appointment)
+                .WithMany()
+                .HasForeignKey(ah => ah.AppointmentId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             base.OnModelCreating(modelBuilder);
         }

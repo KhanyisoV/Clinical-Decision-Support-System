@@ -15,7 +15,7 @@ namespace FinalYearProject.Models
         public string PasswordHash { get; set; } = string.Empty;
 
         [Required]
-        public string Role { get; set; } = "Doctor"; // Required by IUser interface
+        public string Role { get; set; } = "Doctor";
 
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
@@ -27,7 +27,9 @@ namespace FinalYearProject.Models
         public ICollection<Client> AssignedClients { get; set; } = new List<Client>();
         public ICollection<Symptom> SymptomsAdded { get; set; } = new List<Symptom>();
         public ICollection<Diagnosis> DiagnosesMade { get; set; } = new List<Diagnosis>();
-        public ICollection<Recommendation> RecommendationsGiven { get; set; } = new List<Recommendation>(); // in Doctor
+        public ICollection<Recommendation> RecommendationsGiven { get; set; } = new List<Recommendation>();
+        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+        public ICollection<Prescription> PrescriptionsGiven { get; set; } = new List<Prescription>(); 
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
