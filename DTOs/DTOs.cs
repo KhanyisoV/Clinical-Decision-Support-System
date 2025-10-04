@@ -498,6 +498,85 @@ namespace FinalYearProject.DTOs
         public int? DiagnosisId { get; set; }
     }
 
+    public class ProgressDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+        public DateTime DateRecorded { get; set; }
+        public string ProgressStatus { get; set; } = "In Progress";
+        public string? Observations { get; set; }
+        public string? Recommendations { get; set; }
+        
+        // Foreign keys
+        public int ClientId { get; set; }
+        public int RecordedByDoctorId { get; set; }
+        public int? DiagnosisId { get; set; }
+        public int? TreatmentId { get; set; }
+        
+        // Navigation properties for display
+        public ClientBasicDto Client { get; set; } = null!;
+        public DoctorBasicDto RecordedByDoctor { get; set; } = null!;
+        public DiagnosisDto? Diagnosis { get; set; }
+        public TreatmentSummaryDto? Treatment { get; set; }
+        
+        // Alternative names for backward compatibility
+        public string ClientName { get; set; } = string.Empty;
+        public string DoctorName { get; set; } = string.Empty;
+        public string? DiagnosisName { get; set; }
+        public string? TreatmentName { get; set; }
+        
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+    public class ProgressCreateDto
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+        
+        [Required]
+        public string Notes { get; set; } = string.Empty;
+        
+        [Required]
+        public DateTime DateRecorded { get; set; }
+        
+        [Required]
+        [MaxLength(50)]
+        public string ProgressStatus { get; set; } = "In Progress";
+        
+        public string? Observations { get; set; }
+        public string? Recommendations { get; set; }
+        
+        [Required]
+        public int ClientId { get; set; }
+        
+        [Required]
+        public int RecordedByDoctorId { get; set; }
+        
+        public int? DiagnosisId { get; set; }
+        public int? TreatmentId { get; set; }
+    }
+
+    public class ProgressUpdateDto
+    {
+        [MaxLength(200)]
+        public string? Title { get; set; }
+        
+        public string? Notes { get; set; }
+        
+        public DateTime? DateRecorded { get; set; }
+        
+        [MaxLength(50)]
+        public string? ProgressStatus { get; set; }
+        
+        public string? Observations { get; set; }
+        public string? Recommendations { get; set; }
+        
+        public int? DiagnosisId { get; set; }
+        public int? TreatmentId { get; set; }
+    }
+
     // Summary DTO for listing treatments
     public class TreatmentSummaryDto
     {
@@ -510,7 +589,7 @@ namespace FinalYearProject.DTOs
         public DoctorBasicDto ProvidedByDoctor { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
     }
-
+    
     // Diagnosis DTOs
     public class DiagnosisDto
     {

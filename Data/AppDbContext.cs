@@ -17,7 +17,8 @@ namespace FinalYearProject.Data
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<Prescription> Prescriptions { get; set; }
         public DbSet<AppointmentHistory> AppointmentHistories { get; set; }
-        public DbSet<Treatment> Treatments { get; set; } // ADD THIS LINE
+        public DbSet<Treatment> Treatments { get; set; }
+        public DbSet<Progress> Progresses { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
