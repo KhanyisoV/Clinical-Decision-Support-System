@@ -22,9 +22,17 @@ namespace FinalYearProject.Data
         public DbSet<LabResult> LabResults { get; set; }
         public DbSet<Allergy> Allergies { get; set; }
         public DbSet<MLPrediction> MLPredictions { get; set; }
+        public DbSet<PredictionHistory> PredictionHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
+            // Configure PredictionHistory relationships to avoid cascade conflicts
+            modelBuilder.Entity<PredictionHistory>()
+                .HasOne(ph => ph.MLPrediction)
+                .WithMany()
+                .HasForeignKey(ph => ph.MLPredictionId)
+                .OnDelete(DeleteBehavior.NoAction); // Changed from Cascade
              modelBuilder.Entity<Allergy>()
                 .HasOne(a => a.Client)
                 .WithMany()

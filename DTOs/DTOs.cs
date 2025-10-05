@@ -960,9 +960,76 @@ namespace FinalYearProject.DTOs
         [MaxLength(200)]
         public string? PerformedBy { get; set; }
     }
+     public class PredictionHistoryDto
+    {
+        public int Id { get; set; }
+        public int MLPredictionId { get; set; }
+        public int ClientId { get; set; }
+        public string ClientName { get; set; } = string.Empty;
+        public string PredictedDiagnosis { get; set; } = string.Empty;
+        public double ConfidenceScore { get; set; }
+        public string? Symptoms { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int? ActualDiagnosisId { get; set; }
+        public string? ActualDiagnosisName { get; set; }
+        public bool WasAccurate { get; set; }
+        public string? Notes { get; set; }
+        public DateTime PredictedAt { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public string? ReviewedByDoctorName { get; set; }
+    }
 
+    public class PredictionHistoryCreateDto
+    {
+        [Required]
+        public int MLPredictionId { get; set; }
 
-    
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string PredictedDiagnosis { get; set; } = string.Empty;
+
+        [Required]
+        [Range(0, 1)]
+        public double ConfidenceScore { get; set; }
+
+        [MaxLength(500)]
+        public string? Symptoms { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+    }
+
+    public class PredictionHistoryUpdateDto
+    {
+        [MaxLength(50)]
+        public string? Status { get; set; }
+
+        public int? ActualDiagnosisId { get; set; }
+
+        [MaxLength(200)]
+        public string? ActualDiagnosisName { get; set; }
+
+        public bool? WasAccurate { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+    }
+
+    public class PredictionAccuracyStatsDto
+    {
+        public int TotalPredictions { get; set; }
+        public int ReviewedPredictions { get; set; }
+        public int AccuratePredictions { get; set; }
+        public int InaccuratePredictions { get; set; }
+        public double AccuracyRate { get; set; }
+        public Dictionary<string, int> PredictionsByStatus { get; set; } = new();
+        public Dictionary<string, int> TopPredictedConditions { get; set; } = new();
+    }
+
+   
     public class MLPredictionDto
     {
         public int Id { get; set; }
@@ -1010,7 +1077,7 @@ namespace FinalYearProject.DTOs
         public int? DiagnosisId { get; set; }
     }
 
-    
+
      public class AllergyDto
     {
         public int Id { get; set; }
