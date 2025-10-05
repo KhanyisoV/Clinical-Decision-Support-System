@@ -19,9 +19,27 @@ namespace FinalYearProject.Data
         public DbSet<AppointmentHistory> AppointmentHistories { get; set; }
         public DbSet<Treatment> Treatments { get; set; }
         public DbSet<Progress> Progresses { get; set; }
+        public DbSet<LabResult> LabResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            //Configure LabResult relationships
+            modelBuilder.Entity<LabResult>()
+                .HasOne(lr => lr.Client)
+                .WithMany()
+                .HasForeignKey(lr => lr.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Add indexes for better query performance
+            modelBuilder.Entity<LabResult>()
+                .HasIndex(lr => lr.ClientId);
+
+            modelBuilder.Entity<LabResult>()
+                .HasIndex(lr => lr.TestDate);
+
+            modelBuilder.Entity<LabResult>()
+                .HasIndex(lr => lr.Status);
+
             // Configure Client-Doctor relationship
             modelBuilder.Entity<Client>()
                 .HasOne(c => c.AssignedDoctor)

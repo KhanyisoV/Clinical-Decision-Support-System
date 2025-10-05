@@ -907,7 +907,88 @@ namespace FinalYearProject.DTOs
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }
+ public class LabResultDto
+    {
+        public int Id { get; set; }
+        public int ClientId { get; set; }
+        public string ClientName { get; set; } = string.Empty;
+        public string TestName { get; set; } = string.Empty;
+        public string TestType { get; set; } = string.Empty;
+        public DateTime TestDate { get; set; }
+        public string Result { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+        public string ReferenceRange { get; set; } = string.Empty;
+        public bool IsAbnormal { get; set; }
+        public string? PerformedBy { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string CreatedByAdmin { get; set; } = string.Empty;
+    }
 
+    // DTO for creating a new lab result (Admin only)
+    public class LabResultCreateDto
+    {
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string TestName { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string TestType { get; set; } = string.Empty;
+
+        [Required]
+        public DateTime TestDate { get; set; }
+
+        [MaxLength(500)]
+        public string Result { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string Status { get; set; } = "Pending";
+
+        [MaxLength(1000)]
+        public string Notes { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string ReferenceRange { get; set; } = string.Empty;
+
+        public bool IsAbnormal { get; set; } = false;
+
+        [MaxLength(200)]
+        public string? PerformedBy { get; set; }
+    }
+
+    // DTO for updating a lab result (Admin only)
+    public class LabResultUpdateDto
+    {
+        [MaxLength(200)]
+        public string? TestName { get; set; }
+
+        [MaxLength(100)]
+        public string? TestType { get; set; }
+
+        public DateTime? TestDate { get; set; }
+
+        [MaxLength(500)]
+        public string? Result { get; set; }
+
+        [MaxLength(100)]
+        public string? Status { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+
+        [MaxLength(100)]
+        public string? ReferenceRange { get; set; }
+
+        public bool? IsAbnormal { get; set; }
+
+        [MaxLength(200)]
+        public string? PerformedBy { get; set; }
+    }
 
     public class ClinicalObservationDto
     {
