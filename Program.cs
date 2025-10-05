@@ -21,6 +21,7 @@ builder.Services.AddSingleton<IPasswordHasher<Doctor>, PasswordHasher<Doctor>>()
 
 
 // Repository
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IDoctorRepository, DoctorRepository>();
@@ -33,6 +34,8 @@ builder.Services.AddScoped<IPrescriptionRepository, PrescriptionRepository>();
 builder.Services.AddScoped<IAppointmentHistoryRepository, AppointmentHistoryRepository>();
 builder.Services.AddScoped<ITreatmentRepository, TreatmentRepository>();
 builder.Services.AddScoped<IProgressRepository, ProgressRepository>();
+
+
 builder.Services.AddScoped<IClientHistoryService, ClientHistoryService>();
 
 

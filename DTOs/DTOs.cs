@@ -716,7 +716,157 @@ namespace FinalYearProject.DTOs
         public bool? IsActive { get; set; }
         public DateTime? DateResolved { get; set; }
     }
+     public class ClientAnalyticsDto
+    {
+        public int ClientId { get; set; }
+        public string ClientName { get; set; } = string.Empty;
+        public DateTime AnalysisPeriodStart { get; set; }
+        public DateTime AnalysisPeriodEnd { get; set; }
+        
+        public ClinicalObservationTrendsDto ClinicalObservationTrends { get; set; } = new();
+        public SymptomAnalyticsDto SymptomAnalytics { get; set; } = new();
+        public AppointmentAnalyticsDto AppointmentAnalytics { get; set; } = new();
+        public TreatmentProgressDto TreatmentProgress { get; set; } = new();
+        public OverallHealthScoreDto HealthScore { get; set; } = new();
+    }
 
+    // Clinical Observations Trends
+    public class ClinicalObservationTrendsDto
+    {
+        public List<DataPointDto> WeightTrend { get; set; } = new();
+        public List<DataPointDto> HeightTrend { get; set; } = new();
+        public List<DataPointDto> BloodPressureSystolicTrend { get; set; } = new();
+        public List<DataPointDto> BloodPressureDiastolicTrend { get; set; } = new();
+        public List<DataPointDto> HeartRateTrend { get; set; } = new();
+        public List<DataPointDto> BMITrend { get; set; } = new();
+        
+        public VitalStatisticsDto WeightStats { get; set; } = new();
+        public VitalStatisticsDto HeartRateStats { get; set; } = new();
+        public VitalStatisticsDto BMIStats { get; set; } = new();
+    }
+
+    // Symptom Analytics
+    public class SymptomAnalyticsDto
+    {
+        public int TotalSymptoms { get; set; }
+        public int ActiveSymptoms { get; set; }
+        public int ResolvedSymptoms { get; set; }
+        public double ResolutionRate { get; set; }
+        public double AverageResolutionTimeInDays { get; set; }
+        
+        public List<SymptomTrendDto> SymptomIntensityTrends { get; set; } = new();
+        public List<SymptomCategoryDto> SymptomsByCategory { get; set; } = new();
+        public List<SymptomFrequencyDto> MostCommonSymptoms { get; set; } = new();
+    }
+
+    public class SymptomTrendDto
+    {
+        public string SymptomName { get; set; } = string.Empty;
+        public List<DataPointDto> IntensityOverTime { get; set; } = new();
+        public string Status { get; set; } = string.Empty;
+    }
+
+    public class SymptomCategoryDto
+    {
+        public string Category { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public double Percentage { get; set; }
+    }
+
+    public class SymptomFrequencyDto
+    {
+        public string SymptomName { get; set; } = string.Empty;
+        public int Occurrences { get; set; }
+        public double AverageSeverity { get; set; }
+    }
+
+    // Appointment Analytics
+    public class AppointmentAnalyticsDto
+    {
+        public int TotalAppointments { get; set; }
+        public int CompletedAppointments { get; set; }
+        public int CancelledAppointments { get; set; }
+        public int MissedAppointments { get; set; }
+        public double AttendanceRate { get; set; }
+        
+        public List<DataPointDto> AppointmentFrequency { get; set; } = new();
+        public List<AppointmentTypeDistributionDto> AppointmentsByType { get; set; } = new();
+        public double AverageDaysBetweenAppointments { get; set; }
+        public DateTime? NextScheduledAppointment { get; set; }
+    }
+
+    public class AppointmentTypeDistributionDto
+    {
+        public string Type { get; set; } = string.Empty;
+        public int Count { get; set; }
+        public double Percentage { get; set; }
+    }
+
+    // Treatment Progress
+    public class TreatmentProgressDto
+    {
+        public int ActiveTreatments { get; set; }
+        public int CompletedTreatments { get; set; }
+        public double CompletionRate { get; set; }
+        
+        public List<TreatmentProgressItemDto> TreatmentProgressItems { get; set; } = new();
+        public List<DataPointDto> OverallProgressTrend { get; set; } = new();
+    }
+
+    public class TreatmentProgressItemDto
+    {
+        public int TreatmentId { get; set; }
+        public string TreatmentName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public int ProgressPercentage { get; set; }
+        public List<DataPointDto> ProgressHistory { get; set; } = new();
+    }
+
+    // Overall Health Score
+    public class OverallHealthScoreDto
+    {
+        public int CurrentScore { get; set; }
+        public int PreviousScore { get; set; }
+        public int ScoreChange { get; set; }
+        public string Trend { get; set; } = "Stable"; // Improving, Declining, Stable
+        public List<HealthFactorDto> Factors { get; set; } = new();
+    }
+
+    public class HealthFactorDto
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Score { get; set; }
+        public string Impact { get; set; } = string.Empty; // Positive, Negative, Neutral
+    }
+
+    // Generic data point for charts
+    public class DataPointDto
+    {
+        public DateTime Date { get; set; }
+        public double Value { get; set; }
+        public string? Label { get; set; }
+        public string? Category { get; set; }
+    }
+
+    // Vital statistics
+    public class VitalStatisticsDto
+    {
+        public double Current { get; set; }
+        public double Average { get; set; }
+        public double Min { get; set; }
+        public double Max { get; set; }
+        public double Change { get; set; }
+        public string Trend { get; set; } = "Stable"; // Increasing, Decreasing, Stable
+    }
+
+        // Analytics filter
+    public class AnalyticsFilterDto
+    {
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? GroupBy { get; set; } // Daily, Weekly, Monthly
+        public List<string>? MetricTypes { get; set; }
+    }
     // Authentication DTOs
     public class LoginDto
     {
