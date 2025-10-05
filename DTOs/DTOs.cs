@@ -960,6 +960,83 @@ namespace FinalYearProject.DTOs
         [MaxLength(200)]
         public string? PerformedBy { get; set; }
     }
+     public class AllergyDto
+    {
+        public int Id { get; set; }
+        public int ClientId { get; set; }
+        public string ClientName { get; set; } = string.Empty;
+        public string AllergyName { get; set; } = string.Empty;
+        public string AllergyType { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
+        public string Reaction { get; set; } = string.Empty;
+        public string Notes { get; set; } = string.Empty;
+        public DateTime DiagnosedDate { get; set; }
+        public bool IsActive { get; set; }
+        public string? Treatment { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public string CreatedByRole { get; set; } = string.Empty;
+    }
+
+    // DTO for creating a new allergy (Client and Doctor only)
+    public class AllergyCreateDto
+    {
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string AllergyName { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string AllergyType { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(50)]
+        public string Severity { get; set; } = "Mild";
+
+        [MaxLength(500)]
+        public string Reaction { get; set; } = string.Empty;
+
+        [MaxLength(1000)]
+        public string Notes { get; set; } = string.Empty;
+
+        [Required]
+        public DateTime DiagnosedDate { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
+        [MaxLength(200)]
+        public string? Treatment { get; set; }
+    }
+
+    // DTO for updating an allergy (Client and Doctor only)
+    public class AllergyUpdateDto
+    {
+        [MaxLength(200)]
+        public string? AllergyName { get; set; }
+
+        [MaxLength(100)]
+        public string? AllergyType { get; set; }
+
+        [MaxLength(50)]
+        public string? Severity { get; set; }
+
+        [MaxLength(500)]
+        public string? Reaction { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+
+        public DateTime? DiagnosedDate { get; set; }
+
+        public bool? IsActive { get; set; }
+
+        [MaxLength(200)]
+        public string? Treatment { get; set; }
+    }
 
     // DTO for updating a lab result (Admin only)
     public class LabResultUpdateDto

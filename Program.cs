@@ -35,6 +35,7 @@ builder.Services.AddScoped<IAppointmentHistoryRepository, AppointmentHistoryRepo
 builder.Services.AddScoped<ITreatmentRepository, TreatmentRepository>();
 builder.Services.AddScoped<IProgressRepository, ProgressRepository>();
 builder.Services.AddScoped<ILabResultRepository, LabResultRepository>();
+builder.Services.AddScoped<IAllergyRepository, AllergyRepository>();
 
 
 builder.Services.AddScoped<IClientHistoryService, ClientHistoryService>();

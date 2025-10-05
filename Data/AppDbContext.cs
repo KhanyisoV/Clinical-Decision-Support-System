@@ -20,9 +20,32 @@ namespace FinalYearProject.Data
         public DbSet<Treatment> Treatments { get; set; }
         public DbSet<Progress> Progresses { get; set; }
         public DbSet<LabResult> LabResults { get; set; }
+        public DbSet<Allergy> Allergies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+             modelBuilder.Entity<Allergy>()
+                .HasOne(a => a.Client)
+                .WithMany()
+                .HasForeignKey(a => a.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Add indexes for better query performance
+            modelBuilder.Entity<Allergy>()
+                .HasIndex(a => a.ClientId);
+
+            modelBuilder.Entity<Allergy>()
+                .HasIndex(a => a.AllergyType);
+
+            modelBuilder.Entity<Allergy>()
+                .HasIndex(a => a.Severity);
+
+            modelBuilder.Entity<Allergy>()
+                .HasIndex(a => a.IsActive);
+
+            modelBuilder.Entity<Allergy>()
+                .HasIndex(a => a.DiagnosedDate);
+                
             //Configure LabResult relationships
             modelBuilder.Entity<LabResult>()
                 .HasOne(lr => lr.Client)
