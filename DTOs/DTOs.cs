@@ -960,6 +960,57 @@ namespace FinalYearProject.DTOs
         [MaxLength(200)]
         public string? PerformedBy { get; set; }
     }
+
+
+    
+    public class MLPredictionDto
+    {
+        public int Id { get; set; }
+        public int ClientId { get; set; }
+        public string ClientName { get; set; } = string.Empty;
+        public string PredictedDiagnosis { get; set; } = string.Empty;
+        public double ConfidenceScore { get; set; }
+        public string? Symptoms { get; set; }
+        public string? AdditionalNotes { get; set; }
+        public bool IsReviewedByDoctor { get; set; }
+        public string? ReviewedByDoctorName { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public string? DoctorFeedback { get; set; }
+        public int? DiagnosisId { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class MLPredictionCreateDto
+    {
+        [Required]
+        public int ClientId { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string PredictedDiagnosis { get; set; } = string.Empty;
+
+        [Required]
+        [Range(0, 1)]
+        public double ConfidenceScore { get; set; }
+
+        [MaxLength(500)]
+        public string? Symptoms { get; set; }
+
+        [MaxLength(1000)]
+        public string? AdditionalNotes { get; set; }
+    }
+
+    public class MLPredictionReviewDto
+    {
+        [Required]
+        [MaxLength(500)]
+        public string DoctorFeedback { get; set; } = string.Empty;
+
+        public int? DiagnosisId { get; set; }
+    }
+
+    
      public class AllergyDto
     {
         public int Id { get; set; }

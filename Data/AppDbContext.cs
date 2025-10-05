@@ -21,6 +21,7 @@ namespace FinalYearProject.Data
         public DbSet<Progress> Progresses { get; set; }
         public DbSet<LabResult> LabResults { get; set; }
         public DbSet<Allergy> Allergies { get; set; }
+        public DbSet<MLPrediction> MLPredictions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -45,7 +46,7 @@ namespace FinalYearProject.Data
 
             modelBuilder.Entity<Allergy>()
                 .HasIndex(a => a.DiagnosedDate);
-                
+
             //Configure LabResult relationships
             modelBuilder.Entity<LabResult>()
                 .HasOne(lr => lr.Client)
