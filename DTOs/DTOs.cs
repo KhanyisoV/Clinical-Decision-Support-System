@@ -64,12 +64,11 @@ namespace FinalYearProject.DTOs
     public class ClientCreateDto
     {
         [Required]
-        [MaxLength(100)]
-        public string UserName { get; set; } = string.Empty;
+        public string UserName { get; set; }
         
         [Required]
         [MinLength(6)]
-        public string Password { get; set; } = string.Empty;
+        public string Password { get; set; }
         
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
@@ -78,7 +77,8 @@ namespace FinalYearProject.DTOs
         public string? Email { get; set; }
         
         public DateTime? DateOfBirth { get; set; }
-        public int? AssignedDoctorId { get; set; }
+        
+        public int? AssignedDoctorId { get; set; } // This should be int?, not string
     }
 
     public class ClientUpdateDto
@@ -110,8 +110,9 @@ namespace FinalYearProject.DTOs
     // Doctor DTOs
     public class DoctorDto
     {
-        public string UserName { get; set; } = string.Empty;
-        public string Role { get; set; } = "Doctor";
+        public int Id { get; set; } // ADD THIS if not present
+        public string UserName { get; set; }
+        public string Role { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Email { get; set; }

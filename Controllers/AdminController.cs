@@ -259,11 +259,12 @@ namespace FinalYearProject.Controllers
             {
                 if (!ModelState.IsValid)
                 {
+                    var errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList();
                     return BadRequest(new ApiResponseDto
                     {
                         Success = false,
                         Message = "Invalid data provided",
-                        Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
+                        Errors = errors
                     });
                 }
 
@@ -276,9 +277,21 @@ namespace FinalYearProject.Controllers
                     });
                 }
 
+                // Validate password
+                if(string.IsNullOrWhiteSpace(request.Password))
+                {
+                    return BadRequest(new ApiResponseDto 
+                    {
+                        Success = false,
+                        Message = "Password is required"
+                    });
+                }
+
                 // Validate doctor assignment if provided
                 Doctor? assignedDoctor = null;
-                if (request.AssignedDoctorId.HasValue)
+                int? doctorId = null;
+                
+                if (request.AssignedDoctorId.HasValue && request.AssignedDoctorId.Value > 0)
                 {
                     assignedDoctor = await _db.Doctors.FindAsync(request.AssignedDoctorId.Value);
                     if (assignedDoctor == null)
@@ -289,41 +302,48 @@ namespace FinalYearProject.Controllers
                             Message = "Assigned doctor not found"
                         });
                     }
+                    doctorId = request.AssignedDoctorId.Value;
                 }
 
                 var client = new Client
                 {
-                    UserName = request.UserName,
+                    UserName = request.UserName.Trim(),
                     Role = "Client",
-                    FirstName = request.FirstName,
-                    LastName = request.LastName,
-                    Email = request.Email,
+                    FirstName = request.FirstName?.Trim(),
+                    LastName = request.LastName?.Trim(),
+                    Email = request.Email?.Trim(),
                     DateOfBirth = request.DateOfBirth,
-                    AssignedDoctorId = request.AssignedDoctorId,
+                    AssignedDoctorId = doctorId,
                     CreatedAt = DateTime.UtcNow
                 };
 
+                // Hash Password
                 client.PasswordHash = _clientHasher.HashPassword(client, request.Password);
 
                 _db.Clients.Add(client);
                 await _db.SaveChangesAsync();
 
+                // Reload the client with doctor info
+                var createdClient = await _db.Clients
+                    .Include(c => c.AssignedDoctor)
+                    .FirstOrDefaultAsync(c => c.UserName == client.UserName);
+
                 var clientDto = new ClientDto
                 {
-                    UserName = client.UserName,
-                    Role = client.Role,
-                    FirstName = client.FirstName,
-                    LastName = client.LastName,
-                    Email = client.Email,
-                    DateOfBirth = client.DateOfBirth,
-                    AssignedDoctor = assignedDoctor != null ? new DoctorBasicDto
+                    UserName = createdClient.UserName,
+                    Role = createdClient.Role,
+                    FirstName = createdClient.FirstName,
+                    LastName = createdClient.LastName,
+                    Email = createdClient.Email,
+                    DateOfBirth = createdClient.DateOfBirth,
+                    AssignedDoctor = createdClient.AssignedDoctor != null ? new DoctorBasicDto
                     {
-                        UserName = assignedDoctor.UserName,
-                        FirstName = assignedDoctor.FirstName,
-                        LastName = assignedDoctor.LastName,
-                        Specialization = assignedDoctor.Specialization
+                        UserName = createdClient.AssignedDoctor.UserName,
+                        FirstName = createdClient.AssignedDoctor.FirstName,
+                        LastName = createdClient.AssignedDoctor.LastName,
+                        Specialization = createdClient.AssignedDoctor.Specialization
                     } : null,
-                    CreatedAt = client.CreatedAt
+                    CreatedAt = createdClient.CreatedAt
                 };
 
                 return Ok(new ApiResponseDto<ClientDto>
@@ -335,6 +355,8 @@ namespace FinalYearProject.Controllers
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error creating client: {ex}");
+                
                 return StatusCode(500, new ApiResponseDto
                 {
                     Success = false,
@@ -449,6 +471,7 @@ namespace FinalYearProject.Controllers
                 var doctors = await _db.Doctors
                     .Select(d => new DoctorDto
                     {
+                        Id = d.Id, // ADD THIS LINE
                         UserName = d.UserName,
                         Role = d.Role,
                         FirstName = d.FirstName,
@@ -478,7 +501,6 @@ namespace FinalYearProject.Controllers
                 });
             }
         }
-
         [HttpPost("doctors")]
         public async Task<IActionResult> CreateDoctor([FromBody] DoctorCreateDto request)
         {

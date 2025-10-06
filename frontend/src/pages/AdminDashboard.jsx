@@ -1,8 +1,9 @@
+// Updated AdminDashboard.jsx with fixes for client creation
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/apiService';
-import './AdminDashboard.css';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -24,7 +25,7 @@ const AdminDashboard = () => {
   const [doctors, setDoctors] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(''); // 'client', 'doctor', 'admin'
+  const [modalType, setModalType] = useState('');
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
 
@@ -38,21 +39,15 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
-    // Clear messages after 5 seconds
     if (successMessage) {
-      const timer = setTimeout(() => {
-        setSuccessMessage(null);
-      }, 5000);
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
 
   useEffect(() => {
-    // Clear error messages after 7 seconds
     if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 7000);
+      const timer = setTimeout(() => setError(null), 7000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -137,7 +132,7 @@ const AdminDashboard = () => {
     if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
 
     try {
-      setError(null); // Clear any previous errors
+      setError(null);
       
       if (type === 'client') {
         await adminService.deleteClient(username);
@@ -156,16 +151,24 @@ const AdminDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      setError(null); // Clear any previous errors
+      setError(null);
       
       if (modalType === 'client') {
+        // FIXED: Convert assignedDoctorId to integer or null
+        const clientData = {
+          ...formData,
+          assignedDoctorId: formData.assignedDoctorId 
+            ? parseInt(formData.assignedDoctorId, 10) 
+            : null
+        };
+        
         if (editingItem) {
-          const updateData = { ...formData };
+          const updateData = { ...clientData };
           if (!updateData.password) delete updateData.password;
           await adminService.updateClient(editingItem.userName, updateData);
           setSuccessMessage('Client updated successfully!');
         } else {
-          await adminService.createClient(formData);
+          await adminService.createClient(clientData);
           setSuccessMessage('Client created successfully!');
         }
         loadClients();
@@ -184,20 +187,18 @@ const AdminDashboard = () => {
         await adminService.createAdmin(formData);
         setSuccessMessage('Admin created successfully!');
         loadAdmins();
-        // Redirect to dashboard after admin creation
         setTimeout(() => {
           setActiveTab('dashboard');
-          loadDashboardStats(); // Refresh dashboard stats
+          loadDashboardStats();
         }, 1500);
       }
       
-      // Close modal and clear form
       setShowModal(false);
       setFormData({});
       setEditingItem(null);
       
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'An error occurred');
     }
   };
 
@@ -231,7 +232,8 @@ const AdminDashboard = () => {
       return {
         ...base,
         dateOfBirth: item.dateOfBirth ? item.dateOfBirth.split('T')[0] : '',
-        assignedDoctorId: item.assignedDoctor?.userName || ''
+        // FIXED: Use the doctor's ID instead of username
+        assignedDoctorId: item.assignedDoctor?.id || ''
       };
     } else if (type === 'doctor') {
       return {
@@ -319,7 +321,7 @@ const AdminDashboard = () => {
         <StatCard
           title="Total Admins"
           value={stats.TotalAdmins}
-          icon="👑"
+          icon="👔"
           color="#ffc107"
         />
         <StatCard
@@ -415,7 +417,7 @@ const AdminDashboard = () => {
             {clients.map((client) => (
               <tr key={client.userName} style={styles.tableRow}>
                 <td style={styles.td}>{client.userName}</td>
-                <td style={styles.td}>{`${client.firstName || ''} ${client.lastName || ''}`.trim()}</td>
+                <td style={styles.td}>{`${client.firstName || ''} ${client.lastName || ''}`.trim() || '-'}</td>
                 <td style={styles.td}>{client.email || '-'}</td>
                 <td style={styles.td}>
                   {client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString() : '-'}
@@ -500,7 +502,7 @@ const AdminDashboard = () => {
               <tr key={doctor.userName} style={styles.tableRow}>
                 <td style={styles.td}>{doctor.userName}</td>
                 <td style={styles.td}>
-                  {`${doctor.firstName || ''} ${doctor.lastName || ''}`.trim()}
+                  {`${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || '-'}
                 </td>
                 <td style={styles.td}>{doctor.email || '-'}</td>
                 <td style={styles.td}>{doctor.specialization || '-'}</td>
@@ -629,8 +631,15 @@ const AdminDashboard = () => {
                 value={formData.userName || ''}
                 onChange={(e) => setFormData({...formData, userName: e.target.value})}
                 required
-                style={styles.input}
+                disabled={isEditing}
+                style={{...styles.input, opacity: isEditing ? 0.6 : 1}}
+                placeholder="Enter username"
               />
+              {isEditing && (
+                <small style={{color: '#666', fontSize: '0.85rem'}}>
+                  Username cannot be changed
+                </small>
+              )}
             </div>
 
             <div style={styles.formGroup}>
@@ -640,7 +649,8 @@ const AdminDashboard = () => {
                 value={formData.password || ''}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required={!isEditing}
-                placeholder={isEditing ? 'Leave blank to keep current password' : ''}
+                minLength={6}
+                placeholder={isEditing ? 'Leave blank to keep current password' : 'Minimum 6 characters'}
                 style={styles.input}
               />
             </div>
@@ -653,6 +663,7 @@ const AdminDashboard = () => {
                   value={formData.firstName || ''}
                   onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                   style={styles.input}
+                  placeholder="Enter first name"
                 />
               </div>
               <div style={styles.formGroup}>
@@ -662,6 +673,7 @@ const AdminDashboard = () => {
                   value={formData.lastName || ''}
                   onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                   style={styles.input}
+                  placeholder="Enter last name"
                 />
               </div>
             </div>
@@ -673,6 +685,7 @@ const AdminDashboard = () => {
                 value={formData.email || ''}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 style={styles.input}
+                placeholder="Enter email address"
               />
             </div>
 
@@ -694,13 +707,16 @@ const AdminDashboard = () => {
                     onChange={(e) => setFormData({...formData, assignedDoctorId: e.target.value})}
                     style={styles.select}
                   >
-                    <option value="">Select a doctor</option>
+                    <option value="">Select a doctor (optional)</option>
                     {doctors.map((doctor) => (
-                      <option key={doctor.userName} value={doctor.userName}>
+                      <option key={doctor.id} value={doctor.id}>
                         {`${doctor.firstName} ${doctor.lastName} - ${doctor.specialization || 'General'}`}
                       </option>
                     ))}
                   </select>
+                  <small style={{color: '#666', fontSize: '0.85rem', marginTop: '0.25rem'}}>
+                    You can assign a doctor now or later
+                  </small>
                 </div>
               </>
             )}
@@ -724,6 +740,7 @@ const AdminDashboard = () => {
                     value={formData.licenseNumber || ''}
                     onChange={(e) => setFormData({...formData, licenseNumber: e.target.value})}
                     style={styles.input}
+                    placeholder="Enter medical license number"
                   />
                 </div>
               </>
@@ -973,7 +990,6 @@ const styles = {
     color: 'white',
     transition: 'opacity 0.2s ease'
   },
-  // Management styles
   managementContainer: {
     padding: '1rem'
   },
@@ -1013,10 +1029,7 @@ const styles = {
     color: '#495057'
   },
   tableRow: {
-    transition: 'background-color 0.2s ease',
-    '&:hover': {
-      backgroundColor: '#f8f9fa'
-    }
+    transition: 'background-color 0.2s ease'
   },
   td: {
     padding: '1rem',
@@ -1055,7 +1068,6 @@ const styles = {
     fontSize: '0.85rem',
     fontWeight: '500'
   },
-  // Modal styles
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -1157,4 +1169,3 @@ const styles = {
 };
 
 export default AdminDashboard;
-
