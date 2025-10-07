@@ -80,15 +80,22 @@ const AdminDashboard = () => {
   };
 
   const loadClients = async () => {
-    try {
-      const [clientsResponse, doctorsResponse] = await Promise.all([
-        adminService.getAllClients(),
-        adminService.getAllDoctors()
-      ]);
-      if (clientsResponse.success) setClients(clientsResponse.data);
-      if (doctorsResponse.success) setDoctors(doctorsResponse.data);
+  try {
+    const [clientsResponse, doctorsResponse] = await Promise.all([
+      adminService.getAllClients(),
+      adminService.getAllDoctors()
+    ]);
+    if (clientsResponse.success) {
+      // Store clients with proper doctor mapping
+      const clientsWithDoctorIds = clientsResponse.data.map(client => ({
+        ...client,
+        assignedDoctorId: client.assignedDoctor?.id || null
+      }));
+      setClients(clientsWithDoctorIds);
+    }
+    if (doctorsResponse.success) setDoctors(doctorsResponse.data);
     } catch (err) {
-      setError(err.message);
+    setError(err.message);
     }
   };
 
@@ -148,6 +155,7 @@ const AdminDashboard = () => {
     }
   };
 
+<<<<<<< HEAD
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -199,8 +207,75 @@ const AdminDashboard = () => {
       
     } catch (err) {
       setError(err.message || 'An error occurred');
+=======
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    setError(null);
+    
+    if (modalType === 'client') {
+      const clientData = { ...formData };
+      
+      // DEBUGGING: Log what we're about to send
+      console.log('=== SUBMITTING CLIENT DATA ===');
+      console.log('Raw formData:', formData);
+      console.log('assignedDoctorId before conversion:', formData.assignedDoctorId);
+      
+      // Convert assignedDoctorId to integer or null
+      if (clientData.assignedDoctorId !== '' && clientData.assignedDoctorId !== null && clientData.assignedDoctorId !== undefined) {
+        clientData.assignedDoctorId = parseInt(clientData.assignedDoctorId);
+        console.log('Converted assignedDoctorId to:', clientData.assignedDoctorId);
+      } else {
+        clientData.assignedDoctorId = null;
+        console.log('Set assignedDoctorId to null');
+      }
+      
+      console.log('Final clientData being sent:', clientData);
+      
+      if (editingItem) {
+        if (!clientData.password) delete clientData.password;
+        console.log('Updating client:', editingItem.userName);
+        const response = await adminService.updateClient(editingItem.userName, clientData);
+        console.log('Update response:', response);
+        setSuccessMessage('Client updated successfully!');
+      } else {
+        console.log('Creating new client');
+        const response = await adminService.createClient(clientData);
+        console.log('Create response:', response);
+        setSuccessMessage('Client created successfully!');
+      }
+      loadClients();
+    } else if (modalType === 'doctor') {
+      if (editingItem) {
+        const updateData = { ...formData };
+        if (!updateData.password) delete updateData.password;
+        await adminService.updateDoctor(editingItem.userName, updateData);
+        setSuccessMessage('Doctor updated successfully!');
+      } else {
+        await adminService.createDoctor(formData);
+        setSuccessMessage('Doctor created successfully!');
+      }
+      loadDoctors();
+    } else if (modalType === 'admin') {
+      await adminService.createAdmin(formData);
+      setSuccessMessage('Admin created successfully!');
+      loadAdmins();
+      setTimeout(() => {
+        setActiveTab('dashboard');
+        loadDashboardStats();
+      }, 1500);
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
     }
-  };
+    
+    setShowModal(false);
+    setFormData({});
+    setEditingItem(null);
+    
+  } catch (err) {
+    console.error('Submit error:', err);
+    setError(err.message);
+  }
+};
 
   const getEmptyFormData = (type) => {
     const base = {
@@ -220,6 +295,7 @@ const AdminDashboard = () => {
   };
 
   const getFormDataFromItem = (type, item) => {
+<<<<<<< HEAD
     const base = {
       userName: item.userName,
       password: '',
@@ -243,7 +319,32 @@ const AdminDashboard = () => {
       };
     }
     return base;
+=======
+  const base = {
+    userName: item.userName,
+    password: '',
+    firstName: item.firstName || '',
+    lastName: item.lastName || '',
+    email: item.email || ''
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
   };
+
+  if (type === 'client') {
+    return {
+      ...base,
+      dateOfBirth: item.dateOfBirth ? item.dateOfBirth.split('T')[0] : '',
+      // FIXED: Use the numeric ID instead of username
+      assignedDoctorId: item.assignedDoctorId || ''
+    };
+  } else if (type === 'doctor') {
+    return {
+      ...base,
+      specialization: item.specialization || '',
+      licenseNumber: item.licenseNumber || ''
+    };
+  }
+  return base;
+};
 
   const TabButton = ({ tabKey, label, isActive, onClick }) => (
     <button
@@ -424,7 +525,7 @@ const AdminDashboard = () => {
                 </td>
                 <td style={styles.td}>
                   {client.assignedDoctor 
-                    ? `${client.assignedDoctor.firstName} ${client.assignedDoctor.lastName}` 
+                    ? `${client.assignedDoctor.firstName || ''} ${client.assignedDoctor.lastName || ''}`.trim()
                     : 'Not assigned'
                   }
                 </td>
@@ -690,6 +791,7 @@ const AdminDashboard = () => {
             </div>
 
             {modalType === 'client' && (
+<<<<<<< HEAD
               <>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Date of Birth</label>
@@ -720,6 +822,53 @@ const AdminDashboard = () => {
                 </div>
               </>
             )}
+=======
+  <>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Date of Birth</label>
+                <input
+                  type="date"
+                  value={formData.dateOfBirth || ''}
+                  onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
+                  style={styles.input}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Assigned Doctor</label>
+                <select
+                  value={formData.assignedDoctorId || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    console.log('Doctor dropdown changed to:', value);
+                    setFormData({
+                      ...formData, 
+                      assignedDoctorId: value
+                    });
+                  }}
+                  style={styles.select}
+                >
+                  <option value="">Select a doctor (optional)</option>
+                  {doctors.map((doctor) => {
+                    // Try different property names for ID
+                    const doctorId = doctor.id || doctor.Id || doctor.userName;
+                    console.log('Doctor in dropdown:', doctor);
+                    
+                    return (
+                      <option key={doctorId} value={doctorId}>
+                        {`${doctor.firstName || ''} ${doctor.lastName || ''} - ${doctor.specialization || 'General'}`}
+                      </option>
+                    );
+                  })}
+                </select>
+                {formData.assignedDoctorId && (
+                  <small style={{color: '#666', marginTop: '0.25rem', display: 'block'}}>
+                    Selected Doctor ID: {formData.assignedDoctorId}
+                  </small>
+                )}
+              </div>
+            </>
+          )}
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
 
             {modalType === 'doctor' && (
               <>

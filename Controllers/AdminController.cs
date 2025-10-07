@@ -289,20 +289,34 @@ namespace FinalYearProject.Controllers
 
                 // Validate doctor assignment if provided
                 Doctor? assignedDoctor = null;
+<<<<<<< HEAD
                 int? doctorId = null;
                 
                 if (request.AssignedDoctorId.HasValue && request.AssignedDoctorId.Value > 0)
+=======
+               
+                
+                if (request.AssignedDoctorId.HasValue)
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                 {
-                    assignedDoctor = await _db.Doctors.FindAsync(request.AssignedDoctorId.Value);
+                    // Find doctor by ID - assuming Doctor has an Id property
+                    assignedDoctor = await _db.Doctors
+                        .FirstOrDefaultAsync(d => d.Id == request.AssignedDoctorId.Value);
+                    
                     if (assignedDoctor == null)
                     {
                         return BadRequest(new ApiResponseDto
                         {
                             Success = false,
-                            Message = "Assigned doctor not found"
+                            Message = $"Assigned doctor with ID {request.AssignedDoctorId.Value} not found"
                         });
                     }
+<<<<<<< HEAD
                     doctorId = request.AssignedDoctorId.Value;
+=======
+                    
+                   
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                 }
 
                 var client = new Client
@@ -313,7 +327,11 @@ namespace FinalYearProject.Controllers
                     LastName = request.LastName?.Trim(),
                     Email = request.Email?.Trim(),
                     DateOfBirth = request.DateOfBirth,
+<<<<<<< HEAD
                     AssignedDoctorId = doctorId,
+=======
+                    AssignedDoctorId = request.AssignedDoctorId, // Store the ID
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -323,10 +341,15 @@ namespace FinalYearProject.Controllers
                 _db.Clients.Add(client);
                 await _db.SaveChangesAsync();
 
+<<<<<<< HEAD
                 // Reload the client with doctor info
                 var createdClient = await _db.Clients
                     .Include(c => c.AssignedDoctor)
                     .FirstOrDefaultAsync(c => c.UserName == client.UserName);
+=======
+                // Reload client with doctor to ensure proper mapping
+                await _db.Entry(client).Reference(c => c.AssignedDoctor).LoadAsync();
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
 
                 var clientDto = new ClientDto
                 {
@@ -361,7 +384,7 @@ namespace FinalYearProject.Controllers
                 {
                     Success = false,
                     Message = "An error occurred while creating client",
-                    Errors = new List<string> { ex.Message }
+                    Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" }
                 });
             }
         }
@@ -371,7 +394,10 @@ namespace FinalYearProject.Controllers
         {
             try
             {
-                var client = await _db.Clients.FirstOrDefaultAsync(c => c.UserName == username);
+                var client = await _db.Clients
+                    .Include(c => c.AssignedDoctor)
+                    .FirstOrDefaultAsync(c => c.UserName == username);
+                    
                 if (client == null)
                 {
                     return NotFound(new ApiResponseDto
@@ -404,15 +430,54 @@ namespace FinalYearProject.Controllers
                 if (request.LastName != null) client.LastName = request.LastName;
                 if (request.Email != null) client.Email = request.Email;
                 if (request.DateOfBirth.HasValue) client.DateOfBirth = request.DateOfBirth;
-                if (request.AssignedDoctorId.HasValue) client.AssignedDoctorId = request.AssignedDoctorId;
+                
+                // Handle doctor assignment
+                if (request.AssignedDoctorId.HasValue)
+                {
+                    var doctor = await _db.Doctors
+                        .FirstOrDefaultAsync(d => d.Id == request.AssignedDoctorId.Value);
+                        
+                    if (doctor == null)
+                    {
+                        return BadRequest(new ApiResponseDto
+                        {
+                            Success = false,
+                            Message = $"Doctor with ID {request.AssignedDoctorId.Value} not found"
+                        });
+                    }
+                    
+                    client.AssignedDoctorId = request.AssignedDoctorId;
+                    
+                }
 
                 client.UpdatedAt = DateTime.UtcNow;
 
                 await _db.SaveChangesAsync();
 
-                return Ok(new ApiResponseDto
+                // Return updated client with doctor info
+                var clientDto = new ClientDto
+                {
+                    UserName = client.UserName,
+                    Role = client.Role,
+                    FirstName = client.FirstName,
+                    LastName = client.LastName,
+                    Email = client.Email,
+                    DateOfBirth = client.DateOfBirth,
+                    AssignedDoctor = client.AssignedDoctor != null ? new DoctorBasicDto
+                    {
+                        UserName = client.AssignedDoctor.UserName,
+                        FirstName = client.AssignedDoctor.FirstName,
+                        LastName = client.AssignedDoctor.LastName,
+                        Specialization = client.AssignedDoctor.Specialization
+                    } : null,
+                    CreatedAt = client.CreatedAt,
+                    UpdatedAt = client.UpdatedAt
+                };
+
+                return Ok(new ApiResponseDto<ClientDto>
                 {
                     Success = true,
+                    Data = clientDto,
                     Message = "Client updated successfully"
                 });
             }
@@ -422,11 +487,14 @@ namespace FinalYearProject.Controllers
                 {
                     Success = false,
                     Message = "An error occurred while updating client",
-                    Errors = new List<string> { ex.Message }
+                    Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" }
                 });
             }
         }
 
+
+
+        
         [HttpDelete("clients/{username}")]
         public async Task<IActionResult> DeleteClient(string username)
         {
@@ -462,15 +530,15 @@ namespace FinalYearProject.Controllers
             }
         }
 
-        // Doctor Management
         [HttpGet("doctors")]
         public async Task<IActionResult> GetAllDoctors()
         {
             try
             {
                 var doctors = await _db.Doctors
-                    .Select(d => new DoctorDto
+                    .Select(d => new
                     {
+<<<<<<< HEAD
                         Id = d.Id, // ADD THIS LINE
                         UserName = d.UserName,
                         Role = d.Role,
@@ -481,10 +549,22 @@ namespace FinalYearProject.Controllers
                         LicenseNumber = d.LicenseNumber,
                         CreatedAt = d.CreatedAt,
                         UpdatedAt = d.UpdatedAt
+=======
+                        d.Id, // Include the Id field!
+                        d.UserName,
+                        d.Role,
+                        d.FirstName,
+                        d.LastName,
+                        d.Email,
+                        d.Specialization,
+                        d.LicenseNumber,
+                        d.CreatedAt,
+                        d.UpdatedAt
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                     })
                     .ToListAsync();
 
-                return Ok(new ApiResponseDto<List<DoctorDto>>
+                return Ok(new ApiResponseDto<object>
                 {
                     Success = true,
                     Data = doctors,
@@ -501,6 +581,12 @@ namespace FinalYearProject.Controllers
                 });
             }
         }
+<<<<<<< HEAD
+=======
+
+        
+
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
         [HttpPost("doctors")]
         public async Task<IActionResult> CreateDoctor([FromBody] DoctorCreateDto request)
         {

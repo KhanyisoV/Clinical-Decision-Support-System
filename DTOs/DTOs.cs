@@ -109,10 +109,16 @@ namespace FinalYearProject.DTOs
 
     // Doctor DTOs
     public class DoctorDto
+<<<<<<< HEAD
     {
         public int Id { get; set; } // ADD THIS if not present
         public string UserName { get; set; }
         public string Role { get; set; }
+=======
+    {   public int Id { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public string Role { get; set; } = "Doctor";
+>>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Email { get; set; }
@@ -162,7 +168,7 @@ namespace FinalYearProject.DTOs
 
     // Basic doctor info for nested objects
     public class DoctorBasicDto
-    {
+    {   public int Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
