@@ -268,7 +268,6 @@ export const symptomService = {
     }
   },
 
-  // Use username endpoint
   getSymptomsByClientUsername: async (clientUsername) => {
     try {
       const response = await API.get(`/symptoms/client/username/${clientUsername}`);
@@ -278,7 +277,6 @@ export const symptomService = {
     }
   },
 
-  // Keep the old one for backward compatibility
   getSymptomsByClient: async (clientId) => {
     try {
       const response = await API.get(`/symptoms/client/${clientId}`);
@@ -295,9 +293,17 @@ export const symptomService = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update symptom');
     }
+  },
+
+  deleteSymptom: async (symptomId) => {
+    try {
+      const response = await API.delete(`/symptoms/${symptomId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete symptom');
+    }
   }
 };
-
 // Diagnosis Service
 export const diagnosisService = {
   createDiagnosis: async (diagnosisData) => {
@@ -309,7 +315,6 @@ export const diagnosisService = {
     }
   },
 
-  // Use username endpoint
   getDiagnosesByClientUsername: async (clientUsername) => {
     try {
       const response = await API.get(`/diagnosis/client/username/${clientUsername}`);
@@ -319,7 +324,6 @@ export const diagnosisService = {
     }
   },
 
-  // Keep the old one for backward compatibility
   getDiagnosesByClient: async (clientId) => {
     try {
       const response = await API.get(`/diagnosis/client/${clientId}`);
@@ -335,6 +339,15 @@ export const diagnosisService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update diagnosis');
+    }
+  },
+
+  deleteDiagnosis: async (diagnosisId) => {
+    try {
+      const response = await API.delete(`/diagnosis/${diagnosisId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete diagnosis');
     }
   }
 };

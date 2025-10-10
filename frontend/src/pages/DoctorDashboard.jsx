@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Users, 
@@ -13,7 +12,8 @@ import {
   Save,
   Eye,
   Stethoscope,
-  ClipboardList
+  ClipboardList,
+  Trash2
 } from 'lucide-react';
 import { doctorService, symptomService, diagnosisService } from '../services/apiService';
 
@@ -35,6 +35,7 @@ const DoctorDashboard = () => {
   const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState({});
   const [patientHistory, setPatientHistory] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
     initializeDashboard();
@@ -63,23 +64,18 @@ const DoctorDashboard = () => {
 
   const fetchDashboardData = async (username) => {
     try {
-      // Fetch doctor's profile to get the ID
       try {
         const profileResponse = await doctorService.getProfile(username);
-        console.log('Profile response:', profileResponse);
         
         if (profileResponse.success || profileResponse.Success) {
           const profileData = profileResponse.data || profileResponse.Data;
-          console.log('Profile data:', profileData);
           
-          // Update user state with doctor's ID
           setUser(prev => ({
             ...prev,
             ...profileData,
-            id: profileData.id || profileData.Id // Ensure ID is set
+            id: profileData.id || profileData.Id
           }));
           
-          // Also update localStorage
           const updatedUser = {
             ...JSON.parse(localStorage.getItem('user') || '{}'),
             ...profileData,
@@ -93,13 +89,10 @@ const DoctorDashboard = () => {
         return;
       }
 
-      // Fetch assigned patients/clients
       const patientsResponse = await doctorService.getAssignedClients(username);
-      console.log('Patients response:', patientsResponse);
       
       if (patientsResponse.success || patientsResponse.Success) {
         const patientsList = patientsResponse.data || patientsResponse.Data || [];
-        console.log('Patients list:', patientsList);
         setPatients(patientsList);
         
         setStats(prev => ({
@@ -107,7 +100,6 @@ const DoctorDashboard = () => {
           totalPatients: patientsList.length
         }));
       } else {
-        console.warn('No patients data in response');
         setPatients([]);
       }
     } catch (err) {
@@ -116,45 +108,93 @@ const DoctorDashboard = () => {
     }
   };
 
-const handleViewPatientHistory = async (patient) => {
-  setSelectedPatient(patient);
-  setLoading(true);
-  setError(null);
+  const handleViewPatientHistory = async (patient) => {
+    setSelectedPatient(patient);
+    setLoading(true);
+    setError(null);
 
-  try {
-    // ✅ Use username endpoints
-    const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
-    const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
+    try {
+      const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
+      const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
 
-    const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
-      ? (diagnosesRes.data || diagnosesRes.Data || [])
-      : [];
+      const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
+        ? (diagnosesRes.data || diagnosesRes.Data || [])
+        : [];
 
-    const symptoms = (symptomsRes.success || symptomsRes.Success)
-      ? (symptomsRes.data || symptomsRes.Data || [])
-      : [];
+      const symptoms = (symptomsRes.success || symptomsRes.Success)
+        ? (symptomsRes.data || symptomsRes.Data || [])
+        : [];
 
-    setPatientHistory({
-      diagnoses,
-      symptoms
+      setPatientHistory({
+        diagnoses,
+        symptoms
+      });
+
+      setShowModal('patientHistory');
+    } catch (err) {
+      setError(err.message || 'Failed to load patient history');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDiagnosis = (diagnosisId) => {
+    setDeleteConfirm({
+      type: 'diagnosis',
+      id: diagnosisId,
+      message: 'Are you sure you want to delete this diagnosis? This action cannot be undone.'
     });
+  };
 
-    setShowModal('patientHistory');
-  } catch (err) {
-    setError(err.message || 'Failed to load patient history');
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+  const handleDeleteSymptom = (symptomId) => {
+    setDeleteConfirm({
+      type: 'symptom',
+      id: symptomId,
+      message: 'Are you sure you want to delete this symptom? This action cannot be undone.'
+    });
+  };
 
- const handleCreateDiagnosis = (patient) => {
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      let response;
+      if (deleteConfirm.type === 'diagnosis') {
+        response = await diagnosisService.deleteDiagnosis(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'symptom') {
+        response = await symptomService.deleteSymptom(deleteConfirm.id);
+      }
+
+      if (response.success || response.Success) {
+        setSuccess(`${deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)} deleted successfully!`);
+        
+        // Refresh patient history
+        if (selectedPatient) {
+          await handleViewPatientHistory(selectedPatient);
+        }
+        
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to delete');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while deleting');
+      console.error('Delete error:', err);
+    } finally {
+      setLoading(false);
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleCreateDiagnosis = (patient) => {
     setSelectedPatient(patient);
     
     const clientId = patient.id || patient.Id;
     const doctorId = user?.id || user?.Id;
-    
-    console.log('Creating diagnosis - Patient ID:', clientId, 'Doctor ID:', doctorId);
     
     if (!clientId) {
       setError('Cannot create diagnosis: Patient ID not found');
@@ -187,9 +227,6 @@ const handleViewPatientHistory = async (patient) => {
     const clientId = patient.id || patient.Id;
     const doctorId = user?.id || user?.Id;
     
-    console.log('Creating symptom - Patient ID:', clientId, 'Doctor ID:', doctorId);
-    console.log('Current user object:', user);
-    
     if (!clientId) {
       setError('Cannot create symptom: Patient ID not found');
       return;
@@ -216,8 +253,6 @@ const handleViewPatientHistory = async (patient) => {
     setLoading(true);
     setError(null);
 
-    console.log('Submitting diagnosis with data:', formData);
-
     try {
       const response = await diagnosisService.createDiagnosis(formData);
       
@@ -241,8 +276,6 @@ const handleViewPatientHistory = async (patient) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    console.log('Submitting symptom with data:', formData);
 
     try {
       const response = await symptomService.createSymptom(formData);
@@ -552,6 +585,43 @@ const handleViewPatientHistory = async (patient) => {
         )}
       </main>
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Delete</h2>
+              <button onClick={() => setDeleteConfirm(null)} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="delete-warning">
+                <AlertCircle size={48} color="#ef4444" />
+                <p>{deleteConfirm.message}</p>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  onClick={() => setDeleteConfirm(null)} 
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete} 
+                  className="delete-btn" 
+                  disabled={loading}
+                >
+                  <Trash2 size={18} />
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Patient History Modal */}
       {showModal === 'patientHistory' && selectedPatient && (
         <div className="modal-overlay" onClick={closeModal}>
@@ -578,9 +648,18 @@ const handleViewPatientHistory = async (patient) => {
                           <div key={idx} className="history-item">
                             <div className="history-item-header">
                               <strong>{diagnosis.title}</strong>
-                              <span className={`status-badge status-${diagnosis.status?.toLowerCase()}`}>
-                                {diagnosis.status}
-                              </span>
+                              <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                                <span className={`status-badge status-${diagnosis.status?.toLowerCase()}`}>
+                                  {diagnosis.status}
+                                </span>
+                                <button 
+                                  className="delete-icon-btn"
+                                  onClick={() => handleDeleteDiagnosis(diagnosis.id)}
+                                  title="Delete diagnosis"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </div>
                             <p>{diagnosis.description}</p>
                             <div className="history-item-meta">
@@ -603,9 +682,18 @@ const handleViewPatientHistory = async (patient) => {
                           <div key={idx} className="history-item">
                             <div className="history-item-header">
                               <strong>{symptom.name}</strong>
-                              <span className="severity-badge">
-                                Severity: {symptom.severityLevel}/5
-                              </span>
+                              <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                                <span className="severity-badge">
+                                  Severity: {symptom.severityLevel}/5
+                                </span>
+                                <button 
+                                  className="delete-icon-btn"
+                                  onClick={() => handleDeleteSymptom(symptom.id)}
+                                  title="Delete symptom"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </div>
                             {symptom.description && <p>{symptom.description}</p>}
                             <div className="history-item-meta">
@@ -753,7 +841,7 @@ const handleViewPatientHistory = async (patient) => {
               </div>
 
               <div className="form-group">
-                <label>Severity Level (1-5) *</label>
+                <label>Severity Level (1-10) *</label>
                 <select
                   required
                   value={formData.severityLevel || 1}
@@ -791,31 +879,6 @@ const handleViewPatientHistory = async (patient) => {
     </div>
   );
 };
-
-const loadingStyles = `
-  .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    gap: 1rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-  
-  .spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid #f3f4f6;
-    border-top: 4px solid #3b82f6;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
 
 const dashboardStyles = `
   * {
@@ -1361,6 +1424,25 @@ const dashboardStyles = `
     overflow-y: auto;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   }
+
+  .delete-modal {
+    max-width: 450px;
+  }
+
+  .delete-warning {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .delete-warning p {
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+  }
   
   .modal-header {
     display: flex;
@@ -1405,6 +1487,15 @@ const dashboardStyles = `
     align-items: center;
     gap: 1rem;
     padding: 2rem;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
   
   .history-section {
@@ -1471,6 +1562,24 @@ const dashboardStyles = `
     border-radius: 12px;
     font-size: 0.75rem;
     font-weight: 500;
+  }
+
+  .delete-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ef4444;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .delete-icon-btn:hover {
+    background-color: #fee2e2;
+    color: #dc2626;
   }
   
   .history-item p {
@@ -1581,6 +1690,30 @@ const dashboardStyles = `
   }
   
   .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .delete-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .delete-btn:hover:not(:disabled) {
+    background-color: #dc2626;
+  }
+
+  .delete-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
