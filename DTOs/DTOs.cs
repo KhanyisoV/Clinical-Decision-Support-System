@@ -173,7 +173,11 @@ namespace FinalYearProject.DTOs
 
     // Symptom DTOs
     public class SymptomDto
-    {
+    {   public int Id { get; set; }
+        public int ClientId { get; set; }           
+        public string ClientUserName { get; set; } = null!;   // ADD THIS
+        public string AddedByDoctorUserName { get; set; } = null!;   // ADD THIS
+        public int AddedByDoctorId { get; set; } 
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public int SeverityLevel { get; set; } = 1;

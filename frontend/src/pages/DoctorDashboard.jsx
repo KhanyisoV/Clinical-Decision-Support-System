@@ -116,36 +116,38 @@ const DoctorDashboard = () => {
     }
   };
 
-  const handleViewPatientHistory = async (patient) => {
-    setSelectedPatient(patient);
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const diagnosesRes = await diagnosisService.getDiagnosesByClient(patient.userName);
-      const symptomsRes = await symptomService.getSymptomsByClient(patient.userName);
+const handleViewPatientHistory = async (patient) => {
+  setSelectedPatient(patient);
+  setLoading(true);
+  setError(null);
 
-      const diagnoses = (diagnosesRes.success || diagnosesRes.Success) 
-        ? (diagnosesRes.data || diagnosesRes.Data || []) 
-        : [];
-      
-      const symptoms = (symptomsRes.success || symptomsRes.Success) 
-        ? (symptomsRes.data || symptomsRes.Data || []) 
-        : [];
+  try {
+    // ✅ Use username endpoints
+    const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
+    const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
 
-      setPatientHistory({
-        diagnoses,
-        symptoms
-      });
-      
-      setShowModal('patientHistory');
-    } catch (err) {
-      setError(err.message || 'Failed to load patient history');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
+      ? (diagnosesRes.data || diagnosesRes.Data || [])
+      : [];
+
+    const symptoms = (symptomsRes.success || symptomsRes.Success)
+      ? (symptomsRes.data || symptomsRes.Data || [])
+      : [];
+
+    setPatientHistory({
+      diagnoses,
+      symptoms
+    });
+
+    setShowModal('patientHistory');
+  } catch (err) {
+    setError(err.message || 'Failed to load patient history');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleCreateDiagnosis = (patient) => {
     setSelectedPatient(patient);
@@ -602,7 +604,7 @@ const DoctorDashboard = () => {
                             <div className="history-item-header">
                               <strong>{symptom.name}</strong>
                               <span className="severity-badge">
-                                Severity: {symptom.severityLevel}/10
+                                Severity: {symptom.severityLevel}/5
                               </span>
                             </div>
                             {symptom.description && <p>{symptom.description}</p>}
@@ -751,7 +753,7 @@ const DoctorDashboard = () => {
               </div>
 
               <div className="form-group">
-                <label>Severity Level (1-10) *</label>
+                <label>Severity Level (1-5) *</label>
                 <select
                   required
                   value={formData.severityLevel || 1}

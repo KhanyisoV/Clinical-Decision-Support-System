@@ -4,6 +4,7 @@ using FinalYearProject.Repositories;
 using FinalYearProject.Models;
 using FinalYearProject.DTOs;
 using FinalYearProject.Services;
+using FinalYearProject.Data;
 
 namespace FinalYearProject.Controllers
 {
@@ -14,88 +15,136 @@ namespace FinalYearProject.Controllers
         private readonly ISymptomRepository _symptomRepo;
         private readonly IClientRepository _clientRepo;
         private readonly IDoctorRepository _doctorRepo;
+        private readonly AppDbContext _context;
 
         public SymptomsController(
             ISymptomRepository symptomRepo, 
             IClientRepository clientRepo, 
-            IDoctorRepository doctorRepo)
+            IDoctorRepository doctorRepo,
+            AppDbContext context)
         {
             _symptomRepo = symptomRepo;
             _clientRepo = clientRepo;
             _doctorRepo = doctorRepo;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
+       
 
         // Doctor adds symptom to client
+       // ✅ Doctor adds symptom to a client
         [HttpPost("add-to-client")]
-        [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> AddSymptomToClient([FromBody] SymptomCreateDto request)
+        [Authorize(Roles = "Doctor,Admin")]
+        public async Task<IActionResult> AddSymptomToClient([FromBody] SymptomCreateDto createDto)
         {
             try
             {
-                // Support both ID and Username
-                Client client;
-                if (!string.IsNullOrEmpty(request.ClientUsername))
+                if (!ModelState.IsValid)
                 {
-                    client = await _clientRepo.GetByUsernameAsync(request.ClientUsername);
-                }
-                else
-                {
-                    client = _clientRepo.GetById(request.ClientId);
+                    return BadRequest(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Invalid data provided",
+                        Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
+                    });
                 }
 
+                var client = await _context.Clients.FindAsync(createDto.ClientId);
                 if (client == null)
+                {
                     return NotFound(new ApiResponseDto
                     {
                         Success = false,
-                        Message = "Client not found"
+                        Message = $"Client with ID {createDto.ClientId} not found"
                     });
-
-                // Support both ID and Username for doctor
-                Doctor doctor;
-                if (!string.IsNullOrEmpty(request.DoctorUsername))
-                {
-                    doctor = await _doctorRepo.GetByUsernameAsync(request.DoctorUsername);
-                }
-                else
-                {
-                    doctor = _doctorRepo.GetById(request.DoctorId);
                 }
 
+                var doctor = await _context.Doctors.FindAsync(createDto.AddedByDoctorId);
                 if (doctor == null)
+                {
                     return NotFound(new ApiResponseDto
                     {
                         Success = false,
-                        Message = "Doctor not found"
+                        Message = $"Doctor with ID {createDto.AddedByDoctorId} not found"
                     });
-
+                }
+                // Create new entity from DTO
                 var symptom = new Symptom
                 {
-                    Name = request.Name,
-                    Description = request.Description,
-                    SeverityLevel = request.SeverityLevel,
-                    ClientId = client.Id,
-                    AddedByDoctorId = doctor.Id,
-                    Notes = request.Notes
+                    Name = createDto.Name,
+                    Description = createDto.Description,
+                    SeverityLevel = createDto.SeverityLevel,
+                    Notes = createDto.Notes,
+                    ClientId = createDto.ClientId,
+                    AddedByDoctorId = createDto.AddedByDoctorId,
+                    IsActive = true,
+                    DateReported = DateTime.UtcNow
                 };
 
-                _symptomRepo.Add(symptom);
-                _symptomRepo.Save();
+                // Save to database
+                _context.Symptoms.Add(symptom);
+                await _context.SaveChangesAsync();
 
-                return Ok(new ApiResponseDto<object>
+
+                var symptomDto = new SymptomDto
+                {
+                    Id = symptom.Id,
+                    Name = symptom.Name,
+                    Description = symptom.Description,
+                    SeverityLevel = symptom.SeverityLevel,
+                    Notes = symptom.Notes,
+                    ClientId = symptom.ClientId,
+                    AddedByDoctorId = symptom.AddedByDoctorId,
+                    IsActive = symptom.IsActive,
+                    DateReported = symptom.DateReported
+                };
+
+                return Ok(new ApiResponseDto<SymptomDto>
                 {
                     Success = true,
-                    Data = new { Message = "Symptom added successfully", SymptomId = symptom.Id },
-                    Message = "Symptom added successfully"
+                    Message = "Symptom added successfully",
+                    Data = symptomDto
                 });
+
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"Error adding symptom: {ex.Message}");
                 return StatusCode(500, new ApiResponseDto
                 {
                     Success = false,
-                    Message = $"An error occurred: {ex.Message}"
+                    Message = "An error occurred while adding the symptom",
+                    Errors = new List<string> { ex.Message }
                 });
             }
+        }
+        [HttpGet("client/username/{clientUsername}")]
+        [Authorize(Roles = "Client,Doctor,Admin")]
+        public async Task<IActionResult> GetSymptomsByClientUsername(string clientUsername)
+        {
+            var client = await _clientRepo.GetByUsernameAsync(clientUsername);
+            if (client == null)
+                return NotFound(new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "Client not found"
+                });
+
+            
+            var symptoms = _symptomRepo.GetByClientId(client.Id)
+            .Select(s => new SymptomDto {
+                Id = s.Id,
+                Name = s.Name,
+                Description = s.Description,
+                ClientUserName = s.Client.UserName,
+                AddedByDoctorUserName = s.AddedByDoctor.UserName
+            }).ToList();
+
+            return Ok(new ApiResponseDto<object>
+            {
+                Success = true,
+                Data = symptoms,
+                Message = "Symptoms retrieved successfully"
+            });
         }
 
         // Client views their own symptoms
@@ -131,57 +180,7 @@ namespace FinalYearProject.Controllers
                 return StatusCode(500, $"An error occurred: {ex.Message}");
             }
         }
-
-        // Add this new endpoint to get symptoms by client username
-        [HttpGet("client/username/{clientUsername}")]
-        [Authorize(Roles = "Client,Doctor,Admin")]
-        public async Task<IActionResult> GetClientSymptomsByUsername(string clientUsername)
-        {
-            try
-            {
-                var client = await _clientRepo.GetByUsernameAsync(clientUsername);
-                if (client == null)
-                    return NotFound(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Client not found"
-                    });
-
-                var symptoms = _symptomRepo.GetActiveSymptomsByClientId(client.Id);
-
-                var result = symptoms.Select(s => new
-                {
-                    s.Id,
-                    s.Name,
-                    s.Description,
-                    s.SeverityLevel,
-                    s.DateReported,
-                    s.Notes,
-                    AddedByDoctor = new
-                    {
-                        s.AddedByDoctor.Id,
-                        s.AddedByDoctor.UserName,
-                        s.AddedByDoctor.FirstName,
-                        s.AddedByDoctor.LastName
-                    }
-                }).ToList();
-
-                return Ok(new ApiResponseDto<object>
-                {
-                    Success = true,
-                    Data = result,
-                    Message = "Symptoms retrieved successfully"
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = $"An error occurred: {ex.Message}"
-                });
-            }
-        }
+        
 
         // Doctor views symptoms they added
         [HttpGet("doctor/{doctorId}")]
@@ -262,67 +261,98 @@ namespace FinalYearProject.Controllers
                 return StatusCode(500, $"An error occurred: {ex.Message}");
             }
         }
-
-        // Update symptom (only by doctor who added it)
-        [HttpPut("{id}")]
-        [Authorize(Roles = "Doctor")]
-        public IActionResult UpdateSymptom(int id, [FromBody] SymptomUpdateDto request)
+        // ✅ Update symptom
+        [HttpPut("{symptomId}")]
+        [Authorize(Roles = "Doctor,Admin")]
+        public async Task<IActionResult> UpdateSymptom(int symptomId, [FromBody] SymptomUpdateDto updateDto)
         {
             try
             {
-                var symptom = _symptomRepo.GetById(id);
+                var symptom = await _context.Symptoms.FindAsync(symptomId);
                 if (symptom == null)
-                    return NotFound("Symptom not found");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Symptom not found"
+                    });
+                }
 
-                // Update properties if provided
-                if (!string.IsNullOrEmpty(request.Name))
-                    symptom.Name = request.Name;
+                if (!string.IsNullOrEmpty(updateDto.Name))
+                    symptom.Name = updateDto.Name;
 
-                if (!string.IsNullOrEmpty(request.Description))
-                    symptom.Description = request.Description;
+                if (!string.IsNullOrEmpty(updateDto.Description))
+                    symptom.Description = updateDto.Description;
 
-                if (request.SeverityLevel.HasValue)
-                    symptom.SeverityLevel = request.SeverityLevel.Value;
+                if (updateDto.SeverityLevel.HasValue)
+                    symptom.SeverityLevel = updateDto.SeverityLevel.Value;
 
-                if (!string.IsNullOrEmpty(request.Notes))
-                    symptom.Notes = request.Notes;
+                if (!string.IsNullOrEmpty(updateDto.Notes))
+                    symptom.Notes = updateDto.Notes;
 
-                if (request.IsActive.HasValue)
-                    symptom.IsActive = request.IsActive.Value;
+                if (updateDto.IsActive.HasValue)
+                    symptom.IsActive = updateDto.IsActive.Value;
 
-                if (request.DateResolved.HasValue)
-                    symptom.DateResolved = request.DateResolved;
+                if (updateDto.DateResolved.HasValue)
+                    symptom.DateResolved = updateDto.DateResolved.Value;
 
-                _symptomRepo.Update(symptom);
-                _symptomRepo.Save();
+                symptom.UpdatedAt = DateTime.UtcNow;
 
-                return Ok("Symptom updated successfully");
+                await _context.SaveChangesAsync();
+
+                return Ok(new ApiResponseDto
+                {
+                    Success = true,
+                    Message = "Symptom updated successfully"
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                Console.WriteLine($"Error updating symptom: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while updating the symptom",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 
-        // Delete symptom
+        // ✅ Delete symptom
         [HttpDelete("{id}")]
         [Authorize(Roles = "Doctor,Admin")]
-        public IActionResult DeleteSymptom(int id)
+        public async Task<IActionResult> DeleteSymptom(int id)
         {
             try
             {
-                var symptom = _symptomRepo.GetById(id);
+                var symptom = await _context.Symptoms.FindAsync(id);
                 if (symptom == null)
-                    return NotFound("Symptom not found");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Symptom not found"
+                    });
+                }
 
-                _symptomRepo.Delete(symptom);
-                _symptomRepo.Save();
+                _context.Symptoms.Remove(symptom);
+                await _context.SaveChangesAsync();
 
-                return Ok("Symptom deleted successfully");
+                return Ok(new ApiResponseDto
+                {
+                    Success = true,
+                    Message = "Symptom deleted successfully"
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                Console.WriteLine($"Error deleting symptom: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while deleting the symptom",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
     }

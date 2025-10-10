@@ -17,22 +17,27 @@ namespace FinalYearProject.Models
         [Range(1, 10)]
         public int SeverityLevel { get; set; } = 1;
 
+        [Required]
         public DateTime DateReported { get; set; } = DateTime.UtcNow;
+
         public DateTime? DateResolved { get; set; }
 
         public bool IsActive { get; set; } = true;
 
         public string? Notes { get; set; }
 
-        // Foreign keys
+        // Foreign Keys
         [Required]
         public int ClientId { get; set; }
 
         [Required]
         public int AddedByDoctorId { get; set; }
 
-        // Navigation properties
+        // Navigation Properties
+        [ForeignKey("ClientId")]
         public Client Client { get; set; } = null!;
+
+        [ForeignKey("AddedByDoctorId")]
         public Doctor AddedByDoctor { get; set; } = null!;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
