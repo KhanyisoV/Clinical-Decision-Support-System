@@ -148,8 +148,7 @@ const handleViewPatientHistory = async (patient) => {
   }
 };
 
-
-  const handleCreateDiagnosis = (patient) => {
+ const handleCreateDiagnosis = (patient) => {
     setSelectedPatient(patient);
     
     const clientId = patient.id || patient.Id;
@@ -168,15 +167,16 @@ const handleViewPatientHistory = async (patient) => {
     }
 
     setFormData({
-      title: '',
-      description: '',
-      diagnosisCode: '',
-      severity: 1,
-      status: 'Active',
-      treatmentPlan: '',
-      notes: '',
-      clientId: clientId,
-      diagnosedByDoctorId: doctorId
+      Title: '',
+      Description: '',
+      DiagnosisCode: '',
+      Severity: 1,
+      Status: 'Active',
+      TreatmentPlan: '',
+      Notes: '',
+      ClientId: clientId,
+      DoctorId: doctorId,
+      DiagnosedByDoctorId: doctorId
     });
     setShowModal('createDiagnosis');
   };
