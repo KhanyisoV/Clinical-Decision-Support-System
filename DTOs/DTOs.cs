@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 
-// Create this file as: DTOs/DTOs.cs or Models/DTOs.cs in your project
 namespace FinalYearProject.DTOs
 {
     // Admin DTOs
@@ -78,7 +77,7 @@ namespace FinalYearProject.DTOs
         
         public DateTime? DateOfBirth { get; set; }
         
-        public int? AssignedDoctorId { get; set; } // This should be int?, not string
+        public int? AssignedDoctorId { get; set; }
     }
 
     public class ClientUpdateDto
@@ -109,16 +108,10 @@ namespace FinalYearProject.DTOs
 
     // Doctor DTOs
     public class DoctorDto
-<<<<<<< HEAD
     {
-        public int Id { get; set; } // ADD THIS if not present
-        public string UserName { get; set; }
-        public string Role { get; set; }
-=======
-    {   public int Id { get; set; }
+        public int Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string Role { get; set; } = "Doctor";
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Email { get; set; }
@@ -168,7 +161,8 @@ namespace FinalYearProject.DTOs
 
     // Basic doctor info for nested objects
     public class DoctorBasicDto
-    {   public int Id { get; set; }
+    {
+        public int Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
@@ -226,7 +220,7 @@ namespace FinalYearProject.DTOs
         public string? Notes { get; set; }
     }
 
-     public class PrescriptionDto
+    public class PrescriptionDto
     {
         public int Id { get; set; }
         public string MedicationName { get; set; } = string.Empty;
@@ -299,6 +293,7 @@ namespace FinalYearProject.DTOs
 
         public bool? IsActive { get; set; }
     }
+
     public class AppointmentHistoryDto
     {
         public int Id { get; set; }
@@ -334,7 +329,6 @@ namespace FinalYearProject.DTOs
         public string? Notes { get; set; }
     }
 
-    // Extended DTO for viewing appointment with its history
     public class AppointmentWithHistoryDto
     {
         public AppointmentDto Appointment { get; set; } = null!;
@@ -416,7 +410,7 @@ namespace FinalYearProject.DTOs
         public int? DoctorId { get; set; }
     }
 
-     public class TreatmentDto
+    public class TreatmentDto
     {
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
@@ -431,7 +425,6 @@ namespace FinalYearProject.DTOs
         public int? NextAppointmentId { get; set; }
         public int? DiagnosisId { get; set; }
         
-        // Related data
         public PrescriptionDto? Prescription { get; set; }
         public AppointmentDto? NextAppointment { get; set; }
         public DiagnosisDto? Diagnosis { get; set; }
@@ -515,19 +508,16 @@ namespace FinalYearProject.DTOs
         public string? Observations { get; set; }
         public string? Recommendations { get; set; }
         
-        // Foreign keys
         public int ClientId { get; set; }
         public int RecordedByDoctorId { get; set; }
         public int? DiagnosisId { get; set; }
         public int? TreatmentId { get; set; }
         
-        // Navigation properties for display
         public ClientBasicDto Client { get; set; } = null!;
         public DoctorBasicDto RecordedByDoctor { get; set; } = null!;
         public DiagnosisDto? Diagnosis { get; set; }
         public TreatmentSummaryDto? Treatment { get; set; }
         
-        // Alternative names for backward compatibility
         public string ClientName { get; set; } = string.Empty;
         public string DoctorName { get; set; } = string.Empty;
         public string? DiagnosisName { get; set; }
@@ -536,6 +526,7 @@ namespace FinalYearProject.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
+
     public class ProgressCreateDto
     {
         [Required]
@@ -584,7 +575,6 @@ namespace FinalYearProject.DTOs
         public int? TreatmentId { get; set; }
     }
 
-    // Summary DTO for listing treatments
     public class TreatmentSummaryDto
     {
         public int Id { get; set; }
@@ -596,7 +586,8 @@ namespace FinalYearProject.DTOs
         public DoctorBasicDto ProvidedByDoctor { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
     }
-      public class ClientHistoryDto
+
+    public class ClientHistoryDto
     {
         public ClientDto Client { get; set; } = null!;
         public List<DiagnosisDto> Diagnoses { get; set; } = new();
@@ -610,7 +601,6 @@ namespace FinalYearProject.DTOs
         public ClientHistorySummaryDto Summary { get; set; } = null!;
     }
 
-    // Summary statistics
     public class ClientHistorySummaryDto
     {
         public int TotalDiagnoses { get; set; }
@@ -633,11 +623,10 @@ namespace FinalYearProject.DTOs
         public List<string> CurrentDoctors { get; set; } = new();
     }
 
-    // Timeline event for chronological view
     public class ClientTimelineEventDto
     {
         public DateTime EventDate { get; set; }
-        public string EventType { get; set; } = string.Empty; // Diagnosis, Treatment, Appointment, etc.
+        public string EventType { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string? Status { get; set; }
@@ -645,17 +634,16 @@ namespace FinalYearProject.DTOs
         public int? RelatedId { get; set; }
     }
 
-    // Filtered history request
     public class ClientHistoryFilterDto
     {
         public int ClientId { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public List<string>? EventTypes { get; set; } // Diagnosis, Treatment, Appointment, etc.
+        public List<string>? EventTypes { get; set; }
         public bool IncludeInactive { get; set; } = false;
         public int? DoctorId { get; set; }
     }
-    // Diagnosis DTOs
+
     public class DiagnosisDto
     {
         public string Title { get; set; } = string.Empty;
@@ -723,7 +711,8 @@ namespace FinalYearProject.DTOs
         public bool? IsActive { get; set; }
         public DateTime? DateResolved { get; set; }
     }
-     public class ClientAnalyticsDto
+
+    public class ClientAnalyticsDto
     {
         public int ClientId { get; set; }
         public string ClientName { get; set; } = string.Empty;
@@ -737,7 +726,6 @@ namespace FinalYearProject.DTOs
         public OverallHealthScoreDto HealthScore { get; set; } = new();
     }
 
-    // Clinical Observations Trends
     public class ClinicalObservationTrendsDto
     {
         public List<DataPointDto> WeightTrend { get; set; } = new();
@@ -752,7 +740,6 @@ namespace FinalYearProject.DTOs
         public VitalStatisticsDto BMIStats { get; set; } = new();
     }
 
-    // Symptom Analytics
     public class SymptomAnalyticsDto
     {
         public int TotalSymptoms { get; set; }
@@ -787,7 +774,6 @@ namespace FinalYearProject.DTOs
         public double AverageSeverity { get; set; }
     }
 
-    // Appointment Analytics
     public class AppointmentAnalyticsDto
     {
         public int TotalAppointments { get; set; }
@@ -809,7 +795,6 @@ namespace FinalYearProject.DTOs
         public double Percentage { get; set; }
     }
 
-    // Treatment Progress
     public class TreatmentProgressDto
     {
         public int ActiveTreatments { get; set; }
@@ -829,13 +814,12 @@ namespace FinalYearProject.DTOs
         public List<DataPointDto> ProgressHistory { get; set; } = new();
     }
 
-    // Overall Health Score
     public class OverallHealthScoreDto
     {
         public int CurrentScore { get; set; }
         public int PreviousScore { get; set; }
         public int ScoreChange { get; set; }
-        public string Trend { get; set; } = "Stable"; // Improving, Declining, Stable
+        public string Trend { get; set; } = "Stable";
         public List<HealthFactorDto> Factors { get; set; } = new();
     }
 
@@ -843,10 +827,9 @@ namespace FinalYearProject.DTOs
     {
         public string Name { get; set; } = string.Empty;
         public int Score { get; set; }
-        public string Impact { get; set; } = string.Empty; // Positive, Negative, Neutral
+        public string Impact { get; set; } = string.Empty;
     }
 
-    // Generic data point for charts
     public class DataPointDto
     {
         public DateTime Date { get; set; }
@@ -855,7 +838,6 @@ namespace FinalYearProject.DTOs
         public string? Category { get; set; }
     }
 
-    // Vital statistics
     public class VitalStatisticsDto
     {
         public double Current { get; set; }
@@ -863,18 +845,17 @@ namespace FinalYearProject.DTOs
         public double Min { get; set; }
         public double Max { get; set; }
         public double Change { get; set; }
-        public string Trend { get; set; } = "Stable"; // Increasing, Decreasing, Stable
+        public string Trend { get; set; } = "Stable";
     }
 
-        // Analytics filter
     public class AnalyticsFilterDto
     {
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public string? GroupBy { get; set; } // Daily, Weekly, Monthly
+        public string? GroupBy { get; set; }
         public List<string>? MetricTypes { get; set; }
     }
-    // Authentication DTOs
+
     public class LoginDto
     {
         [Required]
@@ -892,7 +873,6 @@ namespace FinalYearProject.DTOs
         public bool Success { get; set; }
     }
 
-    // General DTOs for responses
     public class ApiResponseDto<T>
     {
         public bool Success { get; set; }
@@ -908,13 +888,13 @@ namespace FinalYearProject.DTOs
         public List<string>? Errors { get; set; }
     }
 
-    // For backward compatibility with existing code
     public class RegisterRequest
     {
         public string UserName { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
     }
- public class LabResultDto
+
+    public class LabResultDto
     {
         public int Id { get; set; }
         public int ClientId { get; set; }
@@ -933,7 +913,6 @@ namespace FinalYearProject.DTOs
         public string CreatedByAdmin { get; set; } = string.Empty;
     }
 
-    // DTO for creating a new lab result (Admin only)
     public class LabResultCreateDto
     {
         [Required]
@@ -967,7 +946,36 @@ namespace FinalYearProject.DTOs
         [MaxLength(200)]
         public string? PerformedBy { get; set; }
     }
-     public class PredictionHistoryDto
+
+    public class LabResultUpdateDto
+    {
+        [MaxLength(200)]
+        public string? TestName { get; set; }
+
+        [MaxLength(100)]
+        public string? TestType { get; set; }
+
+        public DateTime? TestDate { get; set; }
+
+        [MaxLength(500)]
+        public string? Result { get; set; }
+
+        [MaxLength(100)]
+        public string? Status { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+
+        [MaxLength(100)]
+        public string? ReferenceRange { get; set; }
+
+        public bool? IsAbnormal { get; set; }
+
+        [MaxLength(200)]
+        public string? PerformedBy { get; set; }
+    }
+
+    public class PredictionHistoryDto
     {
         public int Id { get; set; }
         public int MLPredictionId { get; set; }
@@ -1036,7 +1044,6 @@ namespace FinalYearProject.DTOs
         public Dictionary<string, int> TopPredictedConditions { get; set; } = new();
     }
 
-   
     public class MLPredictionDto
     {
         public int Id { get; set; }
@@ -1084,8 +1091,7 @@ namespace FinalYearProject.DTOs
         public int? DiagnosisId { get; set; }
     }
 
-
-     public class AllergyDto
+    public class AllergyDto
     {
         public int Id { get; set; }
         public int ClientId { get; set; }
@@ -1104,7 +1110,6 @@ namespace FinalYearProject.DTOs
         public string CreatedByRole { get; set; } = string.Empty;
     }
 
-    // DTO for creating a new allergy (Client and Doctor only)
     public class AllergyCreateDto
     {
         [Required]
@@ -1137,7 +1142,6 @@ namespace FinalYearProject.DTOs
         public string? Treatment { get; set; }
     }
 
-    // DTO for updating an allergy (Client and Doctor only)
     public class AllergyUpdateDto
     {
         [MaxLength(200)]
@@ -1163,60 +1167,25 @@ namespace FinalYearProject.DTOs
         public string? Treatment { get; set; }
     }
 
-    // DTO for updating a lab result (Admin only)
-    public class LabResultUpdateDto
-    {
-        [MaxLength(200)]
-        public string? TestName { get; set; }
-
-        [MaxLength(100)]
-        public string? TestType { get; set; }
-
-        public DateTime? TestDate { get; set; }
-
-        [MaxLength(500)]
-        public string? Result { get; set; }
-
-        [MaxLength(100)]
-        public string? Status { get; set; }
-
-        [MaxLength(1000)]
-        public string? Notes { get; set; }
-
-        [MaxLength(100)]
-        public string? ReferenceRange { get; set; }
-
-        public bool? IsAbnormal { get; set; }
-
-        [MaxLength(200)]
-        public string? PerformedBy { get; set; }
-    }
-
     public class ClinicalObservationDto
     {
         public int Id { get; set; }
-
         public string? Gender { get; set; }
         public int? Age { get; set; }
-        public double? Height { get; set; }   // cm
-        public double? Weight { get; set; }   // kg
-        public string? BloodPressure { get; set; } // e.g. "120/80 mmHg"
-        public int? HeartRate { get; set; }   // bpm
+        public double? Height { get; set; }
+        public double? Weight { get; set; }
+        public string? BloodPressure { get; set; }
+        public int? HeartRate { get; set; }
         public DateTime ObservationDate { get; set; }
-
         public string ObservationType { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
         public string? Notes { get; set; }
-
-        // Navigation summaries
         public ClientBasicDto Client { get; set; } = null!;
         public DoctorBasicDto RecordedByDoctor { get; set; } = null!;
-
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
 
-    // DTO for creating a new observation
     public class ClinicalObservationCreateDto
     {
         [Required]
@@ -1248,6 +1217,21 @@ namespace FinalYearProject.DTOs
         [Required]
         public int RecordedByDoctorId { get; set; }
     }
+
+    public class ClinicalObservationUpdateDto
+    {
+        public string? Gender { get; set; }
+        public int? Age { get; set; }
+        public double? Height { get; set; }
+        public double? Weight { get; set; }
+        public string? BloodPressure { get; set; }
+        public int? HeartRate { get; set; }
+        public DateTime? ObservationDate { get; set; }
+        public string? ObservationType { get; set; }
+        public string? Value { get; set; }
+        public string? Notes { get; set; }
+    }
+
     public class RecommendationDto
     {
         public string Title { get; set; } = string.Empty;
@@ -1259,7 +1243,6 @@ namespace FinalYearProject.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
-
 
     public class RecommendationCreateDto
     {
@@ -1283,21 +1266,5 @@ namespace FinalYearProject.DTOs
         public string? Title { get; set; }
         public string? Description { get; set; }
         public bool? IsActive { get; set; }
-    }
-
-    // DTO for updating an observation
-    public class ClinicalObservationUpdateDto
-    {
-        public string? Gender { get; set; }
-        public int? Age { get; set; }
-        public double? Height { get; set; }
-        public double? Weight { get; set; }
-        public string? BloodPressure { get; set; }
-        public int? HeartRate { get; set; }
-        public DateTime? ObservationDate { get; set; }
-
-        public string? ObservationType { get; set; }
-        public string? Value { get; set; }
-        public string? Notes { get; set; }
     }
 }

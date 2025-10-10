@@ -225,19 +225,34 @@ export const clientService = {
 export const doctorService = {
   getProfile: async (username) => {
     try {
+      console.log('Fetching doctor profile for:', username);
       const response = await API.get(`/doctor/profile/${username}`);
+      console.log('Doctor profile response:', response.data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch profile');
+      console.error('Doctor profile error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch profile');
     }
   },
 
   getAssignedClients: async (doctorUsername) => {
     try {
+      console.log('Fetching assigned clients for doctor:', doctorUsername);
       const response = await API.get(`/doctor/clients/${doctorUsername}`);
+      console.log('Assigned clients response:', response.data);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch assigned clients');
+      console.error('Assigned clients error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch assigned clients');
+    }
+  },
+
+  updateProfile: async (username, profileData) => {
+    try {
+      const response = await API.put(`/doctor/profile/${username}`, profileData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update profile');
     }
   }
 };

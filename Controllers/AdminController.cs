@@ -134,8 +134,6 @@ namespace FinalYearProject.Controllers
             }
         }
 
-        // Add this method to your AdminController to include appointment statistics
-
         [HttpGet("dashboard/stats")]
         public async Task<IActionResult> GetDashboardStats()
         {
@@ -205,7 +203,6 @@ namespace FinalYearProject.Controllers
             }
         }
 
-
         // Client Management
         [HttpGet("clients")]
         public async Task<IActionResult> GetAllClients()
@@ -224,6 +221,7 @@ namespace FinalYearProject.Controllers
                         DateOfBirth = c.DateOfBirth,
                         AssignedDoctor = c.AssignedDoctor != null ? new DoctorBasicDto
                         {
+                            Id = c.AssignedDoctor.Id,
                             UserName = c.AssignedDoctor.UserName,
                             FirstName = c.AssignedDoctor.FirstName,
                             LastName = c.AssignedDoctor.LastName,
@@ -289,17 +287,10 @@ namespace FinalYearProject.Controllers
 
                 // Validate doctor assignment if provided
                 Doctor? assignedDoctor = null;
-<<<<<<< HEAD
                 int? doctorId = null;
                 
                 if (request.AssignedDoctorId.HasValue && request.AssignedDoctorId.Value > 0)
-=======
-               
-                
-                if (request.AssignedDoctorId.HasValue)
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                 {
-                    // Find doctor by ID - assuming Doctor has an Id property
                     assignedDoctor = await _db.Doctors
                         .FirstOrDefaultAsync(d => d.Id == request.AssignedDoctorId.Value);
                     
@@ -311,12 +302,7 @@ namespace FinalYearProject.Controllers
                             Message = $"Assigned doctor with ID {request.AssignedDoctorId.Value} not found"
                         });
                     }
-<<<<<<< HEAD
                     doctorId = request.AssignedDoctorId.Value;
-=======
-                    
-                   
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                 }
 
                 var client = new Client
@@ -327,11 +313,7 @@ namespace FinalYearProject.Controllers
                     LastName = request.LastName?.Trim(),
                     Email = request.Email?.Trim(),
                     DateOfBirth = request.DateOfBirth,
-<<<<<<< HEAD
                     AssignedDoctorId = doctorId,
-=======
-                    AssignedDoctorId = request.AssignedDoctorId, // Store the ID
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -341,15 +323,10 @@ namespace FinalYearProject.Controllers
                 _db.Clients.Add(client);
                 await _db.SaveChangesAsync();
 
-<<<<<<< HEAD
                 // Reload the client with doctor info
                 var createdClient = await _db.Clients
                     .Include(c => c.AssignedDoctor)
                     .FirstOrDefaultAsync(c => c.UserName == client.UserName);
-=======
-                // Reload client with doctor to ensure proper mapping
-                await _db.Entry(client).Reference(c => c.AssignedDoctor).LoadAsync();
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
 
                 var clientDto = new ClientDto
                 {
@@ -361,6 +338,7 @@ namespace FinalYearProject.Controllers
                     DateOfBirth = createdClient.DateOfBirth,
                     AssignedDoctor = createdClient.AssignedDoctor != null ? new DoctorBasicDto
                     {
+                        Id = createdClient.AssignedDoctor.Id,
                         UserName = createdClient.AssignedDoctor.UserName,
                         FirstName = createdClient.AssignedDoctor.FirstName,
                         LastName = createdClient.AssignedDoctor.LastName,
@@ -447,7 +425,6 @@ namespace FinalYearProject.Controllers
                     }
                     
                     client.AssignedDoctorId = request.AssignedDoctorId;
-                    
                 }
 
                 client.UpdatedAt = DateTime.UtcNow;
@@ -465,6 +442,7 @@ namespace FinalYearProject.Controllers
                     DateOfBirth = client.DateOfBirth,
                     AssignedDoctor = client.AssignedDoctor != null ? new DoctorBasicDto
                     {
+                        Id = client.AssignedDoctor.Id,
                         UserName = client.AssignedDoctor.UserName,
                         FirstName = client.AssignedDoctor.FirstName,
                         LastName = client.AssignedDoctor.LastName,
@@ -492,9 +470,6 @@ namespace FinalYearProject.Controllers
             }
         }
 
-
-
-        
         [HttpDelete("clients/{username}")]
         public async Task<IActionResult> DeleteClient(string username)
         {
@@ -538,8 +513,7 @@ namespace FinalYearProject.Controllers
                 var doctors = await _db.Doctors
                     .Select(d => new
                     {
-<<<<<<< HEAD
-                        Id = d.Id, // ADD THIS LINE
+                        Id = d.Id,
                         UserName = d.UserName,
                         Role = d.Role,
                         FirstName = d.FirstName,
@@ -549,18 +523,6 @@ namespace FinalYearProject.Controllers
                         LicenseNumber = d.LicenseNumber,
                         CreatedAt = d.CreatedAt,
                         UpdatedAt = d.UpdatedAt
-=======
-                        d.Id, // Include the Id field!
-                        d.UserName,
-                        d.Role,
-                        d.FirstName,
-                        d.LastName,
-                        d.Email,
-                        d.Specialization,
-                        d.LicenseNumber,
-                        d.CreatedAt,
-                        d.UpdatedAt
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
                     })
                     .ToListAsync();
 
@@ -581,12 +543,7 @@ namespace FinalYearProject.Controllers
                 });
             }
         }
-<<<<<<< HEAD
-=======
 
-        
-
->>>>>>> 0589f2b (Assigning Doctor to Patient FiX)
         [HttpPost("doctors")]
         public async Task<IActionResult> CreateDoctor([FromBody] DoctorCreateDto request)
         {
@@ -630,6 +587,7 @@ namespace FinalYearProject.Controllers
 
                 var doctorDto = new DoctorDto
                 {
+                    Id = doctor.Id,
                     UserName = doctor.UserName,
                     Role = doctor.Role,
                     FirstName = doctor.FirstName,
@@ -753,7 +711,5 @@ namespace FinalYearProject.Controllers
                 });
             }
         }
-
-        
     }
 }

@@ -4,7 +4,6 @@ import {
   Calendar, 
   FileText, 
   Activity, 
-  Plus, 
   Search,
   ChevronRight,
   AlertCircle,
@@ -13,11 +12,9 @@ import {
   Save,
   Eye,
   Stethoscope,
-  Pill,
   ClipboardList
 } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:5011/api';
+import { doctorService, symptomService, diagnosisService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
@@ -54,7 +51,7 @@ const DoctorDashboard = () => {
       }
 
       setUser(userData);
-      await fetchDashboardData(userData.userName, token);
+      await fetchDashboardData(userData.userName);
     } catch (err) {
       console.error('Dashboard initialization error:', err);
       setError('Failed to load dashboard data');
@@ -63,52 +60,47 @@ const DoctorDashboard = () => {
     }
   };
 
-  const fetchDashboardData = async (username, token) => {
+  const fetchDashboardData = async (username) => {
     try {
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
+      // Try to fetch doctor's profile (optional)
+      try {
+        const profileResponse = await doctorService.getProfile(username);
+        if (profileResponse.success || profileResponse.Success) {
+          const profileData = profileResponse.data || profileResponse.Data;
+          setUser(prev => ({
+            ...prev,
+            ...profileData,
+            id: profileData.id || profileData.Id
+          }));
+        }
+      } catch (profileErr) {
+        console.warn('Profile fetch failed, using stored user data:', profileErr.message);
+        // Continue without profile - we'll use data from localStorage
+      }
 
-      const patientsResponse = await fetch(
-        `${API_BASE_URL}/doctor/clients/${username}`,
-        { headers }
-      );
+      // Fetch assigned patients/clients
+      const patientsResponse = await doctorService.getAssignedClients(username);
+      console.log('Patients response:', patientsResponse);
       
-      if (patientsResponse.ok) {
-        const patientsData = await patientsResponse.json();
-        const patientsList = patientsData.data || patientsData || [];
+      if (patientsResponse.success || patientsResponse.Success) {
+        const patientsList = patientsResponse.data || patientsResponse.Data || [];
+        console.log('Patients list:', patientsList);
         setPatients(patientsList);
         
         setStats(prev => ({
           ...prev,
           totalPatients: patientsList.length
         }));
+      } else {
+        console.warn('No patients data in response');
+        setPatients([]);
       }
-
-      const profileResponse = await fetch(
-        `${API_BASE_URL}/doctor/profile/${username}`,
-        { headers }
-      );
-      
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json();
-        setUser(prev => ({
-          ...prev,
-          ...profileData.data
-        }));
-      }
-
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError('Some data could not be loaded');
+      setError(err.message || 'Some data could not be loaded');
+      // Don't block the UI - let user see the dashboard with whatever data we have
     }
   };
-
-  const getAuthHeaders = () => ({
-    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-    'Content-Type': 'application/json'
-  });
 
   const handleViewPatientHistory = async (patient) => {
     setSelectedPatient(patient);
@@ -116,31 +108,28 @@ const DoctorDashboard = () => {
     setError(null);
     
     try {
-      const headers = getAuthHeaders();
-      
       // Fetch diagnoses
-      const diagnosesRes = await fetch(
-        `${API_BASE_URL}/diagnosis/client/${patient.userName}`,
-        { headers }
-      );
+      const diagnosesRes = await diagnosisService.getDiagnosesByClient(patient.userName);
       
       // Fetch symptoms
-      const symptomsRes = await fetch(
-        `${API_BASE_URL}/symptom/client/${patient.userName}`,
-        { headers }
-      );
+      const symptomsRes = await symptomService.getSymptomsByClient(patient.userName);
 
-      const diagnoses = diagnosesRes.ok ? await diagnosesRes.json() : { data: [] };
-      const symptoms = symptomsRes.ok ? await symptomsRes.json() : { data: [] };
+      const diagnoses = (diagnosesRes.success || diagnosesRes.Success) 
+        ? (diagnosesRes.data || diagnosesRes.Data || []) 
+        : [];
+      
+      const symptoms = (symptomsRes.success || symptomsRes.Success) 
+        ? (symptomsRes.data || symptomsRes.Data || []) 
+        : [];
 
       setPatientHistory({
-        diagnoses: diagnoses.data || [],
-        symptoms: symptoms.data || []
+        diagnoses,
+        symptoms
       });
       
       setShowModal('patientHistory');
     } catch (err) {
-      setError('Failed to load patient history');
+      setError(err.message || 'Failed to load patient history');
       console.error(err);
     } finally {
       setLoading(false);
@@ -149,6 +138,15 @@ const DoctorDashboard = () => {
 
   const handleCreateDiagnosis = (patient) => {
     setSelectedPatient(patient);
+    
+    // Get client ID from patient object
+    const clientId = patient.id || patient.Id;
+    
+    if (!clientId) {
+      setError('Cannot create diagnosis: Patient ID not found');
+      return;
+    }
+
     setFormData({
       title: '',
       description: '',
@@ -157,21 +155,30 @@ const DoctorDashboard = () => {
       status: 'Active',
       treatmentPlan: '',
       notes: '',
-      clientId: patient.id,
-      diagnosedByDoctorId: user.id
+      clientId: clientId,
+      diagnosedByDoctorId: user.id || user.Id
     });
     setShowModal('createDiagnosis');
   };
 
   const handleCreateSymptom = (patient) => {
     setSelectedPatient(patient);
+    
+    // Get client ID from patient object
+    const clientId = patient.id || patient.Id;
+    
+    if (!clientId) {
+      setError('Cannot create symptom: Patient ID not found');
+      return;
+    }
+
     setFormData({
       name: '',
       description: '',
       severityLevel: 1,
       notes: '',
-      clientId: patient.id,
-      addedByDoctorId: user.id
+      clientId: clientId,
+      addedByDoctorId: user.id || user.Id
     });
     setShowModal('createSymptom');
   };
@@ -182,25 +189,18 @@ const DoctorDashboard = () => {
     setError(null);
 
     try {
-      const headers = getAuthHeaders();
+      const response = await diagnosisService.createDiagnosis(formData);
       
-      const response = await fetch(`${API_BASE_URL}/diagnosis`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
+      if (response.success || response.Success) {
         setSuccess('Diagnosis created successfully!');
         setShowModal(null);
         setFormData({});
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to create diagnosis');
+        setError(response.message || response.Message || 'Failed to create diagnosis');
       }
     } catch (err) {
-      setError('An error occurred while creating diagnosis');
+      setError(err.message || 'An error occurred while creating diagnosis');
       console.error(err);
     } finally {
       setLoading(false);
@@ -213,25 +213,18 @@ const DoctorDashboard = () => {
     setError(null);
 
     try {
-      const headers = getAuthHeaders();
+      const response = await symptomService.createSymptom(formData);
       
-      const response = await fetch(`${API_BASE_URL}/symptom`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
+      if (response.success || response.Success) {
         setSuccess('Symptom recorded successfully!');
         setShowModal(null);
         setFormData({});
         setTimeout(() => setSuccess(null), 3000);
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to record symptom');
+        setError(response.message || response.Message || 'Failed to record symptom');
       }
     } catch (err) {
-      setError('An error occurred while recording symptom');
+      setError(err.message || 'An error occurred while recording symptom');
       console.error(err);
     } finally {
       setLoading(false);
@@ -512,7 +505,7 @@ const DoctorDashboard = () => {
         )}
       </main>
 
-      {/* Modals */}
+      {/* Patient History Modal */}
       {showModal === 'patientHistory' && selectedPatient && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -586,6 +579,7 @@ const DoctorDashboard = () => {
         </div>
       )}
 
+      {/* Create Diagnosis Modal */}
       {showModal === 'createDiagnosis' && selectedPatient && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -679,6 +673,7 @@ const DoctorDashboard = () => {
         </div>
       )}
 
+      {/* Create Symptom Modal */}
       {showModal === 'createSymptom' && selectedPatient && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -1296,7 +1291,6 @@ const dashboardStyles = `
     max-width: 400px;
   }
   
-  /* Modal Styles */
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -1457,7 +1451,6 @@ const dashboardStyles = `
     padding: 2rem;
   }
   
-  /* Form Styles */
   .form-group {
     margin-bottom: 1.25rem;
   }
@@ -1581,4 +1574,5 @@ const dashboardStyles = `
     to { transform: rotate(360deg); }
   }
 `;
-export default DoctorDashboard
+
+export default DoctorDashboard;
