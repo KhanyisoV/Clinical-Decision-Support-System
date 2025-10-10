@@ -261,16 +261,27 @@ export const doctorService = {
 export const symptomService = {
   createSymptom: async (symptomData) => {
     try {
-      const response = await API.post('/symptom', symptomData);
+      const response = await API.post('/symptoms/add-to-client', symptomData);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to create symptom');
     }
   },
 
-  getSymptomsByClient: async (clientUsername) => {
+  // Use username endpoint
+  getSymptomsByClientUsername: async (clientUsername) => {
     try {
-      const response = await API.get(`/symptom/client/${clientUsername}`);
+      const response = await API.get(`/symptoms/client/username/${clientUsername}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch symptoms');
+    }
+  },
+
+  // Keep the old one for backward compatibility
+  getSymptomsByClient: async (clientId) => {
+    try {
+      const response = await API.get(`/symptoms/client/${clientId}`);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch symptoms');
@@ -279,7 +290,7 @@ export const symptomService = {
 
   updateSymptom: async (symptomId, symptomData) => {
     try {
-      const response = await API.put(`/symptom/${symptomId}`, symptomData);
+      const response = await API.put(`/symptoms/${symptomId}`, symptomData);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to update symptom');
@@ -291,16 +302,27 @@ export const symptomService = {
 export const diagnosisService = {
   createDiagnosis: async (diagnosisData) => {
     try {
-      const response = await API.post('/diagnosis', diagnosisData);
+      const response = await API.post('/diagnosis/add-to-client', diagnosisData);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to create diagnosis');
     }
   },
 
-  getDiagnosesByClient: async (clientUsername) => {
+  // Use username endpoint
+  getDiagnosesByClientUsername: async (clientUsername) => {
     try {
-      const response = await API.get(`/diagnosis/client/${clientUsername}`);
+      const response = await API.get(`/diagnosis/client/username/${clientUsername}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch diagnoses');
+    }
+  },
+
+  // Keep the old one for backward compatibility
+  getDiagnosesByClient: async (clientId) => {
+    try {
+      const response = await API.get(`/diagnosis/client/${clientId}`);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch diagnoses');

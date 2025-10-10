@@ -97,6 +97,7 @@ namespace FinalYearProject.Controllers
                     .Where(c => c.AssignedDoctorId == doctor.Id)
                     .Select(c => new ClientDto
                     {
+                        Id = c.Id,  // ← ADD THIS LINE
                         UserName = c.UserName,
                         Role = c.Role,
                         FirstName = c.FirstName,

@@ -8,6 +8,7 @@ namespace FinalYearProject.Repositories
         Client? GetById(int id);
         IEnumerable<Client> GetAll();
         IEnumerable<Client> GetClientsByDoctorId(int doctorId);
+        Task<Client?> GetByUsernameAsync(string username);
         void Add(Client client);
         void Update(Client client);
         void Delete(Client client);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Users, 
@@ -62,20 +63,34 @@ const DoctorDashboard = () => {
 
   const fetchDashboardData = async (username) => {
     try {
-      // Try to fetch doctor's profile (optional)
+      // Fetch doctor's profile to get the ID
       try {
         const profileResponse = await doctorService.getProfile(username);
+        console.log('Profile response:', profileResponse);
+        
         if (profileResponse.success || profileResponse.Success) {
           const profileData = profileResponse.data || profileResponse.Data;
+          console.log('Profile data:', profileData);
+          
+          // Update user state with doctor's ID
           setUser(prev => ({
             ...prev,
             ...profileData,
-            id: profileData.id || profileData.Id
+            id: profileData.id || profileData.Id // Ensure ID is set
           }));
+          
+          // Also update localStorage
+          const updatedUser = {
+            ...JSON.parse(localStorage.getItem('user') || '{}'),
+            ...profileData,
+            id: profileData.id || profileData.Id
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
         }
       } catch (profileErr) {
-        console.warn('Profile fetch failed, using stored user data:', profileErr.message);
-        // Continue without profile - we'll use data from localStorage
+        console.error('Profile fetch failed:', profileErr);
+        setError('Failed to load doctor profile. Please try logging in again.');
+        return;
       }
 
       // Fetch assigned patients/clients
@@ -98,7 +113,6 @@ const DoctorDashboard = () => {
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message || 'Some data could not be loaded');
-      // Don't block the UI - let user see the dashboard with whatever data we have
     }
   };
 
@@ -108,10 +122,7 @@ const DoctorDashboard = () => {
     setError(null);
     
     try {
-      // Fetch diagnoses
       const diagnosesRes = await diagnosisService.getDiagnosesByClient(patient.userName);
-      
-      // Fetch symptoms
       const symptomsRes = await symptomService.getSymptomsByClient(patient.userName);
 
       const diagnoses = (diagnosesRes.success || diagnosesRes.Success) 
@@ -139,11 +150,18 @@ const DoctorDashboard = () => {
   const handleCreateDiagnosis = (patient) => {
     setSelectedPatient(patient);
     
-    // Get client ID from patient object
     const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    console.log('Creating diagnosis - Patient ID:', clientId, 'Doctor ID:', doctorId);
     
     if (!clientId) {
       setError('Cannot create diagnosis: Patient ID not found');
+      return;
+    }
+
+    if (!doctorId) {
+      setError('Cannot create diagnosis: Doctor ID not found. Please refresh the page.');
       return;
     }
 
@@ -156,7 +174,7 @@ const DoctorDashboard = () => {
       treatmentPlan: '',
       notes: '',
       clientId: clientId,
-      diagnosedByDoctorId: user.id || user.Id
+      diagnosedByDoctorId: doctorId
     });
     setShowModal('createDiagnosis');
   };
@@ -164,11 +182,19 @@ const DoctorDashboard = () => {
   const handleCreateSymptom = (patient) => {
     setSelectedPatient(patient);
     
-    // Get client ID from patient object
     const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    console.log('Creating symptom - Patient ID:', clientId, 'Doctor ID:', doctorId);
+    console.log('Current user object:', user);
     
     if (!clientId) {
       setError('Cannot create symptom: Patient ID not found');
+      return;
+    }
+
+    if (!doctorId) {
+      setError('Cannot create symptom: Doctor ID not found. Please refresh the page.');
       return;
     }
 
@@ -178,7 +204,7 @@ const DoctorDashboard = () => {
       severityLevel: 1,
       notes: '',
       clientId: clientId,
-      addedByDoctorId: user.id || user.Id
+      addedByDoctorId: doctorId
     });
     setShowModal('createSymptom');
   };
@@ -187,6 +213,8 @@ const DoctorDashboard = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    console.log('Submitting diagnosis with data:', formData);
 
     try {
       const response = await diagnosisService.createDiagnosis(formData);
@@ -201,7 +229,7 @@ const DoctorDashboard = () => {
       }
     } catch (err) {
       setError(err.message || 'An error occurred while creating diagnosis');
-      console.error(err);
+      console.error('Diagnosis submission error:', err);
     } finally {
       setLoading(false);
     }
@@ -211,6 +239,8 @@ const DoctorDashboard = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    console.log('Submitting symptom with data:', formData);
 
     try {
       const response = await symptomService.createSymptom(formData);
@@ -225,7 +255,7 @@ const DoctorDashboard = () => {
       }
     } catch (err) {
       setError(err.message || 'An error occurred while recording symptom');
-      console.error(err);
+      console.error('Symptom submission error:', err);
     } finally {
       setLoading(false);
     }
@@ -242,6 +272,7 @@ const DoctorDashboard = () => {
     setSelectedPatient(null);
     setFormData({});
     setPatientHistory(null);
+    setError(null);
   };
 
   const filteredPatients = patients.filter(patient =>
@@ -252,10 +283,24 @@ const DoctorDashboard = () => {
 
   if (loading && !user) {
     return (
-      <div className="loading-container">
-        <div className="spinner"></div>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        gap: '1rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      }}>
+        <div style={{
+          width: '48px',
+          height: '48px',
+          border: '4px solid #f3f4f6',
+          borderTop: '4px solid #3b82f6',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
         <p>Loading dashboard...</p>
-        <style>{loadingStyles}</style>
       </div>
     );
   }

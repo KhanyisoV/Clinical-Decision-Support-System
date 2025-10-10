@@ -12,6 +12,10 @@ namespace FinalYearProject.Repositories
         {
             _context = context;
         }
+        public async Task<Client?> GetByUsernameAsync(string username)
+        {
+            return await _context.Clients.FirstOrDefaultAsync(c => c.UserName == username);
+        }
 
         public Client? GetByUserName(string username)
         {

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using FinalYearProject.Repositories;
 using FinalYearProject.Models;
-using System.ComponentModel.DataAnnotations;
 using FinalYearProject.DTOs;
 using FinalYearProject.Services;
 
@@ -29,19 +28,45 @@ namespace FinalYearProject.Controllers
         // Doctor adds diagnosis to client
         [HttpPost("add-to-client")]
         [Authorize(Roles = "Doctor")]
-        public IActionResult AddDiagnosisToClient([FromBody] CreateDiagnosisRequest request)
+        public async Task<IActionResult> AddDiagnosisToClient([FromBody] DiagnosisCreateDto request)
         {
             try
             {
-                // Verify the client exists
-                var client = _clientRepo.GetById(request.ClientId);
-                if (client == null)
-                    return NotFound("Client not found");
+                // Support both ID and Username
+                Client client;
+                if (!string.IsNullOrEmpty(request.ClientUsername))
+                {
+                    client = await _clientRepo.GetByUsernameAsync(request.ClientUsername);
+                }
+                else
+                {
+                    client = _clientRepo.GetById(request.ClientId);
+                }
 
-                // Verify the doctor exists
-                var doctor = _doctorRepo.GetById(request.DoctorId);
+                if (client == null)
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Client not found"
+                    });
+
+                // Support both ID and Username for doctor
+                Doctor doctor;
+                if (!string.IsNullOrEmpty(request.DoctorUsername))
+                {
+                    doctor = await _doctorRepo.GetByUsernameAsync(request.DoctorUsername);
+                }
+                else
+                {
+                    doctor = _doctorRepo.GetById(request.DoctorId);
+                }
+
                 if (doctor == null)
-                    return NotFound("Doctor not found");
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Doctor not found"
+                    });
 
                 var diagnosis = new Diagnosis
                 {
@@ -52,18 +77,27 @@ namespace FinalYearProject.Controllers
                     Status = request.Status ?? "Active",
                     TreatmentPlan = request.TreatmentPlan,
                     Notes = request.Notes,
-                    ClientId = request.ClientId,
-                    DiagnosedByDoctorId = request.DoctorId
+                    ClientId = client.Id,
+                    DiagnosedByDoctorId = doctor.Id
                 };
 
                 _diagnosisRepo.Add(diagnosis);
                 _diagnosisRepo.Save();
 
-                return Ok(new { Message = "Diagnosis added successfully", DiagnosisId = diagnosis.Id });
+                return Ok(new ApiResponseDto<object>
+                {
+                    Success = true,
+                    Data = new { Message = "Diagnosis added successfully", DiagnosisId = diagnosis.Id },
+                    Message = "Diagnosis added successfully"
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = $"An error occurred: {ex.Message}"
+                });
             }
         }
 
@@ -104,6 +138,63 @@ namespace FinalYearProject.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        // Add this new endpoint to get diagnoses by client username
+        [HttpGet("client/username/{clientUsername}")]
+        [Authorize(Roles = "Client,Doctor,Admin")]
+        public async Task<IActionResult> GetClientDiagnosesByUsername(string clientUsername)
+        {
+            try
+            {
+                var client = await _clientRepo.GetByUsernameAsync(clientUsername);
+                if (client == null)
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Client not found"
+                    });
+
+                var diagnoses = _diagnosisRepo.GetByClientId(client.Id);
+
+                var result = diagnoses.Select(d => new
+                {
+                    d.Id,
+                    d.Title,
+                    d.Description,
+                    d.DiagnosisCode,
+                    d.Severity,
+                    d.Status,
+                    d.TreatmentPlan,
+                    d.Notes,
+                    d.DateDiagnosed,
+                    d.DateResolved,
+                    d.IsActive,
+                    DiagnosedByDoctor = new
+                    {
+                        d.DiagnosedByDoctor.Id,
+                        d.DiagnosedByDoctor.UserName,
+                        d.DiagnosedByDoctor.FirstName,
+                        d.DiagnosedByDoctor.LastName,
+                        d.DiagnosedByDoctor.Specialization
+                    }
+                }).ToList();
+
+                return Ok(new ApiResponseDto<object>
+                {
+                    Success = true,
+                    Data = result,
+                    Message = "Diagnoses retrieved successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = $"An error occurred: {ex.Message}"
+                });
             }
         }
 
@@ -198,7 +289,7 @@ namespace FinalYearProject.Controllers
         // Update diagnosis (only by doctor)
         [HttpPut("{id}")]
         [Authorize(Roles = "Doctor")]
-        public IActionResult UpdateDiagnosis(int id, [FromBody] UpdateDiagnosisRequest request)
+        public IActionResult UpdateDiagnosis(int id, [FromBody] DiagnosisUpdateDto request)
         {
             try
             {
@@ -301,48 +392,5 @@ namespace FinalYearProject.Controllers
                 return StatusCode(500, $"An error occurred: {ex.Message}");
             }
         }
-    }
-
-    // Request DTOs
-    public class CreateDiagnosisRequest
-    {
-        [Required]
-        public string Title { get; set; } = string.Empty;
-
-        [Required]
-        public string Description { get; set; } = string.Empty;
-
-        public string? DiagnosisCode { get; set; }
-
-        [Range(1, 5)]
-        public int Severity { get; set; } = 1;
-
-        public string? Status { get; set; } = "Active";
-
-        public string? TreatmentPlan { get; set; }
-
-        public string? Notes { get; set; }
-
-        [Required]
-        public int ClientId { get; set; }
-
-        [Required]
-        public int DoctorId { get; set; }
-    }
-
-    public class UpdateDiagnosisRequest
-    {
-        public string? Title { get; set; }
-        public string? Description { get; set; }
-        public string? DiagnosisCode { get; set; }
-
-        [Range(1, 5)]
-        public int? Severity { get; set; }
-
-        public string? Status { get; set; }
-        public string? TreatmentPlan { get; set; }
-        public string? Notes { get; set; }
-        public bool? IsActive { get; set; }
-        public DateTime? DateResolved { get; set; }
     }
 }

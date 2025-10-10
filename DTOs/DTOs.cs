@@ -48,7 +48,8 @@ namespace FinalYearProject.DTOs
 
     // Client DTOs
     public class ClientDto
-    {
+    {   
+        public int Id { get; set; } 
         public string UserName { get; set; } = string.Empty;
         public string Role { get; set; } = "Client";
         public string? FirstName { get; set; }
@@ -100,7 +101,8 @@ namespace FinalYearProject.DTOs
 
     // Basic client info for nested objects
     public class ClientBasicDto
-    {
+    {   
+        public int Id { get; set; }
         public string UserName { get; set; } = string.Empty;
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
@@ -185,10 +187,9 @@ namespace FinalYearProject.DTOs
         public DateTime? UpdatedAt { get; set; }
     }
 
-    public class SymptomCreateDto
+   public class SymptomCreateDto
     {
         [Required]
-        [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         
         public string? Description { get; set; }
@@ -196,28 +197,27 @@ namespace FinalYearProject.DTOs
         [Range(1, 10)]
         public int SeverityLevel { get; set; } = 1;
         
-        public string? Notes { get; set; }
-        
-        [Required]
+        // Support either ID or Username
         public int ClientId { get; set; }
+        public string? ClientUsername { get; set; }
         
-        [Required]
-        public int AddedByDoctorId { get; set; }
+        public int DoctorId { get; set; }
+        public int AddedByDoctorId { get; set; }  // ← ADD THIS
+        public string? DoctorUsername { get; set; }
+        
+        public string? Notes { get; set; }
     }
-
     public class SymptomUpdateDto
     {
-        [MaxLength(200)]
         public string? Name { get; set; }
-        
         public string? Description { get; set; }
         
         [Range(1, 10)]
         public int? SeverityLevel { get; set; }
         
-        public DateTime? DateResolved { get; set; }
-        public bool? IsActive { get; set; }
         public string? Notes { get; set; }
+        public bool? IsActive { get; set; }
+        public DateTime? DateResolved { get; set; }
     }
 
     public class PrescriptionDto
@@ -644,74 +644,71 @@ namespace FinalYearProject.DTOs
         public int? DoctorId { get; set; }
     }
 
-    public class DiagnosisDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string? DiagnosisCode { get; set; }
-        public int Severity { get; set; } = 1;
-        public string Status { get; set; } = "Active";
-        public string? TreatmentPlan { get; set; }
-        public string? Notes { get; set; }
-        public DateTime DateDiagnosed { get; set; }
-        public DateTime? DateResolved { get; set; }
-        public bool IsActive { get; set; } = true;
-        public ClientBasicDto Client { get; set; } = null!;
-        public DoctorBasicDto DiagnosedByDoctor { get; set; } = null!;
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-    }
-
     public class DiagnosisCreateDto
     {
         [Required]
-        [MaxLength(200)]
         public string Title { get; set; } = string.Empty;
-        
+
         [Required]
         public string Description { get; set; } = string.Empty;
-        
-        [MaxLength(50)]
+
         public string? DiagnosisCode { get; set; }
-        
+
         [Range(1, 5)]
         public int Severity { get; set; } = 1;
-        
-        [MaxLength(20)]
-        public string Status { get; set; } = "Active";
-        
-        public string? TreatmentPlan { get; set; }
-        public string? Notes { get; set; }
-        
-        [Required]
-        public int ClientId { get; set; }
-        
-        [Required]
-        public int DiagnosedByDoctorId { get; set; }
-    }
 
+        public string? Status { get; set; } = "Active";
+
+        public string? TreatmentPlan { get; set; }
+
+        public string? Notes { get; set; }
+
+        // Support either ID or Username
+        public int ClientId { get; set; }
+        public string? ClientUsername { get; set; }
+
+        public int DoctorId { get; set; }
+        public int DiagnosedByDoctorId { get; set; }  // ← ADD THIS
+        public string? DoctorUsername { get; set; }
+    }
     public class DiagnosisUpdateDto
     {
-        [MaxLength(200)]
         public string? Title { get; set; }
-        
         public string? Description { get; set; }
-        
-        [MaxLength(50)]
         public string? DiagnosisCode { get; set; }
-        
+
         [Range(1, 5)]
         public int? Severity { get; set; }
-        
-        [MaxLength(20)]
+
         public string? Status { get; set; }
-        
         public string? TreatmentPlan { get; set; }
         public string? Notes { get; set; }
         public bool? IsActive { get; set; }
         public DateTime? DateResolved { get; set; }
     }
 
+    public class DiagnosisDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string? DiagnosisCode { get; set; }
+        public int Severity { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? TreatmentPlan { get; set; }
+        public string? Notes { get; set; }
+        public DateTime DateDiagnosed { get; set; }
+        public DateTime? DateResolved { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }  // ← Make this nullable with ?
+        
+        public int ClientId { get; set; }
+        public ClientBasicDto? Client { get; set; }
+        
+        public int DiagnosedByDoctorId { get; set; }
+        public DoctorBasicDto? DiagnosedByDoctor { get; set; }
+    }
     public class ClientAnalyticsDto
     {
         public int ClientId { get; set; }
