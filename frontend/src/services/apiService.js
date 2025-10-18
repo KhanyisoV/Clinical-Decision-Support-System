@@ -485,4 +485,65 @@ export const prescriptionService = {
     }
   }
 };
+export const labResultService = {
+  // Get all lab results (filtered by role on backend)
+  getAllLabResults: async () => {
+    try {
+      const response = await API.get('/labresult');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch lab results');
+    }
+  },
+
+  // Get lab result by ID
+  getLabResultById: async (labResultId) => {
+    try {
+      const response = await API.get(`/labresult/${labResultId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch lab result');
+    }
+  },
+
+  // Get lab results by client ID
+  getLabResultsByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/labresult/client/${clientId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch lab results');
+    }
+  },
+
+  // Create new lab result
+  createLabResult: async (labResultData) => {
+    try {
+      const response = await API.post('/labresult', labResultData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to create lab result');
+    }
+  },
+
+  // Update lab result
+  updateLabResult: async (labResultId, labResultData) => {
+    try {
+      const response = await API.put(`/labresult/${labResultId}`, labResultData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update lab result');
+    }
+  },
+
+  // Delete lab result
+  deleteLabResult: async (labResultId) => {
+    try {
+      const response = await API.delete(`/labresult/${labResultId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete lab result');
+    }
+  }
+};
 export default API;

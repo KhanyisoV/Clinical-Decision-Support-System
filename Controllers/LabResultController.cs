@@ -216,9 +216,9 @@ namespace FinalYearProject.Controllers
             }
         }
 
-        // POST: api/labresult - Admin only
+        
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> CreateLabResult([FromBody] LabResultCreateDto request)
         {
             try
@@ -303,7 +303,7 @@ namespace FinalYearProject.Controllers
 
         // PUT: api/labresult/{id} - Admin only
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> UpdateLabResult(int id, [FromBody] LabResultUpdateDto request)
         {
             try
@@ -350,9 +350,9 @@ namespace FinalYearProject.Controllers
             }
         }
 
-        // DELETE: api/labresult/{id} - Admin only
+        
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> DeleteLabResult(int id)
         {
             try

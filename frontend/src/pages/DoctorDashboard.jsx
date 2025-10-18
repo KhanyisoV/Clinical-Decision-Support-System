@@ -18,9 +18,10 @@ import {
   Clock,
   MapPin,
   Plus,
-  Pill
+  Pill,
+  Beaker
 } from 'lucide-react';
-import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService } from '../services/apiService';
+import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
@@ -35,6 +36,8 @@ const DoctorDashboard = () => {
     pendingDiagnoses: 0,
     activeTreatments: 0
   });
+  const [labResults, setLabResults] = useState([]);
+  const [selectedLabResult, setSelectedLabResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -65,6 +68,7 @@ const DoctorDashboard = () => {
       await fetchDashboardData(userData.userName);
       await fetchAppointments();
       await fetchPrescriptions();
+      await fetchLabResults();
     } catch (err) {
       console.error('Dashboard initialization error:', err);
       setError('Failed to load dashboard data');
@@ -128,6 +132,18 @@ const DoctorDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching prescriptions:', err);
+    }
+  };
+  const fetchLabResults = async () => {
+    try {
+      const response = await labResultService.getAllLabResults();
+      
+      if (response.success || response.Success) {
+        const labResultsList = response.data || response.Data || [];
+        setLabResults(labResultsList);
+      }
+    } catch (err) {
+      console.error('Error fetching lab results:', err);
     }
   };
   const fetchAppointments = async (doctorId) => {
@@ -388,6 +404,112 @@ const DoctorDashboard = () => {
       setLoading(false);
     }
   };
+  const handleCreateLabResult = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    
+    if (!clientId) {
+      setError('Cannot create lab result: Patient ID not found');
+      return;
+    }
+    
+    setFormData({
+      ClientId: clientId,
+      TestName: '',
+      TestType: '',
+      TestDate: new Date().toISOString().split('T')[0],
+      Result: '',
+      Status: 'Pending',
+      Notes: '',
+      ReferenceRange: '',
+      IsAbnormal: false,
+      PerformedBy: ''
+    });
+    setShowModal('createLabResult');
+  };
+  
+  const handleEditLabResult = (labResult) => {
+    setSelectedLabResult(labResult);
+    
+    const testDate = new Date(labResult.testDate || labResult.TestDate);
+    
+    setFormData({
+      TestName: labResult.testName || labResult.TestName || '',
+      TestType: labResult.testType || labResult.TestType || '',
+      TestDate: testDate.toISOString().split('T')[0],
+      Result: labResult.result || labResult.Result || '',
+      Status: labResult.status || labResult.Status || 'Pending',
+      Notes: labResult.notes || labResult.Notes || '',
+      ReferenceRange: labResult.referenceRange || labResult.ReferenceRange || '',
+      IsAbnormal: labResult.isAbnormal ?? labResult.IsAbnormal ?? false,
+      PerformedBy: labResult.performedBy || labResult.PerformedBy || ''
+    });
+    setShowModal('editLabResult');
+  };
+  
+  const handleDeleteLabResult = (labResultId) => {
+    setDeleteConfirm({
+      type: 'labresult',
+      id: labResultId,
+      message: 'Are you sure you want to delete this lab result? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitLabResult = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+     
+      const response = await labResultService.createLabResult(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Lab result created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchLabResults();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create lab result');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating lab result');
+      console.error('Lab result submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateLabResult = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const labResultId = selectedLabResult.id || selectedLabResult.Id;
+      
+      const response = await labResultService.updateLabResult(labResultId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Lab result updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedLabResult(null);
+        await fetchLabResults();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update lab result');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating lab result');
+      console.error('Lab result update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleUpdateAppointment = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -433,6 +555,7 @@ const DoctorDashboard = () => {
       const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
       const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
       const prescriptionsRes = await prescriptionService.getActivePrescriptionsByClientId(clientId);
+      const labResultsRes = await labResultService.getLabResultsByClientId(clientId);
 
       const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
         ? (diagnosesRes.data || diagnosesRes.Data || [])
@@ -446,10 +569,15 @@ const DoctorDashboard = () => {
         ? (prescriptionsRes.data || prescriptionsRes.Data || [])
         : [];
 
+      const labResults = (labResultsRes.success || labResultsRes.Success)
+        ? (labResultsRes.data || labResultsRes.Data || [])
+        : [];
+
       setPatientHistory({
         diagnoses,
         symptoms,
-        prescriptions
+        prescriptions,
+        labResults
       });
 
       setShowModal('patientHistory');
@@ -493,7 +621,10 @@ const DoctorDashboard = () => {
         response = await appointmentService.deleteAppointment(deleteConfirm.id);
       } else if (deleteConfirm.type === 'prescription') {
         response = await prescriptionService.deletePrescription(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'labresult') {
+        response = await labResultService.deleteLabResult(deleteConfirm.id);
       }
+
 
       if (response.success || response.Success) {
         setSuccess(`${deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)} deleted successfully!`);
@@ -512,7 +643,11 @@ const DoctorDashboard = () => {
         if (deleteConfirm.type === 'prescription') {
           await fetchPrescriptions();
         }
-        
+
+        // Refresh lab results if lab result was deleted
+        if (deleteConfirm.type === 'labresult') {
+          await fetchLabResults();
+        }
         setTimeout(() => setSuccess(null), 3000);
       }
       else {
@@ -752,6 +887,14 @@ const DoctorDashboard = () => {
         >
           Prescriptions ({prescriptions.length})
         </button>
+        <button
+          className={activeTab === 'labresults' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('labresults')}
+        >
+          Lab Results ({labResults.length})
+        </button>
+        
+        
       </div>
 
       <main className="main">
@@ -836,6 +979,13 @@ const DoctorDashboard = () => {
                       >
                         <Stethoscope size={16} />
                       </button>
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateLabResult(patient)}
+                        title="Add Lab Result"
+                      >
+                        <Beaker size={16} />
+                      </button>
                       
                       <button 
                         className="action-btn-small"
@@ -854,6 +1004,7 @@ const DoctorDashboard = () => {
                       >
                         <Pill size={16} />
                       </button>
+                      
                     </div>
                   </div>
                 ))}
@@ -944,6 +1095,15 @@ const DoctorDashboard = () => {
                     <Pill size={16} />
                     New Prescription
                   </button>
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateLabResult(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <Beaker size={16} />
+                    Add Lab Result
+                  </button>
+
                 </div>
               ))}
               {filteredPatients.length === 0 && (
@@ -1173,8 +1333,388 @@ const DoctorDashboard = () => {
             )}
           </div>
         )}
-      </main>
+        {activeTab === 'labresults' && (
+          <div className="labresults-view">
+            <div className="section-header" style={{marginBottom: '1.5rem'}}>
+              <h2 className="section-title">Lab Results History</h2>
+            </div>
 
+            {labResults.length === 0 ? (
+              <div className="empty-state">
+                <Beaker size={64} color="#9ca3af" />
+                <p className="empty-text">No lab results recorded yet</p>
+                <p className="empty-subtext">Add lab results for your patients from the Patients tab</p>
+              </div>
+            ) : (
+              <div className="labresults-grid">
+                {labResults
+                  .sort((a, b) => {
+                    const dateA = new Date(a.testDate || a.TestDate);
+                    const dateB = new Date(b.testDate || b.TestDate);
+                    return dateB - dateA;
+                  })
+                  .map((labResult, index) => {
+                    const testDate = new Date(labResult.testDate || labResult.TestDate);
+                    const isAbnormal = labResult.isAbnormal ?? labResult.IsAbnormal ?? false;
+                    const status = labResult.status || labResult.Status;
+                    
+                    const clientName = labResult.clientName || labResult.ClientName || 'Unknown Patient';
+                    
+                    return (
+                      <div key={index} className={`labresult-card ${isAbnormal ? 'abnormal' : ''}`}>
+                        <div className="labresult-card-header">
+                          <div>
+                            <div className="labresult-card-title">
+                              {labResult.testName || labResult.TestName}
+                            </div>
+                            <div className="labresult-card-patient">
+                              <Users size={14} />
+                              {clientName}
+                            </div>
+                          </div>
+                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                            <span className={`status-badge status-${status.toLowerCase()}`}>
+                              {status}
+                            </span>
+                            {isAbnormal && (
+                              <span className="abnormal-badge">
+                                Abnormal
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="labresult-card-body">
+                          <div className="labresult-card-type">
+                            <strong>Test Type:</strong>
+                            <span>{labResult.testType || labResult.TestType}</span>
+                          </div>
+
+                          <div className="labresult-card-result">
+                            <strong>Result:</strong>
+                            <span className={isAbnormal ? 'abnormal-result' : ''}>
+                              {labResult.result || labResult.Result}
+                            </span>
+                          </div>
+
+                          {(labResult.referenceRange || labResult.ReferenceRange) && (
+                            <div className="labresult-card-reference">
+                              <strong>Reference Range:</strong>
+                              <span>{labResult.referenceRange || labResult.ReferenceRange}</span>
+                            </div>
+                          )}
+
+                          <div className="labresult-card-date">
+                            <Clock size={14} />
+                            <span>Test Date: {testDate.toLocaleDateString()}</span>
+                          </div>
+
+                          {(labResult.performedBy || labResult.PerformedBy) && (
+                            <div className="labresult-card-performed">
+                              <strong>Performed By:</strong>
+                              <span>{labResult.performedBy || labResult.PerformedBy}</span>
+                            </div>
+                          )}
+
+                          {(labResult.notes || labResult.Notes) && (
+                            <div className="labresult-card-notes">
+                              <strong>Notes:</strong>
+                              <p>{labResult.notes || labResult.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="labresult-card-footer">
+                          <div className="labresult-card-meta">
+                            <span>Created: {new Date(labResult.createdAt || labResult.CreatedAt).toLocaleDateString()}</span>
+                            {(labResult.updatedAt || labResult.UpdatedAt) && (
+                              <span>Updated: {new Date(labResult.updatedAt || labResult.UpdatedAt).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          <div className="labresult-card-actions">
+                            <button 
+                              className="secondary-btn"
+                              onClick={() => handleEditLabResult(labResult)}
+                            >
+                              <Edit size={16} />
+                              Edit
+                            </button>
+                            <button 
+                              className="delete-btn-small"
+                              onClick={() => handleDeleteLabResult(labResult.id || labResult.Id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                    
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+{/* Create Lab Result Modal */}
+{showModal === 'createLabResult' && selectedPatient && (
+                      <div className="modal-overlay" onClick={closeModal}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                          <div className="modal-header">
+                            <h2>New Lab Result for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+                            <button onClick={closeModal} className="close-btn">
+                              <X size={24} />
+                            </button>
+                          </div>
+                          <form onSubmit={handleSubmitLabResult} className="modal-body">
+                            <div className="form-group">
+                              <label>Test Name *</label>
+                              <input
+                                type="text"
+                                required
+                                value={formData.TestName || ''}
+                                onChange={(e) => setFormData({...formData, TestName: e.target.value})}
+                                placeholder="e.g., Complete Blood Count"
+                              />
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Test Type *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.TestType || ''}
+                                  onChange={(e) => setFormData({...formData, TestType: e.target.value})}
+                                  placeholder="e.g., Blood Test"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Test Date *</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={formData.TestDate || ''}
+                                  onChange={(e) => setFormData({...formData, TestDate: e.target.value})}
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Result *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.Result || ''}
+                                  onChange={(e) => setFormData({...formData, Result: e.target.value})}
+                                  placeholder="e.g., 150 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Status *</label>
+                                <select
+                                  required
+                                  value={formData.Status || 'Pending'}
+                                  onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="In Progress">In Progress</option>
+                                  <option value="Completed">Completed</option>
+                                  <option value="Cancelled">Cancelled</option>
+                                </select>
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Reference Range</label>
+                                <input
+                                  type="text"
+                                  value={formData.ReferenceRange || ''}
+                                  onChange={(e) => setFormData({...formData, ReferenceRange: e.target.value})}
+                                  placeholder="e.g., 70-100 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Performed By</label>
+                                <input
+                                  type="text"
+                                  value={formData.PerformedBy || ''}
+                                  onChange={(e) => setFormData({...formData, PerformedBy: e.target.value})}
+                                  placeholder="Lab technician name"
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.IsAbnormal || false}
+                                  onChange={(e) => setFormData({...formData, IsAbnormal: e.target.checked})}
+                                  style={{width: 'auto'}}
+                                />
+                                Mark as Abnormal
+                              </label>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label>Notes</label>
+                              <textarea
+                                rows="3"
+                                value={formData.Notes || ''}
+                                onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                                placeholder="Additional notes or observations"
+                              />
+                            </div>
+                    
+                            <div className="modal-footer">
+                              <button type="button" onClick={closeModal} className="cancel-btn">
+                                Cancel
+                              </button>
+                              <button type="submit" className="submit-btn" disabled={loading}>
+                                <Save size={18} />
+                                {loading ? 'Creating...' : 'Create Lab Result'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Edit Lab Result Modal */}
+                    {showModal === 'editLabResult' && selectedLabResult && (
+                      <div className="modal-overlay" onClick={closeModal}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                          <div className="modal-header">
+                            <h2>Edit Lab Result</h2>
+                            <button onClick={closeModal} className="close-btn">
+                              <X size={24} />
+                            </button>
+                          </div>
+                          <form onSubmit={handleUpdateLabResult} className="modal-body">
+                            <div className="form-group">
+                              <label>Test Name *</label>
+                              <input
+                                type="text"
+                                required
+                                value={formData.TestName || ''}
+                                onChange={(e) => setFormData({...formData, TestName: e.target.value})}
+                                placeholder="e.g., Complete Blood Count"
+                              />
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Test Type *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.TestType || ''}
+                                  onChange={(e) => setFormData({...formData, TestType: e.target.value})}
+                                  placeholder="e.g., Blood Test"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Test Date *</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={formData.TestDate || ''}
+                                  onChange={(e) => setFormData({...formData, TestDate: e.target.value})}
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Result *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.Result || ''}
+                                  onChange={(e) => setFormData({...formData, Result: e.target.value})}
+                                  placeholder="e.g., 150 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Status *</label>
+                                <select
+                                  required
+                                  value={formData.Status || 'Pending'}
+                                  onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="In Progress">In Progress</option>
+                                  <option value="Completed">Completed</option>
+                                  <option value="Cancelled">Cancelled</option>
+                                </select>
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Reference Range</label>
+                                <input
+                                  type="text"
+                                  value={formData.ReferenceRange || ''}
+                                  onChange={(e) => setFormData({...formData, ReferenceRange: e.target.value})}
+                                  placeholder="e.g., 70-100 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Performed By</label>
+                                <input
+                                  type="text"
+                                  value={formData.PerformedBy || ''}
+                                  onChange={(e) => setFormData({...formData, PerformedBy: e.target.value})}
+                                  placeholder="Lab technician name"
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.IsAbnormal || false}
+                                  onChange={(e) => setFormData({...formData, IsAbnormal: e.target.checked})}
+                                  style={{width: 'auto'}}
+                                />
+                                Mark as Abnormal
+                              </label>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label>Notes</label>
+                              <textarea
+                                rows="3"
+                                value={formData.Notes || ''}
+                                onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                                placeholder="Additional notes or observations"
+                              />
+                            </div>
+                    
+                            <div className="modal-footer">
+                              <button type="button" onClick={closeModal} className="cancel-btn">
+                                Cancel
+                              </button>
+                              <button type="submit" className="submit-btn" disabled={loading}>
+                                <Save size={18} />
+                                {loading ? 'Updating...' : 'Update Lab Result'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
@@ -1383,6 +1923,86 @@ const DoctorDashboard = () => {
                       <p className="no-data">No prescriptions recorded</p>
                     )}
                   </div>
+
+                  <div className="history-section">
+                  <h3>Lab Results ({patientHistory?.labResults?.length || 0})</h3>
+                  {patientHistory?.labResults?.length > 0 ? (
+                    <div className="history-list">
+                      {patientHistory.labResults.map((labResult, idx) => (
+                        <div key={idx} className={`history-item lab-result-item ${(labResult.isAbnormal ?? labResult.IsAbnormal) ? 'abnormal' : ''}`}>
+                          <div className="history-item-header">
+                            <div>
+                              <strong style={{fontSize: '1rem', color: (labResult.isAbnormal ?? labResult.IsAbnormal) ? '#dc2626' : '#059669'}}>
+                                {labResult.testName || labResult.TestName}
+                              </strong>
+                              <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+                                {labResult.testType || labResult.TestType} - {new Date(labResult.testDate || labResult.TestDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                              <span className={`status-badge status-${(labResult.status || labResult.Status)?.toLowerCase().replace(' ', '-')}`}>
+                                {labResult.status || labResult.Status}
+                              </span>
+                              {(labResult.isAbnormal ?? labResult.IsAbnormal) && (
+                                <span className="abnormal-badge">
+                                  Abnormal
+                                </span>
+                              )}
+                              <button 
+                                className="action-btn-small"
+                                onClick={() => handleEditLabResult(labResult)}
+                                title="Edit lab result"
+                                style={{width: '32px', height: '32px'}}
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button 
+                                className="delete-icon-btn"
+                                onClick={() => handleDeleteLabResult(labResult.id || labResult.Id)}
+                                title="Delete lab result"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div style={{marginTop: '0.75rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem'}}>
+                            <div>
+                              <strong style={{fontSize: '0.875rem', color: '#111827'}}>Result:</strong>
+                              <span style={{fontSize: '0.875rem', color: (labResult.isAbnormal ?? labResult.IsAbnormal) ? '#dc2626' : '#374151', fontWeight: (labResult.isAbnormal ?? labResult.IsAbnormal) ? '600' : 'normal', marginLeft: '0.5rem'}}>
+                                {labResult.result || labResult.Result}
+                              </span>
+                            </div>
+                            
+                            {(labResult.referenceRange || labResult.ReferenceRange) && (
+                              <div>
+                                <strong style={{fontSize: '0.875rem', color: '#111827'}}>Reference:</strong>
+                                <span style={{fontSize: '0.875rem', color: '#6b7280', marginLeft: '0.5rem'}}>
+                                  {labResult.referenceRange || labResult.ReferenceRange}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {(labResult.performedBy || labResult.PerformedBy) && (
+                            <div style={{marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
+                              <strong>Performed By:</strong> {labResult.performedBy || labResult.PerformedBy}
+                            </div>
+                          )}
+                          
+                          {(labResult.notes || labResult.Notes) && (
+                            <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                              <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                              <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{labResult.notes || labResult.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-data">No lab results recorded</p>
+                  )}
+                </div>
                 </>
               )}
             </div>
@@ -1973,6 +2593,182 @@ const dashboardStyles = `
   }
   .tertiary-btn:hover {
     background-color: #e5e7eb;
+  }
+    /* Lab Result Styles */
+  .labresults-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .labresults-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .labresult-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #10b981;
+  }
+
+  .labresult-card.abnormal {
+    border-left-color: #ef4444;
+    background-color: #fef2f2;
+  }
+
+  .labresult-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .labresult-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .labresult-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #059669;
+    margin-bottom: 0.5rem;
+  }
+
+  .labresult-card.abnormal .labresult-card-title {
+    color: #dc2626;
+  }
+
+  .labresult-card-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .labresult-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .labresult-card-type,
+  .labresult-card-result,
+  .labresult-card-reference,
+  .labresult-card-performed {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .labresult-card-type strong,
+  .labresult-card-result strong,
+  .labresult-card-reference strong,
+  .labresult-card-performed strong {
+    color: #111827;
+    min-width: 100px;
+  }
+
+  .labresult-card-result .abnormal-result {
+    color: #dc2626;
+    font-weight: 600;
+  }
+
+  .labresult-card-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .labresult-card-notes {
+    padding: 0.75rem;
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .labresult-card-notes strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+    font-size: 0.875rem;
+  }
+
+  .labresult-card-notes p {
+    margin: 0;
+    color: #78350f;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .labresult-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .labresult-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .labresult-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .abnormal-badge {
+    padding: 0.25rem 0.75rem;
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .lab-result-item {
+    border-left: 3px solid #10b981 !important;
+  }
+
+  .lab-result-item.abnormal {
+    border-left-color: #ef4444 !important;
+  }
+
+  .status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-in {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
   }
     .appointments-view {
     display: flex;
@@ -3141,6 +3937,9 @@ const dashboardStyles = `
     }
     
     .prescriptions-grid {
+      grid-template-columns: 1fr;
+    }
+    .labresults-grid {
       grid-template-columns: 1fr;
     }
     
