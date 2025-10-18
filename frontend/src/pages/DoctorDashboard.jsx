@@ -746,6 +746,12 @@ const DoctorDashboard = () => {
         >
           Appointments ({appointments.length})
         </button>
+        <button
+          className={activeTab === 'prescriptions' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('prescriptions')}
+        >
+          Prescriptions ({prescriptions.length})
+        </button>
       </div>
 
       <main className="main">
@@ -1033,6 +1039,132 @@ const DoctorDashboard = () => {
                           >
                             <Trash2 size={16} />
                           </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab === 'prescriptions' && (
+          <div className="prescriptions-view">
+            <div className="section-header" style={{marginBottom: '1.5rem'}}>
+              <h2 className="section-title">Prescription History</h2>
+            </div>
+
+            {prescriptions.length === 0 ? (
+              <div className="empty-state">
+                <Pill size={64} color="#9ca3af" />
+                <p className="empty-text">No prescriptions created yet</p>
+                <p className="empty-subtext">Create prescriptions for your patients from the Patients tab</p>
+              </div>
+            ) : (
+              <div className="prescriptions-grid">
+                {prescriptions
+                  .sort((a, b) => {
+                    const dateA = new Date(a.createdAt || a.CreatedAt);
+                    const dateB = new Date(b.createdAt || b.CreatedAt);
+                    return dateB - dateA;
+                  })
+                  .map((prescription, index) => {
+                    const startDate = new Date(prescription.startDate || prescription.StartDate);
+                    const endDate = prescription.endDate || prescription.EndDate 
+                      ? new Date(prescription.endDate || prescription.EndDate) 
+                      : null;
+                    const isActive = prescription.isActive ?? prescription.IsActive ?? true;
+                    const status = prescription.status || prescription.Status;
+                    
+                    const client = prescription.client || prescription.Client;
+                    const clientName = client 
+                      ? `${client.firstName || client.FirstName} ${client.lastName || client.LastName}`
+                      : 'Unknown Patient';
+                    
+                    return (
+                      <div key={index} className="prescription-card">
+                        <div className="prescription-card-header">
+                          <div>
+                            <div className="prescription-card-title">
+                              {prescription.medicationName || prescription.MedicationName}
+                            </div>
+                            <div className="prescription-card-patient">
+                              <Users size={14} />
+                              {clientName}
+                            </div>
+                          </div>
+                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                            <span className={`status-badge status-${status.toLowerCase()}`}>
+                              {status}
+                            </span>
+                            {isActive && (
+                              <span className="active-badge">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="prescription-card-body">
+                          <div className="prescription-card-dosage">
+                            <strong>Dosage:</strong>
+                            <span>{prescription.dosage || prescription.Dosage}</span>
+                          </div>
+
+                          <div className="prescription-card-frequency">
+                            <strong>Frequency:</strong>
+                            <span>{prescription.frequency || prescription.Frequency}</span>
+                          </div>
+
+                          <div className="prescription-card-dates">
+                            <div className="date-item">
+                              <Clock size={14} />
+                              <span>Start: {startDate.toLocaleDateString()}</span>
+                            </div>
+                            {endDate && (
+                              <div className="date-item">
+                                <Clock size={14} />
+                                <span>End: {endDate.toLocaleDateString()}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {(prescription.instructions || prescription.Instructions) && (
+                            <div className="prescription-card-instructions">
+                              <strong>Instructions:</strong>
+                              <p>{prescription.instructions || prescription.Instructions}</p>
+                            </div>
+                          )}
+
+                          {(prescription.notes || prescription.Notes) && (
+                            <div className="prescription-card-notes">
+                              <strong>Notes:</strong>
+                              <p>{prescription.notes || prescription.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="prescription-card-footer">
+                          <div className="prescription-card-meta">
+                            <span>Created: {new Date(prescription.createdAt || prescription.CreatedAt).toLocaleDateString()}</span>
+                            {(prescription.updatedAt || prescription.UpdatedAt) && (
+                              <span>Updated: {new Date(prescription.updatedAt || prescription.UpdatedAt).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          <div className="prescription-card-actions">
+                            <button 
+                              className="secondary-btn"
+                              onClick={() => handleEditPrescription(prescription)}
+                            >
+                              <Edit size={16} />
+                              Edit
+                            </button>
+                            <button 
+                              className="delete-btn-small"
+                              onClick={() => handleDeletePrescription(prescription.id || prescription.Id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1978,6 +2110,185 @@ const dashboardStyles = `
     background-color: #e9d5ff;
     color: #6b21a8;
   }
+    /* Prescription Styles */
+  .prescriptions-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .prescriptions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .prescription-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #8b5cf6;
+  }
+
+  .prescription-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .prescription-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .prescription-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #6b21a8;
+    margin-bottom: 0.5rem;
+  }
+
+  .prescription-card-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .prescription-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .prescription-card-dosage,
+  .prescription-card-frequency {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .prescription-card-dosage strong,
+  .prescription-card-frequency strong {
+    color: #111827;
+    min-width: 80px;
+  }
+
+  .prescription-card-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+  }
+
+  .date-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .prescription-card-instructions,
+  .prescription-card-notes {
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .prescription-card-instructions {
+    background-color: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .prescription-card-instructions strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #1e40af;
+    font-size: 0.875rem;
+  }
+
+  .prescription-card-instructions p {
+    margin: 0;
+    color: #1e3a8a;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .prescription-card-notes {
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+  }
+
+  .prescription-card-notes strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+    font-size: 0.875rem;
+  }
+
+  .prescription-card-notes p {
+    margin: 0;
+    color: #78350f;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .prescription-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .prescription-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .prescription-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .active-badge {
+    padding: 0.25rem 0.75rem;
+    background-color: #d1fae5;
+    color: #065f46;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-active {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-completed {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-discontinued {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
   .dashboard-container {
     min-height: 100vh;
     background-color: #f9fafb;
@@ -2826,6 +3137,10 @@ const dashboardStyles = `
     }
     
     .patients-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .prescriptions-grid {
       grid-template-columns: 1fr;
     }
     
