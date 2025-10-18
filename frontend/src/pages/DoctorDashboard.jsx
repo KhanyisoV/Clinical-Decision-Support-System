@@ -13,9 +13,13 @@ import {
   Eye,
   Stethoscope,
   ClipboardList,
-  Trash2
+  Trash2,
+  Edit,
+  Clock,
+  MapPin,
+  Plus
 } from 'lucide-react';
-import { doctorService, symptomService, diagnosisService } from '../services/apiService';
+import { doctorService, symptomService, diagnosisService, appointmentService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
@@ -36,6 +40,8 @@ const DoctorDashboard = () => {
   const [formData, setFormData] = useState({});
   const [patientHistory, setPatientHistory] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   useEffect(() => {
     initializeDashboard();
@@ -54,6 +60,7 @@ const DoctorDashboard = () => {
 
       setUser(userData);
       await fetchDashboardData(userData.userName);
+      await fetchAppointments();
     } catch (err) {
       console.error('Dashboard initialization error:', err);
       setError('Failed to load dashboard data');
@@ -107,7 +114,179 @@ const DoctorDashboard = () => {
       setError(err.message || 'Some data could not be loaded');
     }
   };
-
+  const fetchAppointments = async () => {
+    try {
+      const response = await appointmentService.getAllAppointments();
+      
+      if (response.success || response.Success) {
+        const appointmentsList = response.data || response.Data || [];
+        
+        // Filter appointments for current doctor
+        const doctorId = user?.id || user?.Id;
+        const doctorAppointments = appointmentsList.filter(apt => 
+          (apt.doctorId || apt.DoctorId) === doctorId
+        );
+        
+        setAppointments(doctorAppointments);
+        
+        // Update stats
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayAppointments = doctorAppointments.filter(apt => {
+          const aptDate = new Date(apt.appointmentDate || apt.AppointmentDate);
+          aptDate.setHours(0, 0, 0, 0);
+          return aptDate.getTime() === today.getTime();
+        });
+        
+        setStats(prev => ({
+          ...prev,
+          todayAppointments: todayAppointments.length
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+    }
+  };
+  
+  const handleCreateAppointment = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    if (!clientId) {
+      setError('Cannot create appointment: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create appointment: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    setFormData({
+      Title: '',
+      Description: '',
+      AppointmentDate: tomorrow.toISOString().split('T')[0],
+      StartTime: '09:00',
+      EndTime: '10:00',
+      Status: 'Scheduled',
+      Location: '',
+      Notes: '',
+      ClientId: clientId,
+      DoctorId: doctorId
+    });
+    setShowModal('createAppointment');
+  };
+  
+  const handleEditAppointment = (appointment) => {
+    setSelectedAppointment(appointment);
+    
+    const aptDate = new Date(appointment.appointmentDate || appointment.AppointmentDate);
+    const dateStr = aptDate.toISOString().split('T')[0];
+    
+    // Convert TimeSpan to HH:MM format
+    const formatTime = (timeSpan) => {
+      if (typeof timeSpan === 'string' && timeSpan.includes(':')) {
+        return timeSpan.substring(0, 5); // Get HH:MM from HH:MM:SS
+      }
+      return timeSpan;
+    };
+    
+    setFormData({
+      Title: appointment.title || appointment.Title || '',
+      Description: appointment.description || appointment.Description || '',
+      AppointmentDate: dateStr,
+      StartTime: formatTime(appointment.startTime || appointment.StartTime),
+      EndTime: formatTime(appointment.endTime || appointment.EndTime),
+      Status: appointment.status || appointment.Status || 'Scheduled',
+      Location: appointment.location || appointment.Location || '',
+      Notes: appointment.notes || appointment.Notes || '',
+      ClientId: appointment.clientId || appointment.ClientId,
+      DoctorId: appointment.doctorId || appointment.DoctorId
+    });
+    setShowModal('editAppointment');
+  };
+  
+  const handleDeleteAppointment = (appointmentId) => {
+    setDeleteConfirm({
+      type: 'appointment',
+      id: appointmentId,
+      message: 'Are you sure you want to delete this appointment? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitAppointment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Convert HH:MM to TimeSpan format (HH:MM:SS)
+      const appointmentData = {
+        ...formData,
+        StartTime: formData.StartTime + ':00',
+        EndTime: formData.EndTime + ':00'
+      };
+      
+      const response = await appointmentService.createAppointment(appointmentData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Appointment created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchAppointments();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create appointment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating appointment');
+      console.error('Appointment submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateAppointment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const appointmentId = selectedAppointment.id || selectedAppointment.Id;
+      
+      // Convert HH:MM to TimeSpan format (HH:MM:SS)
+      const appointmentData = {
+        ...formData,
+        StartTime: formData.StartTime + ':00',
+        EndTime: formData.EndTime + ':00'
+      };
+      
+      const response = await appointmentService.updateAppointment(appointmentId, appointmentData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Appointment updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedAppointment(null);
+        await fetchAppointments();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update appointment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating appointment');
+      console.error('Appointment update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleViewPatientHistory = async (patient) => {
     setSelectedPatient(patient);
     setLoading(true);
@@ -167,6 +346,8 @@ const DoctorDashboard = () => {
         response = await diagnosisService.deleteDiagnosis(deleteConfirm.id);
       } else if (deleteConfirm.type === 'symptom') {
         response = await symptomService.deleteSymptom(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'appointment') {
+        response = await appointmentService.deleteAppointment(deleteConfirm.id);
       }
 
       if (response.success || response.Success) {
@@ -177,8 +358,14 @@ const DoctorDashboard = () => {
           await handleViewPatientHistory(selectedPatient);
         }
         
+        // Refresh appointments if appointment was deleted
+        if (deleteConfirm.type === 'appointment') {
+          await fetchAppointments();
+        }
+        
         setTimeout(() => setSuccess(null), 3000);
-      } else {
+      }
+      else {
         setError(response.message || response.Message || 'Failed to delete');
       }
     } catch (err) {
@@ -403,6 +590,12 @@ const DoctorDashboard = () => {
         >
           My Patients ({patients.length})
         </button>
+        <button
+          className={activeTab === 'appointments' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('appointments')}
+        >
+          Appointments ({appointments.length})
+        </button>
       </div>
 
       <main className="main">
@@ -567,6 +760,14 @@ const DoctorDashboard = () => {
                     <ClipboardList size={16} />
                     Add Symptom
                   </button>
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateAppointment(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <Calendar size={16} />
+                    Schedule Appointment
+                  </button>
                 </div>
               ))}
               {filteredPatients.length === 0 && (
@@ -581,6 +782,93 @@ const DoctorDashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+          
+        )}{activeTab === 'appointments' && (
+          <div className="appointments-view">
+            <div className="section-header" style={{marginBottom: '1.5rem'}}>
+              <h2 className="section-title">Appointments Schedule</h2>
+            </div>
+
+            {appointments.length === 0 ? (
+              <div className="empty-state">
+                <Calendar size={64} color="#9ca3af" />
+                <p className="empty-text">No appointments scheduled</p>
+                <p className="empty-subtext">Schedule appointments for your patients from the Patients tab</p>
+              </div>
+            ) : (
+              <div className="appointments-grid">
+                {appointments
+                  .sort((a, b) => {
+                    const dateA = new Date(a.appointmentDate || a.AppointmentDate);
+                    const dateB = new Date(b.appointmentDate || b.AppointmentDate);
+                    return dateB - dateA;
+                  })
+                  .map((appointment, index) => {
+                    const aptDate = new Date(appointment.appointmentDate || appointment.AppointmentDate);
+                    const isUpcoming = aptDate >= new Date();
+                    const status = appointment.status || appointment.Status;
+                    
+                    return (
+                      <div key={index} className="appointment-card">
+                        <div className="appointment-card-header">
+                          <div>
+                            <div className="appointment-card-title">
+                              {appointment.title || appointment.Title}
+                            </div>
+                            <div className="appointment-card-date">
+                              <Clock size={14} />
+                              {aptDate.toLocaleDateString()} at {appointment.startTime || appointment.StartTime}
+                            </div>
+                          </div>
+                          <span className={`status-badge status-${status.toLowerCase()}`}>
+                            {status}
+                          </span>
+                        </div>
+
+                        <div className="appointment-card-body">
+                          <div className="appointment-card-info">
+                            <strong>Patient:</strong>
+                            <span>
+                              {appointment.client?.firstName || appointment.Client?.FirstName}{' '}
+                              {appointment.client?.lastName || appointment.Client?.LastName}
+                            </span>
+                          </div>
+
+                          {(appointment.location || appointment.Location) && (
+                            <div className="appointment-card-info">
+                              <MapPin size={14} />
+                              <span>{appointment.location || appointment.Location}</span>
+                            </div>
+                          )}
+
+                          {(appointment.description || appointment.Description) && (
+                            <p className="appointment-card-description">
+                              {appointment.description || appointment.Description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="appointment-card-actions">
+                          <button 
+                            className="secondary-btn"
+                            onClick={() => handleEditAppointment(appointment)}
+                          >
+                            <Edit size={16} />
+                            Edit
+                          </button>
+                          <button 
+                            className="delete-btn-small"
+                            onClick={() => handleDeleteAppointment(appointment.id || appointment.Id)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -832,22 +1120,29 @@ const DoctorDashboard = () => {
       {/* Create Symptom Modal */}
       {showModal === 'createSymptom' && selectedPatient && (
         <div className="modal-overlay" onClick={closeModal}>
+          {/* ... symptom modal content ... */}
+        </div>
+      )}
+
+      {/* Create Appointment Modal */}
+      {showModal === 'createAppointment' && selectedPatient && (
+        <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Record Symptom for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+              <h2>Schedule Appointment for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
               <button onClick={closeModal} className="close-btn">
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmitSymptom} className="modal-body">
+            <form onSubmit={handleSubmitAppointment} className="modal-body">
               <div className="form-group">
-                <label>Symptom Name *</label>
+                <label>Title *</label>
                 <input
                   type="text"
                   required
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g., Headache, Fatigue"
+                  value={formData.Title || ''}
+                  onChange={(e) => setFormData({...formData, Title: e.target.value})}
+                  placeholder="e.g., Follow-up Consultation"
                 />
               </div>
 
@@ -855,32 +1150,78 @@ const DoctorDashboard = () => {
                 <label>Description</label>
                 <textarea
                   rows="3"
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Detailed description of the symptom"
+                  value={formData.Description || ''}
+                  onChange={(e) => setFormData({...formData, Description: e.target.value})}
+                  placeholder="Purpose of the appointment"
                 />
               </div>
 
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.AppointmentDate || ''}
+                    onChange={(e) => setFormData({...formData, AppointmentDate: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select
+                    required
+                    value={formData.Status || 'Scheduled'}
+                    onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                  >
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Rescheduled">Rescheduled</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.StartTime || ''}
+                    onChange={(e) => setFormData({...formData, StartTime: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.EndTime || ''}
+                    onChange={(e) => setFormData({...formData, EndTime: e.target.value})}
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
-                <label>Severity Level (1-10) *</label>
-                <select
-                  required
-                  value={formData.severityLevel || 1}
-                  onChange={(e) => setFormData({...formData, severityLevel: parseInt(e.target.value)})}
-                >
-                  {[1,2,3,4,5,6,7,8,9,10].map(level => (
-                    <option key={level} value={level}>{level}</option>
-                  ))}
-                </select>
+                <label>Location</label>
+                <input
+                  type="text"
+                  value={formData.Location || ''}
+                  onChange={(e) => setFormData({...formData, Location: e.target.value})}
+                  placeholder="e.g., Room 301, Building A"
+                />
               </div>
 
               <div className="form-group">
                 <label>Notes</label>
                 <textarea
                   rows="2"
-                  value={formData.notes || ''}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  placeholder="Additional observations"
+                  value={formData.Notes || ''}
+                  onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                  placeholder="Additional notes"
                 />
               </div>
 
@@ -890,16 +1231,131 @@ const DoctorDashboard = () => {
                 </button>
                 <button type="submit" className="submit-btn" disabled={loading}>
                   <Save size={18} />
-                  {loading ? 'Saving...' : 'Record Symptom'}
+                  {loading ? 'Scheduling...' : 'Schedule Appointment'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
-  );
-};
+
+      {/* Edit Appointment Modal */}
+      {showModal === 'editAppointment' && selectedAppointment && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Appointment</h2>
+              <button onClick={closeModal} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateAppointment} className="modal-body">
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.Title || ''}
+                  onChange={(e) => setFormData({...formData, Title: e.target.value})}
+                  placeholder="e.g., Follow-up Consultation"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  rows="3"
+                  value={formData.Description || ''}
+                  onChange={(e) => setFormData({...formData, Description: e.target.value})}
+                  placeholder="Purpose of the appointment"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.AppointmentDate || ''}
+                    onChange={(e) => setFormData({...formData, AppointmentDate: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select
+                    required
+                    value={formData.Status || 'Scheduled'}
+                    onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                  >
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Rescheduled">Rescheduled</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.StartTime || ''}
+                    onChange={(e) => setFormData({...formData, StartTime: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.EndTime || ''}
+                    onChange={(e) => setFormData({...formData, EndTime: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Location</label>
+                <input
+                  type="text"
+                  value={formData.Location || ''}
+                  onChange={(e) => setFormData({...formData, Location: e.target.value})}
+                  placeholder="e.g., Room 301, Building A"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Notes</label>
+                <textarea
+                  rows="2"
+                  value={formData.Notes || ''}
+                  onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                  placeholder="Additional notes"
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={closeModal} className="cancel-btn">
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn" disabled={loading}>
+                  <Save size={18} />
+                  {loading ? 'Updating...' : 'Update Appointment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div> 
+  );  {/* ← This closes the return statement */}
+};  {/* ← This closes the component */}
 
 const dashboardStyles = `
   * {
@@ -907,7 +1363,138 @@ const dashboardStyles = `
     margin: 0;
     padding: 0;
   }
-  
+  .tertiary-btn:hover {
+    background-color: #e5e7eb;
+  }
+    .appointments-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .appointments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .appointment-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #3b82f6;
+  }
+
+  .appointment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .appointment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .appointment-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+  }
+
+  .appointment-card-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .appointment-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .appointment-card-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .appointment-card-info strong {
+    color: #111827;
+    min-width: 60px;
+  }
+
+  .appointment-card-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .appointment-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .delete-btn-small {
+    padding: 0.625rem 1rem;
+    background-color: #fee2e2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+  }
+
+  .delete-btn-small:hover {
+    background-color: #fecaca;
+    border-color: #fca5a5;
+  }
+
+  .status-scheduled {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-confirmed {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-rescheduled {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  .status-completed {
+    background-color: #e9d5ff;
+    color: #6b21a8;
+  }
   .dashboard-container {
     min-height: 100vh;
     background-color: #f9fafb;

@@ -351,5 +351,76 @@ export const diagnosisService = {
     }
   }
 };
+// Appointment Service
+export const appointmentService = {
+  // Get all appointments
+  getAllAppointments: async () => {
+    try {
+      const response = await API.get('/appointment');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch appointments');
+    }
+  },
 
+  // Get appointment by ID
+  getAppointmentById: async (appointmentId) => {
+    try {
+      const response = await API.get(`/appointment/${appointmentId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch appointment');
+    }
+  },
+
+  // Create new appointment
+  createAppointment: async (appointmentData) => {
+    try {
+      const response = await API.post('/appointment', appointmentData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to create appointment');
+    }
+  },
+
+  // Update appointment
+  updateAppointment: async (appointmentId, appointmentData) => {
+    try {
+      const response = await API.put(`/appointment/${appointmentId}`, appointmentData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update appointment');
+    }
+  },
+
+  // Delete appointment
+  deleteAppointment: async (appointmentId) => {
+    try {
+      const response = await API.delete(`/appointment/${appointmentId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete appointment');
+    }
+  },
+
+  // Cancel appointment
+  cancelAppointment: async (appointmentId, cancellationReason) => {
+    try {
+      const response = await API.patch(`/appointment/${appointmentId}/cancel`, cancellationReason);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to cancel appointment');
+    }
+  },
+
+  // Complete appointment
+  completeAppointment: async (appointmentId) => {
+    try {
+      const response = await API.patch(`/appointment/${appointmentId}/complete`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to complete appointment');
+    }
+  }
+};
 export default API;
