@@ -679,12 +679,16 @@ const DoctorDashboard = () => {
                       >
                         <Stethoscope size={16} />
                       </button>
+                      
                       <button 
                         className="action-btn-small"
                         onClick={() => handleCreateSymptom(patient)}
                         title="Add Symptom"
                       >
                         <ClipboardList size={16} />
+                      </button>
+                      <button  className="action-btn-small" onClick={() => handleCreateAppointment(patient)}>
+                      <Calendar size={16} />
                       </button>
                     </div>
                   </div>
