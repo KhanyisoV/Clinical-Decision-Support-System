@@ -647,24 +647,45 @@ const DoctorDashboard = () => {
                         {patientHistory.diagnoses.map((diagnosis, idx) => (
                           <div key={idx} className="history-item">
                             <div className="history-item-header">
-                              <strong>{diagnosis.title}</strong>
+                              <strong>{diagnosis.title || diagnosis.Title}</strong>
                               <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
-                                <span className={`status-badge status-${diagnosis.status?.toLowerCase()}`}>
-                                  {diagnosis.status}
+                                <span className={`status-badge status-${(diagnosis.status || diagnosis.Status)?.toLowerCase()}`}>
+                                  {diagnosis.status || diagnosis.Status}
                                 </span>
                                 <button 
                                   className="delete-icon-btn"
-                                  onClick={() => handleDeleteDiagnosis(diagnosis.id)}
+                                  onClick={() => handleDeleteDiagnosis(diagnosis.id || diagnosis.Id)}
                                   title="Delete diagnosis"
                                 >
                                   <Trash2 size={16} />
                                 </button>
                               </div>
                             </div>
-                            <p>{diagnosis.description}</p>
+                            <p>{diagnosis.description || diagnosis.Description}</p>
+                            
+                            {(diagnosis.diagnosisCode || diagnosis.DiagnosisCode) && (
+                              <div style={{marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
+                                <strong>Code:</strong> {diagnosis.diagnosisCode || diagnosis.DiagnosisCode}
+                              </div>
+                            )}
+                            
+                            {(diagnosis.treatmentPlan || diagnosis.TreatmentPlan) && (
+                              <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '3px solid #3b82f6'}}>
+                                <strong style={{display: 'block', marginBottom: '0.25rem', color: '#1e40af', fontSize: '0.875rem'}}>Treatment Plan:</strong>
+                                <p style={{margin: 0, fontSize: '0.875rem', color: '#1e3a8a', whiteSpace: 'pre-wrap'}}>{diagnosis.treatmentPlan || diagnosis.TreatmentPlan}</p>
+                              </div>
+                            )}
+                            
+                            {(diagnosis.notes || diagnosis.Notes) && (
+                              <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                                <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                                <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{diagnosis.notes || diagnosis.Notes}</p>
+                              </div>
+                            )}
+                            
                             <div className="history-item-meta">
-                              <span>Severity: {diagnosis.severity}/5</span>
-                              <span>Date: {new Date(diagnosis.dateDiagnosed || diagnosis.createdAt).toLocaleDateString()}</span>
+                              <span>Severity: {diagnosis.severity || diagnosis.Severity}/5</span>
+                              <span>Date: {new Date(diagnosis.dateDiagnosed || diagnosis.DateDiagnosed || diagnosis.createdAt || diagnosis.CreatedAt).toLocaleDateString()}</span>
                             </div>
                           </div>
                         ))}
