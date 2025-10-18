@@ -423,4 +423,66 @@ export const appointmentService = {
     }
   }
 };
+// Prescription Service
+export const prescriptionService = {
+  // Get all prescriptions (filtered by role on backend)
+  getAllPrescriptions: async () => {
+    try {
+      const response = await API.get('/prescription');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch prescriptions');
+    }
+  },
+
+  // Get prescription by ID
+  getPrescriptionById: async (prescriptionId) => {
+    try {
+      const response = await API.get(`/prescription/${prescriptionId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch prescription');
+    }
+  },
+
+  // Get active prescriptions by client ID
+  getActivePrescriptionsByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/prescription/client/${clientId}/active`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active prescriptions');
+    }
+  },
+
+  // Create new prescription (Doctor only)
+  createPrescription: async (prescriptionData) => {
+    try {
+      const response = await API.post('/prescription', prescriptionData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to create prescription');
+    }
+  },
+
+  // Update prescription (Doctor only)
+  updatePrescription: async (prescriptionId, prescriptionData) => {
+    try {
+      const response = await API.put(`/prescription/${prescriptionId}`, prescriptionData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update prescription');
+    }
+  },
+
+  // Delete prescription (Doctor only)
+  deletePrescription: async (prescriptionId) => {
+    try {
+      const response = await API.delete(`/prescription/${prescriptionId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete prescription');
+    }
+  }
+};
 export default API;
