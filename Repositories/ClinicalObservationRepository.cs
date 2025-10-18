@@ -40,6 +40,7 @@ namespace FinalYearProject.Repositories
         public IEnumerable<ClinicalObservation> GetByClientId(int clientId)
         {
             return _context.ClinicalObservations
+                .Include(o => o.Client)
                 .Include(o => o.RecordedByDoctor)
                 .Where(o => o.ClientId == clientId)
                 .OrderByDescending(o => o.ObservationDate)
@@ -50,6 +51,7 @@ namespace FinalYearProject.Repositories
         {
             return _context.ClinicalObservations
                 .Include(o => o.Client)
+                .Include(o => o.RecordedByDoctor) 
                 .Where(o => o.RecordedByDoctorId == doctorId)
                 .OrderByDescending(o => o.ObservationDate)
                 .ToList();
@@ -66,6 +68,8 @@ namespace FinalYearProject.Repositories
         public ClinicalObservation? GetLatestByClientId(int clientId)
         {
             return _context.ClinicalObservations
+                .Include(o => o.Client)              // ADD THIS LINE
+                .Include(o => o.RecordedByDoctor)
                 .Where(o => o.ClientId == clientId)
                 .OrderByDescending(o => o.ObservationDate) // Make sure ObservationDate exists in your model
                 .FirstOrDefault();

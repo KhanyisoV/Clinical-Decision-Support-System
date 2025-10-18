@@ -546,4 +546,86 @@ export const labResultService = {
     }
   }
 };
+// Clinical Observation Service
+export const clinicalObservationService = {
+  // Get all observations (Admin only on backend, but we'll call it anyway)
+  getAllObservations: async () => {
+    try {
+      const response = await API.get('/clinicalobservation');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch observations');
+    }
+  },
+
+  // Get observation by ID
+  getObservationById: async (observationId) => {
+    try {
+      const response = await API.get(`/clinicalobservation/${observationId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch observation');
+    }
+  },
+
+  // Get observations by client ID
+  getObservationsByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/clinicalobservation/client/${clientId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch client observations');
+    }
+  },
+
+  // Get observations by doctor ID
+  getObservationsByDoctorId: async (doctorId) => {
+    try {
+      const response = await API.get(`/clinicalobservation/doctor/${doctorId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch doctor observations');
+    }
+  },
+
+  // Get latest observation for client
+  getLatestObservationByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/clinicalobservation/client/${clientId}/latest`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch latest observation');
+    }
+  },
+
+  // Create new observation (Doctor only)
+  createObservation: async (observationData) => {
+    try {
+      const response = await API.post('/clinicalobservation', observationData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to create observation');
+    }
+  },
+
+  // Update observation (Doctor only)
+  updateObservation: async (observationId, observationData) => {
+    try {
+      const response = await API.put(`/clinicalobservation/${observationId}`, observationData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update observation');
+    }
+  },
+
+  // Delete observation (Doctor only)
+  deleteObservation: async (observationId) => {
+    try {
+      const response = await API.delete(`/clinicalobservation/${observationId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete observation');
+    }
+  }
+};
 export default API;

@@ -21,7 +21,7 @@ import {
   Pill,
   Beaker
 } from 'lucide-react';
-import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService } from '../services/apiService';
+import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
@@ -36,6 +36,8 @@ const DoctorDashboard = () => {
     pendingDiagnoses: 0,
     activeTreatments: 0
   });
+  const [observations, setObservations] = useState([]);
+  const [selectedObservation, setSelectedObservation] = useState(null);
   const [labResults, setLabResults] = useState([]);
   const [selectedLabResult, setSelectedLabResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,6 +71,7 @@ const DoctorDashboard = () => {
       await fetchAppointments();
       await fetchPrescriptions();
       await fetchLabResults();
+      await fetchObservations();
     } catch (err) {
       console.error('Dashboard initialization error:', err);
       setError('Failed to load dashboard data');
@@ -144,6 +147,21 @@ const DoctorDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching lab results:', err);
+    }
+  };
+  const fetchObservations = async () => {
+    try {
+      const doctorId = user?.id || user?.Id;
+      if (doctorId) {
+        const response = await clinicalObservationService.getObservationsByDoctorId(doctorId);
+        
+        if (response.success || response.Success) {
+          const observationsList = response.data || response.Data || [];
+          setObservations(observationsList);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching observations:', err);
     }
   };
   const fetchAppointments = async (doctorId) => {
@@ -428,7 +446,120 @@ const DoctorDashboard = () => {
     });
     setShowModal('createLabResult');
   };
+  const handleCreateObservation = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    if (!clientId) {
+      setError('Cannot create observation: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create observation: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    setFormData({
+      Gender: patient.gender || patient.Gender || '',
+      Age: 0,
+      Height: 0,
+      Weight: 0,
+      BloodPressure: '',
+      HeartRate: 0,
+      ObservationType: '',
+      Value: '',
+      Notes: '',
+      ObservationDate: new Date().toISOString().split('T')[0],
+      ClientId: clientId,
+      RecordedByDoctorId: doctorId
+    });
+    setShowModal('createObservation');
+  };
   
+  const handleEditObservation = (observation) => {
+    setSelectedObservation(observation);
+    
+    const obsDate = new Date(observation.observationDate || observation.ObservationDate);
+    
+    setFormData({
+      Gender: observation.gender || observation.Gender || '',
+      Age: observation.age || observation.Age || 0,
+      Height: observation.height || observation.Height || 0,
+      Weight: observation.weight || observation.Weight || 0,
+      BloodPressure: observation.bloodPressure || observation.BloodPressure || '',
+      HeartRate: observation.heartRate || observation.HeartRate || 0,
+      ObservationType: observation.observationType || observation.ObservationType || '',
+      Value: observation.value || observation.Value || '',
+      Notes: observation.notes || observation.Notes || '',
+      ObservationDate: obsDate.toISOString().split('T')[0]
+    });
+    setShowModal('editObservation');
+  };
+  
+  const handleDeleteObservation = (observationId) => {
+    setDeleteConfirm({
+      type: 'observation',
+      id: observationId,
+      message: 'Are you sure you want to delete this clinical observation? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitObservation = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await clinicalObservationService.createObservation(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Clinical observation created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchObservations();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create observation');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating observation');
+      console.error('Observation submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateObservation = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const observationId = selectedObservation.id || selectedObservation.Id;
+      
+      const response = await clinicalObservationService.updateObservation(observationId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Clinical observation updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedObservation(null);
+        await fetchObservations();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update observation');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating observation');
+      console.error('Observation update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleEditLabResult = (labResult) => {
     setSelectedLabResult(labResult);
     
@@ -556,6 +687,7 @@ const DoctorDashboard = () => {
       const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
       const prescriptionsRes = await prescriptionService.getActivePrescriptionsByClientId(clientId);
       const labResultsRes = await labResultService.getLabResultsByClientId(clientId);
+      const observationsRes = await clinicalObservationService.getObservationsByClientId(clientId);
 
       const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
         ? (diagnosesRes.data || diagnosesRes.Data || [])
@@ -573,11 +705,17 @@ const DoctorDashboard = () => {
         ? (labResultsRes.data || labResultsRes.Data || [])
         : [];
 
+
+      const observations = (observationsRes.success || observationsRes.Success)
+        ? (observationsRes.data || observationsRes.Data || [])
+        : [];
+
       setPatientHistory({
         diagnoses,
         symptoms,
         prescriptions,
-        labResults
+        labResults,
+        observations
       });
 
       setShowModal('patientHistory');
@@ -623,6 +761,8 @@ const DoctorDashboard = () => {
         response = await prescriptionService.deletePrescription(deleteConfirm.id);
       } else if (deleteConfirm.type === 'labresult') {
         response = await labResultService.deleteLabResult(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'observation') {
+        response = await clinicalObservationService.deleteObservation(deleteConfirm.id);
       }
 
 
@@ -642,6 +782,11 @@ const DoctorDashboard = () => {
         // Refresh prescriptions if prescription was deleted
         if (deleteConfirm.type === 'prescription') {
           await fetchPrescriptions();
+        }
+
+        // Refresh observations if observation was deleted
+        if (deleteConfirm.type === 'observation') {
+          await fetchObservations();
         }
 
         // Refresh lab results if lab result was deleted
@@ -893,7 +1038,12 @@ const DoctorDashboard = () => {
         >
           Lab Results ({labResults.length})
         </button>
-        
+        <button
+          className={activeTab === 'observations' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('observations')}
+        >
+          Clinical Observations ({observations.length})
+        </button>
         
       </div>
 
@@ -1004,6 +1154,13 @@ const DoctorDashboard = () => {
                       >
                         <Pill size={16} />
                       </button>
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateObservation(patient)}
+                        title="Record Observation"
+                      >
+                        <Activity size={16} />
+                      </button>
                       
                     </div>
                   </div>
@@ -1085,6 +1242,15 @@ const DoctorDashboard = () => {
                   >
                     <Calendar size={16} />
                     Schedule Appointment
+                  </button>
+
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateObservation(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <ClipboardList size={16} />
+                    Record Observation
                   </button>
 
                   <button 
@@ -1455,6 +1621,156 @@ const DoctorDashboard = () => {
             )}
           </div>
         )}
+
+{activeTab === 'observations' && (
+  <div className="observations-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Clinical Observations History</h2>
+    </div>
+
+    {observations.length === 0 ? (
+      <div className="empty-state">
+        <ClipboardList size={64} color="#9ca3af" />
+        <p className="empty-text">No clinical observations recorded yet</p>
+        <p className="empty-subtext">Record clinical observations for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="observations-grid">
+        {observations
+          .sort((a, b) => {
+            const dateA = new Date(a.observationDate || a.ObservationDate);
+            const dateB = new Date(b.observationDate || b.ObservationDate);
+            return dateB - dateA;
+          })
+          .map((observation, index) => {
+            const obsDate = new Date(observation.observationDate || observation.ObservationDate);
+            
+            const clientName = observation.client?.firstName || observation.Client?.FirstName 
+              ? `${observation.client?.firstName || observation.Client?.FirstName} ${observation.client?.lastName || observation.Client?.LastName}`
+              : 'Unknown Patient';
+            
+            const bmi = observation.height && observation.weight 
+              ? (observation.weight / Math.pow(observation.height / 100, 2)).toFixed(1)
+              : null;
+            
+            return (
+              <div key={index} className="observation-card">
+                <div className="observation-card-header">
+                  <div>
+                    <div className="observation-card-title">
+                      Clinical Observation
+                    </div>
+                    <div className="observation-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <div className="observation-card-date">
+                    <Clock size={14} />
+                    {obsDate.toLocaleDateString()}
+                  </div>
+                </div>
+
+                <div className="observation-card-body">
+                  <div className="observation-vitals-grid">
+                    {observation.gender && (
+                      <div className="vital-item">
+                        <strong>Gender:</strong>
+                        <span>{observation.gender || observation.Gender}</span>
+                      </div>
+                    )}
+                    
+                    {observation.age && (
+                      <div className="vital-item">
+                        <strong>Age:</strong>
+                        <span>{observation.age || observation.Age} years</span>
+                      </div>
+                    )}
+                    
+                    {observation.height && (
+                      <div className="vital-item">
+                        <strong>Height:</strong>
+                        <span>{observation.height || observation.Height} cm</span>
+                      </div>
+                    )}
+                    
+                    {observation.weight && (
+                      <div className="vital-item">
+                        <strong>Weight:</strong>
+                        <span>{observation.weight || observation.Weight} kg</span>
+                      </div>
+                    )}
+                    
+                    {bmi && (
+                      <div className="vital-item">
+                        <strong>BMI:</strong>
+                        <span className={bmi < 18.5 || bmi > 25 ? 'abnormal-result' : ''}>{bmi}</span>
+                      </div>
+                    )}
+                    
+                    {observation.bloodPressure && (
+                      <div className="vital-item">
+                        <strong>Blood Pressure:</strong>
+                        <span>{observation.bloodPressure || observation.BloodPressure}</span>
+                      </div>
+                    )}
+                    
+                    {observation.heartRate && (
+                      <div className="vital-item">
+                        <strong>Heart Rate:</strong>
+                        <span>{observation.heartRate || observation.HeartRate} bpm</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(observation.observationType || observation.ObservationType) && (
+                    <div className="observation-type-section">
+                      <strong>Observation Type:</strong>
+                      <span>{observation.observationType || observation.ObservationType}</span>
+                      {(observation.value || observation.Value) && (
+                        <span className="observation-value"> - {observation.value || observation.Value}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {(observation.notes || observation.Notes) && (
+                    <div className="observation-card-notes">
+                      <strong>Notes:</strong>
+                      <p>{observation.notes || observation.Notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="observation-card-footer">
+                  <div className="observation-card-meta">
+                    <span>Recorded: {new Date(observation.createdAt || observation.CreatedAt).toLocaleDateString()}</span>
+                    {(observation.updatedAt || observation.UpdatedAt) && (
+                      <span>Updated: {new Date(observation.updatedAt || observation.UpdatedAt).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                  <div className="observation-card-actions">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => handleEditObservation(observation)}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteObservation(observation.id || observation.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
       </main>
 {/* Create Lab Result Modal */}
 {showModal === 'createLabResult' && selectedPatient && (
@@ -1715,6 +2031,295 @@ const DoctorDashboard = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Create Clinical Observation Modal */}
+{showModal === 'createObservation' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Clinical Observation for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitObservation} className="modal-body">
+        <div className="form-row">
+          <div className="form-group">
+            <label>Gender *</label>
+            <select
+              required
+              value={formData.Gender || ''}
+              onChange={(e) => setFormData({...formData, Gender: e.target.value})}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Age *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              max="150"
+              value={formData.Age || ''}
+              onChange={(e) => setFormData({...formData, Age: parseInt(e.target.value)})}
+              placeholder="Age in years"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Height (cm) *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.1"
+              value={formData.Height || ''}
+              onChange={(e) => setFormData({...formData, Height: parseFloat(e.target.value)})}
+              placeholder="e.g., 170"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Weight (kg) *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.1"
+              value={formData.Weight || ''}
+              onChange={(e) => setFormData({...formData, Weight: parseFloat(e.target.value)})}
+              placeholder="e.g., 70"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Blood Pressure</label>
+            <input
+              type="text"
+              value={formData.BloodPressure || ''}
+              onChange={(e) => setFormData({...formData, BloodPressure: e.target.value})}
+              placeholder="e.g., 120/80"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Heart Rate (bpm)</label>
+            <input
+              type="number"
+              min="0"
+              value={formData.HeartRate || ''}
+              onChange={(e) => setFormData({...formData, HeartRate: parseInt(e.target.value)})}
+              placeholder="e.g., 72"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Observation Type</label>
+            <input
+              type="text"
+              value={formData.ObservationType || ''}
+              onChange={(e) => setFormData({...formData, ObservationType: e.target.value})}
+              placeholder="e.g., Physical Examination"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Observation Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.ObservationDate || ''}
+              onChange={(e) => setFormData({...formData, ObservationDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Value/Result</label>
+          <input
+            type="text"
+            value={formData.Value || ''}
+            onChange={(e) => setFormData({...formData, Value: e.target.value})}
+            placeholder="Any specific measurement or finding"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            rows="4"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Additional clinical notes or observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Saving...' : 'Record Observation'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Edit Clinical Observation Modal */}
+{showModal === 'editObservation' && selectedObservation && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Edit Clinical Observation</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleUpdateObservation} className="modal-body">
+        <div className="form-row">
+          <div className="form-group">
+            <label>Gender</label>
+            <select
+              value={formData.Gender || ''}
+              onChange={(e) => setFormData({...formData, Gender: e.target.value})}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Age</label>
+            <input
+              type="number"
+              min="0"
+              max="150"
+              value={formData.Age || ''}
+              onChange={(e) => setFormData({...formData, Age: parseInt(e.target.value)})}
+              placeholder="Age in years"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Height (cm)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.Height || ''}
+              onChange={(e) => setFormData({...formData, Height: parseFloat(e.target.value)})}
+              placeholder="e.g., 170"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Weight (kg)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.Weight || ''}
+              onChange={(e) => setFormData({...formData, Weight: parseFloat(e.target.value)})}
+              placeholder="e.g., 70"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Blood Pressure</label>
+            <input
+              type="text"
+              value={formData.BloodPressure || ''}
+              onChange={(e) => setFormData({...formData, BloodPressure: e.target.value})}
+              placeholder="e.g., 120/80"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Heart Rate (bpm)</label>
+            <input
+              type="number"
+              min="0"
+              value={formData.HeartRate || ''}
+              onChange={(e) => setFormData({...formData, HeartRate: parseInt(e.target.value)})}
+              placeholder="e.g., 72"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Observation Type</label>
+            <input
+              type="text"
+              value={formData.ObservationType || ''}
+              onChange={(e) => setFormData({...formData, ObservationType: e.target.value})}
+              placeholder="e.g., Physical Examination"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Observation Date</label>
+            <input
+              type="date"
+              value={formData.ObservationDate || ''}
+              onChange={(e) => setFormData({...formData, ObservationDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Value/Result</label>
+          <input
+            type="text"
+            value={formData.Value || ''}
+            onChange={(e) => setFormData({...formData, Value: e.target.value})}
+            placeholder="Any specific measurement or finding"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            rows="4"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Additional clinical notes or observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Updating...' : 'Update Observation'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
@@ -2906,6 +3511,180 @@ const dashboardStyles = `
     background-color: #e9d5ff;
     color: #6b21a8;
   }
+
+  /* Clinical Observation Styles */
+.observations-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.observations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.observation-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s;
+  border-left: 4px solid #6366f1;
+}
+
+.observation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.observation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.observation-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4338ca;
+  margin-bottom: 0.5rem;
+}
+
+.observation-card-patient {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.observation-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.observation-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.observation-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+}
+
+.vital-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.vital-item strong {
+  color: #374151;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.vital-item span {
+  color: #111827;
+  font-weight: 500;
+}
+
+.observation-type-section {
+  padding: 0.75rem;
+  background-color: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.observation-type-section strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #1e40af;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.observation-type-section span {
+  color: #1e3a8a;
+}
+
+.observation-value {
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.observation-card-notes {
+  padding: 0.75rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.observation-card-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.observation-card-notes p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.observation-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.observation-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.observation-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .observations-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .observation-vitals-grid {
+    grid-template-columns: 1fr;
+  }
+}
     /* Prescription Styles */
   .prescriptions-view {
     display: flex;
