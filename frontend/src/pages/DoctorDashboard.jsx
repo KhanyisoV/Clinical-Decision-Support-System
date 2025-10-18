@@ -114,7 +114,7 @@ const DoctorDashboard = () => {
       setError(err.message || 'Some data could not be loaded');
     }
   };
-  const fetchAppointments = async () => {
+  const fetchAppointments = async (doctorId) => {
     try {
       const response = await appointmentService.getAllAppointments();
       
@@ -122,7 +122,6 @@ const DoctorDashboard = () => {
         const appointmentsList = response.data || response.Data || [];
         
         // Filter appointments for current doctor
-        const doctorId = user?.id || user?.Id;
         const doctorAppointments = appointmentsList.filter(apt => 
           (apt.doctorId || apt.DoctorId) === doctorId
         );
@@ -1354,8 +1353,8 @@ const DoctorDashboard = () => {
         </div>
       )}
     </div> 
-  );  {/* ← This closes the return statement */}
-};  {/* ← This closes the component */}
+  );  
+};
 
 const dashboardStyles = `
   * {
