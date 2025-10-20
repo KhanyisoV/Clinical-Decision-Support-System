@@ -58,7 +58,6 @@ const DoctorDashboard = () => {
       await fetchAppointments();
       await fetchPrescriptions();
       await fetchLabResults();
-      await fetchObservations();
       await fetchAllergies();
       await fetchTreatments();
     } catch (err) {
@@ -97,7 +96,7 @@ const DoctorDashboard = () => {
       }
 
       const patientsResponse = await doctorService.getAssignedClients(username);
-      
+      await fetchObservations();
       if (patientsResponse.success || patientsResponse.Success) {
         const patientsList = patientsResponse.data || patientsResponse.Data || [];
         setPatients(patientsList);
@@ -106,7 +105,8 @@ const DoctorDashboard = () => {
           ...prev,
           totalPatients: patientsList.length
         }));
-      } else {
+        
+      }else {
         setPatients([]);
       }
     } catch (err) {
@@ -140,14 +140,23 @@ const DoctorDashboard = () => {
   };
   const fetchObservations = async () => {
     try {
-      const doctorId = user?.id || user?.Id;
+      // Get doctorId from state or localStorage
+      const userData = user || JSON.parse(localStorage.getItem('user') || '{}');
+      const doctorId = userData?.id || userData?.Id;
+      
+      console.log('Fetching observations for doctor ID:', doctorId);
+      
       if (doctorId) {
         const response = await clinicalObservationService.getObservationsByDoctorId(doctorId);
+        
+        console.log('Observations response:', response);
         
         if (response.success || response.Success) {
           const observationsList = response.data || response.Data || [];
           setObservations(observationsList);
         }
+      } else {
+        console.warn('No doctor ID available to fetch observations');
       }
     } catch (err) {
       console.error('Error fetching observations:', err);
