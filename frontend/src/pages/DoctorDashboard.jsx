@@ -4,6 +4,10 @@ import {
   AlertCircle, LogOut, X, Save, Eye, Stethoscope, ClipboardList, 
   Trash2, Edit, Clock, MapPin, Plus, Pill, Beaker 
 } from 'lucide-react';
+import ReactCalendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+
+
 import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService, allergyService, treatmentService } from '../services/apiService';
 
 const DoctorDashboard = () => {
@@ -11,6 +15,7 @@ const DoctorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [patients, setPatients] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showModal, setShowModal] = useState(null);
   const [allergies, setAllergies] = useState([]);
@@ -30,6 +35,8 @@ const DoctorDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [dailyAppointments, setDailyAppointments] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [formData, setFormData] = useState({});
   const [patientHistory, setPatientHistory] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -214,38 +221,61 @@ const DoctorDashboard = () => {
       
       if (response.success || response.Success) {
         const appointmentsList = response.data || response.Data || [];
-        
+  
         // Filter appointments for current doctor
         const doctorAppointments = appointmentsList.filter(apt => 
           (apt.doctorId || apt.DoctorId) === doctorId
         );
-        
+  
         setAppointments(doctorAppointments);
-        
+  
         // Update stats
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+  
         const todayAppointments = doctorAppointments.filter(apt => {
           const aptDate = new Date(apt.appointmentDate || apt.AppointmentDate);
           aptDate.setHours(0, 0, 0, 0);
           return aptDate.getTime() === today.getTime();
         });
-        // Count scheduled appointments
+  
         const scheduledCount = doctorAppointments.filter(apt => 
           (apt.status || apt.Status) === 'Scheduled'
         ).length;
-
+  
         setStats(prev => ({
           ...prev,
           todayAppointments: todayAppointments.length,
           scheduledAppointments: scheduledCount
         }));
-       
-      }
-    } catch (err) {
-      console.error('Error fetching appointments:', err);
+  
+        // === Calendar Data ===
+        const calendarData = doctorAppointments.map(apt => {
+          const date = new Date(apt.appointmentDate || apt.AppointmentDate);
+          date.setHours(0, 0, 0, 0);
+          return {
+            date: date.toISOString().split('T')[0], // 'YYYY-MM-DD'
+            status: (apt.status || apt.Status) // 'Scheduled', 'Cancelled', etc.
+          };
+        });
+  
+        setCalendarEvents(calendarData);
+
+      // Set appointments for today initially
+      updateDailyAppointments(new Date(), calendarData);
     }
-  };
+  } catch (err) {
+    console.error('Error fetching appointments:', err);
+  }
+};
+
+// Filter appointments for the selected date
+const updateDailyAppointments = (date, calendarData) => {
+  const dateStr = date.toISOString().split('T')[0];
+  const daily = calendarData.filter(event => event.date === dateStr);
+  setDailyAppointments(daily);
+};
+  
 
   const handleCreateAppointment = (patient) => {
     setSelectedPatient(patient);
@@ -1396,6 +1426,51 @@ const DoctorDashboard = () => {
                 </div>
               </div>
             </div>
+
+            <div className="dashboard-calendar" style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+  
+              {/* Calendar */}
+              <div style={{ flex: 1, minWidth: '300px' }}>
+                <ReactCalendar
+                  value={selectedDate}
+                  onChange={(date) => {
+                    setSelectedDate(date);
+                    updateDailyAppointments(date, calendarEvents);
+                  }}
+                  tileClassName={({ date, view }) => {
+                    const event = calendarEvents.find(
+                      e => e.date === date.toISOString().split('T')[0]
+                    );
+                    if (event) {
+                      if (event.status === 'Scheduled') return 'calendar-scheduled';
+                      if (event.status === 'Cancelled') return 'calendar-cancelled';
+                    }
+                    return null;
+                  }}
+                  showNeighboringMonth={false}
+                />
+              </div>
+
+              {/* Appointments list */}
+              <div style={{ flex: 1, minWidth: '300px', background: '#f9fafb', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                <h3 style={{ marginBottom: '15px', fontWeight: 700 }}>Appointments for {selectedDate.toDateString()}</h3>
+                {dailyAppointments.length === 0 ? (
+                  <p style={{ color: '#6b7280' }}>No appointments for this day.</p>
+                ) : (
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                    {dailyAppointments.map((apt, index) => (
+                      <li key={index} style={{ marginBottom: '12px', padding: '12px', borderRadius: '8px', backgroundColor: apt.status === 'Scheduled' ? '#d1fae5' : '#fee2e2' }}>
+                        <strong>{apt.patientName || 'Unknown Patient'}</strong>
+                        <p style={{ margin: 0 }}>{apt.time || 'Time not set'} - {apt.status}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+
+
 
             <div className="section">
               <div className="section-header">
@@ -4312,6 +4387,112 @@ const dashboardStyles = `
   .tertiary-btn:hover {
     background-color: #e5e7eb;
   }
+    
+/* Calendar wrapper for card-like appearance */
+.dashboard-calendar {
+  width: 100%;
+  max-width: 900px;
+  margin: 30px auto;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 30px;
+  transition: all 0.3s ease;
+}
+
+/* Calendar navigation (month/year) */
+.react-calendar__navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.react-calendar__navigation button {
+  background-color: #f3f4f6;
+  color: #111827;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.react-calendar__navigation button:hover {
+  background-color: #e5e7eb;
+}
+
+/* Calendar tiles */
+.react-calendar__tile {
+  border-radius: 12px;
+  height: 70px; /* bigger tiles */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+/* Today highlight */
+.react-calendar__tile--now {
+  background-color: #e0f2fe;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+/* Selected day */
+.react-calendar__tile--active {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+/* Scheduled appointments */
+.calendar-scheduled {
+  background-color: #10b981 !important; /* bright green */
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+/* Cancelled appointments */
+.calendar-cancelled {
+  background-color: #ef4444 !important; /* red */
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+
+/* Hover effect for tiles */
+.react-calendar__tile:hover {
+  background-color: #f3f4f6;
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .react-calendar__tile {
+    height: 60px;
+    font-size: 14px;
+  }
+  .dashboard-calendar {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .react-calendar__tile {
+    height: 50px;
+    font-size: 13px;
+  }
+  .dashboard-calendar {
+    padding: 15px;
+  }
+}
+
+  
     /* Lab Result Styles */
   .labresults-view {
     display: flex;
