@@ -20,7 +20,7 @@ const DoctorDashboard = () => {
   const [stats, setStats] = useState({
     totalPatients: 0,
     todayAppointments: 0,
-    pendingDiagnoses: 0,
+    scheduledAppointments: 0,
     activeTreatments: 0
   });
   const [observations, setObservations] = useState([]);
@@ -208,17 +208,23 @@ const DoctorDashboard = () => {
           aptDate.setHours(0, 0, 0, 0);
           return aptDate.getTime() === today.getTime();
         });
-        
+        // Count scheduled appointments
+        const scheduledCount = doctorAppointments.filter(apt => 
+          (apt.status || apt.Status) === 'Scheduled'
+        ).length;
+
         setStats(prev => ({
           ...prev,
-          todayAppointments: todayAppointments.length
+          todayAppointments: todayAppointments.length,
+          scheduledAppointments: scheduledCount
         }));
+       
       }
     } catch (err) {
       console.error('Error fetching appointments:', err);
     }
   };
-  
+
   const handleCreateAppointment = (patient) => {
     setSelectedPatient(patient);
     
@@ -1350,11 +1356,11 @@ const DoctorDashboard = () => {
 
               <div className="stat-card">
                 <div className="stat-icon stat-icon-yellow">
-                  <FileText size={24} />
+                  <Calendar size={24} />
                 </div>
                 <div>
-                  <div className="stat-value">{stats.pendingDiagnoses}</div>
-                  <div className="stat-label">Pending Reviews</div>
+                  <div className="stat-value">{stats.scheduledAppointments}</div>
+                  <div className="stat-label">Scheduled Appointments</div>
                 </div>
               </div>
 
