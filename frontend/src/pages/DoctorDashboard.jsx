@@ -180,12 +180,34 @@ const DoctorDashboard = () => {
       
       if (response.success || response.Success) {
         const treatmentsList = response.data || response.Data || [];
+        
         setTreatments(treatmentsList);
+  
+        // Count active treatments
+        const activeTreatmentsCount = treatmentsList.filter(trt => 
+          (trt.status || trt.Status) === 'Active'
+        ).length;
+  
+        // Count treatments starting today (optional)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTreatments = treatmentsList.filter(trt => {
+          const startDate = new Date(trt.startDate || trt.StartDate);
+          startDate.setHours(0, 0, 0, 0);
+          return startDate.getTime() === today.getTime();
+        });
+  
+        setStats(prev => ({
+          ...prev,
+          activeTreatments: activeTreatmentsCount,
+          todayTreatments: todayTreatments.length // optional
+        }));
       }
     } catch (err) {
       console.error('Error fetching treatments:', err);
     }
   };
+  
   const fetchAppointments = async (doctorId) => {
     try {
       const response = await appointmentService.getAllAppointments();
