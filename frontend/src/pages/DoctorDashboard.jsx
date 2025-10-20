@@ -20,6 +20,8 @@ const DoctorDashboard = () => {
   const [showModal, setShowModal] = useState(null);
   const [allergies, setAllergies] = useState([]);
   const [treatments, setTreatments] = useState([]);
+  const [symptoms, setSymptoms] = useState([]);
+  const [selectedSymptom, setSelectedSymptom] = useState(null);
   const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [selectedAllergy, setSelectedAllergy] = useState(null);
   const [stats, setStats] = useState({
@@ -35,7 +37,6 @@ const DoctorDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [dailyAppointments, setDailyAppointments] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [formData, setFormData] = useState({});
   const [patientHistory, setPatientHistory] = useState(null);
@@ -59,13 +60,13 @@ const DoctorDashboard = () => {
         setLoading(false);
         return;
       }
-
+  
       setUser(userData);
       await fetchDashboardData(userData.userName);
-      await fetchAppointments();
       await fetchPrescriptions();
       await fetchLabResults();
       await fetchAllergies();
+      await fetchSymptoms();
       await fetchTreatments();
     } catch (err) {
       console.error('Dashboard initialization error:', err);
@@ -77,22 +78,28 @@ const DoctorDashboard = () => {
 
   const fetchDashboardData = async (username) => {
     try {
+      let doctorId = null;
+      
       try {
         const profileResponse = await doctorService.getProfile(username);
         
         if (profileResponse.success || profileResponse.Success) {
           const profileData = profileResponse.data || profileResponse.Data;
           
+          // IMPORTANT: Extract and store doctor ID first
+          doctorId = profileData.id || profileData.Id;
+          console.log('Doctor ID retrieved:', doctorId);
+          
           setUser(prev => ({
             ...prev,
             ...profileData,
-            id: profileData.id || profileData.Id
+            id: doctorId
           }));
           
           const updatedUser = {
             ...JSON.parse(localStorage.getItem('user') || '{}'),
             ...profileData,
-            id: profileData.id || profileData.Id
+            id: doctorId
           };
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
@@ -101,9 +108,9 @@ const DoctorDashboard = () => {
         setError('Failed to load doctor profile. Please try logging in again.');
         return;
       }
-
+  
+      // Fetch patients
       const patientsResponse = await doctorService.getAssignedClients(username);
-      await fetchObservations();
       if (patientsResponse.success || patientsResponse.Success) {
         const patientsList = patientsResponse.data || patientsResponse.Data || [];
         setPatients(patientsList);
@@ -112,10 +119,21 @@ const DoctorDashboard = () => {
           ...prev,
           totalPatients: patientsList.length
         }));
-        
-      }else {
+      } else {
         setPatients([]);
       }
+      
+      // Fetch observations
+      await fetchObservations();
+      
+      // CRITICAL: Fetch appointments AFTER we have the doctor ID
+      if (doctorId) {
+        console.log('Calling fetchAppointments with doctorId:', doctorId);
+        await fetchAppointments(doctorId);
+      } else {
+        console.error('Doctor ID not available, cannot fetch appointments');
+      }
+      
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message || 'Some data could not be loaded');
@@ -214,18 +232,76 @@ const DoctorDashboard = () => {
       console.error('Error fetching treatments:', err);
     }
   };
-  
+
+
+  const fetchSymptoms = async () => {
+  try {
+    const response = await symptomService.getAllSymptoms();
+    
+    if (response.success || response.Success) {
+      const symptomsList = response.data || response.Data || [];
+      setSymptoms(symptomsList);
+    }
+  } catch (err) {
+    console.error('Error fetching symptoms:', err);
+  }
+};
+
   const fetchAppointments = async (doctorId) => {
     try {
+      console.log('=== FETCH APPOINTMENTS DEBUG ===');
+      console.log('1. Input doctorId:', doctorId, '| Type:', typeof doctorId);
+      
       const response = await appointmentService.getAllAppointments();
+      console.log('2. API Response:', response);
       
       if (response.success || response.Success) {
         const appointmentsList = response.data || response.Data || [];
-  
-        // Filter appointments for current doctor
-        const doctorAppointments = appointmentsList.filter(apt => 
-          (apt.doctorId || apt.DoctorId) === doctorId
-        );
+        console.log('3. Total appointments:', appointmentsList.length);
+        
+        if (appointmentsList.length > 0) {
+          console.log('4. Sample appointment:', appointmentsList[0]);
+          console.log('5. Sample appointment keys:', Object.keys(appointmentsList[0]));
+          
+          // Check all possible doctor ID fields
+          appointmentsList.forEach((apt, idx) => {
+            console.log(`Appointment ${idx}:`, {
+              doctorId: apt.doctorId,
+              DoctorId: apt.DoctorId,
+              doctor_id: apt.doctor_id,
+              Doctor_Id: apt.Doctor_Id
+            });
+            console.log(`Full doctor object for appointment ${idx}:`, apt.doctor);
+          });
+        }
+
+        const doctorAppointments = appointmentsList.filter(apt => {
+          const aptDoctorId = apt.doctor?.id ?? apt.Doctor?.Id;
+          const aptDoctorUsername = apt.doctor?.userName ?? apt.Doctor?.UserName;
+          
+          // Get current user from state or localStorage
+          const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+          const currentUsername = currentUser.userName;
+          
+          // Match by ID (if valid) OR username (fallback for backend bug)
+          const matchById = aptDoctorId != null && aptDoctorId !== 0 && Number(aptDoctorId) === Number(doctorId);
+          const matchByUsername = aptDoctorUsername && currentUsername && 
+                                 aptDoctorUsername.toLowerCase() === currentUsername.toLowerCase();
+          
+          console.log(`Appointment ${apt.id}:`, {
+            aptDoctorId,
+            aptDoctorUsername,
+            currentUsername,
+            matchById,
+            matchByUsername,
+            finalMatch: matchById || matchByUsername
+          });
+          
+          return matchById || matchByUsername;
+        });
+        
+        console.log('6. Filtered appointments:', doctorAppointments.length);
+        console.log('7. Filtered data:', doctorAppointments);
   
         setAppointments(doctorAppointments);
   
@@ -249,32 +325,38 @@ const DoctorDashboard = () => {
           scheduledAppointments: scheduledCount
         }));
   
-        // === Calendar Data ===
+        // Calendar Data
         const calendarData = doctorAppointments.map(apt => {
           const date = new Date(apt.appointmentDate || apt.AppointmentDate);
-          date.setHours(0, 0, 0, 0);
+          
+          const client = apt.client || apt.Client;
+          const patientName = client 
+            ? `${client.firstName || client.FirstName} ${client.lastName || client.LastName}`
+            : 'Unknown Patient';
+          
+          let startTime = apt.startTime || apt.StartTime || 'Time not set';
+          if (typeof startTime === 'string' && startTime.includes(':')) {
+            startTime = startTime.substring(0, 5);
+          }
+          
           return {
-            date: date.toISOString().split('T')[0], // 'YYYY-MM-DD'
-            status: (apt.status || apt.Status) // 'Scheduled', 'Cancelled', etc.
+            date: date.toISOString().split('T')[0],
+            status: (apt.status || apt.Status),
+            patientName: patientName,
+            time: startTime,
+            appointmentId: apt.id || apt.Id,
+            title: apt.title || apt.Title,
+            fullDate: date
           };
         });
   
+        console.log('8. Calendar events created:', calendarData);
         setCalendarEvents(calendarData);
-
-      // Set appointments for today initially
-      updateDailyAppointments(new Date(), calendarData);
+      }
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
     }
-  } catch (err) {
-    console.error('Error fetching appointments:', err);
-  }
-};
-
-// Filter appointments for the selected date
-const updateDailyAppointments = (date, calendarData) => {
-  const dateStr = date.toISOString().split('T')[0];
-  const daily = calendarData.filter(event => event.date === dateStr);
-  setDailyAppointments(daily);
-};
+  };
   
 
   const handleCreateAppointment = (patient) => {
@@ -369,7 +451,8 @@ const updateDailyAppointments = (date, calendarData) => {
         setShowModal(null);
         setFormData({});
         setSelectedPatient(null);
-        await fetchAppointments();
+        const doctorId = user?.id || user?.Id;
+        await fetchAppointments(doctorId);
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(response.message || response.Message || 'Failed to create appointment');
@@ -966,7 +1049,8 @@ const updateDailyAppointments = (date, calendarData) => {
         setShowModal(null);
         setFormData({});
         setSelectedAppointment(null);
-        await fetchAppointments();
+        const doctorId = user?.id || user?.Id;
+        await fetchAppointments(doctorId);
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(response.message || response.Message || 'Failed to update appointment');
@@ -1089,7 +1173,8 @@ const updateDailyAppointments = (date, calendarData) => {
         
         // Refresh appointments if appointment was deleted
         if (deleteConfirm.type === 'appointment') {
-          await fetchAppointments();
+          const doctorId = user?.id || user?.Id;
+          await fetchAppointments(doctorId);
         }
         
         // Refresh prescriptions if prescription was deleted
@@ -1379,6 +1464,15 @@ const updateDailyAppointments = (date, calendarData) => {
         >
           Allergies ({allergies.length})
         </button>
+
+        <button
+          className={activeTab === 'symptoms' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('symptoms')}
+        >
+          Symptoms ({symptoms.length})
+        </button>
+
+
         
       </div>
 
@@ -1428,46 +1522,62 @@ const updateDailyAppointments = (date, calendarData) => {
             </div>
 
             <div className="dashboard-calendar" style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-  
-              {/* Calendar */}
-              <div style={{ flex: 1, minWidth: '300px' }}>
-                <ReactCalendar
-                  value={selectedDate}
-                  onChange={(date) => {
-                    setSelectedDate(date);
-                    updateDailyAppointments(date, calendarEvents);
-                  }}
-                  tileClassName={({ date, view }) => {
-                    const event = calendarEvents.find(
-                      e => e.date === date.toISOString().split('T')[0]
-                    );
-                    if (event) {
-                      if (event.status === 'Scheduled') return 'calendar-scheduled';
-                      if (event.status === 'Cancelled') return 'calendar-cancelled';
-                    }
-                    return null;
-                  }}
-                  showNeighboringMonth={false}
-                />
-              </div>
+  {/* Calendar */}
+  <div style={{ flex: 1, minWidth: '300px' }}>
+    <ReactCalendar
+      value={selectedDate}
+      onChange={(date) => {
+        setSelectedDate(date);
+      }}
+      tileClassName={({ date, view }) => {
+        if (view !== 'month') return null;
+        
+        const dateStr = date.toISOString().split('T')[0];
+        const event = calendarEvents.find(e => e.date === dateStr);
+        
+        if (event) {
+          if (event.status === 'Scheduled' || event.status === 'Confirmed') return 'calendar-scheduled';
+          if (event.status === 'Cancelled') return 'calendar-cancelled';
+        }
+        return null;
+      }}
+      showNeighboringMonth={false}
+    />
+  </div>
 
-              {/* Appointments list */}
-              <div style={{ flex: 1, minWidth: '300px', background: '#f9fafb', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                <h3 style={{ marginBottom: '15px', fontWeight: 700 }}>Appointments for {selectedDate.toDateString()}</h3>
-                {dailyAppointments.length === 0 ? (
-                  <p style={{ color: '#6b7280' }}>No appointments for this day.</p>
-                ) : (
-                  <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {dailyAppointments.map((apt, index) => (
-                      <li key={index} style={{ marginBottom: '12px', padding: '12px', borderRadius: '8px', backgroundColor: apt.status === 'Scheduled' ? '#d1fae5' : '#fee2e2' }}>
-                        <strong>{apt.patientName || 'Unknown Patient'}</strong>
-                        <p style={{ margin: 0 }}>{apt.time || 'Time not set'} - {apt.status}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+  {/* Appointments for Selected Date */}
+  <div style={{ flex: 1, minWidth: '300px' }}>
+    <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600' }}>
+      Appointments on {selectedDate.toLocaleDateString()}
+    </h3>
+    {calendarEvents.filter(e => e.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {calendarEvents
+          .filter(e => e.date === selectedDate.toISOString().split('T')[0])
+          .map((event, idx) => (
+            <div key={idx} style={{
+              padding: '1rem',
+              backgroundColor: '#f9fafb',
+              borderRadius: '8px',
+              borderLeft: `4px solid ${event.status === 'Scheduled' || event.status === 'Confirmed' ? '#10b981' : '#ef4444'}`
+            }}>
+              <div style={{ fontWeight: '600', color: '#111827', marginBottom: '0.25rem' }}>
+                {event.title || 'Appointment'}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                {event.patientName} • {event.time}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.5rem' }}>
+                Status: {event.status}
               </div>
             </div>
+          ))}
+      </div>
+    ) : (
+      <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No appointments scheduled for this date</p>
+    )}
+  </div>
+</div>
 
 
 
@@ -2299,6 +2409,102 @@ const updateDailyAppointments = (date, calendarData) => {
     )}
   </div>
 )}
+{activeTab === 'symptoms' && (
+  <div className="symptoms-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Recorded Symptoms</h2>
+    </div>
+
+    {symptoms.length === 0 ? (
+      <div className="empty-state">
+        <ClipboardList size={64} color="#9ca3af" />
+        <p className="empty-text">No symptoms recorded yet</p>
+        <p className="empty-subtext">Record symptoms for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="symptoms-grid">
+        {symptoms
+          .sort((a, b) => {
+            const dateA = new Date(a.dateReported || a.DateReported || a.createdAt || a.CreatedAt);
+            const dateB = new Date(b.dateReported || b.DateReported || b.createdAt || b.CreatedAt);
+            return dateB - dateA;
+          })
+          .map((symptom, index) => {
+            const reportedDate = new Date(symptom.dateReported || symptom.DateReported || symptom.createdAt || symptom.CreatedAt);
+            const isActive = symptom.isActive ?? symptom.IsActive ?? true;
+            
+            const clientName = symptom.client?.firstName || symptom.Client?.FirstName 
+              ? `${symptom.client?.firstName || symptom.Client?.FirstName} ${symptom.client?.lastName || symptom.Client?.LastName}`
+              : 'Unknown Patient';
+            
+            return (
+              <div key={index} className={`symptom-card ${!isActive ? 'inactive' : ''}`}>
+                <div className="symptom-card-header">
+                  <div>
+                    <div className="symptom-card-title">
+                      {symptom.name || symptom.Name}
+                    </div>
+                    <div className="symptom-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                    <span className={`severity-badge severity-level-${symptom.severityLevel || symptom.SeverityLevel}`}>
+                      Severity: {symptom.severityLevel || symptom.SeverityLevel}/5
+                    </span>
+                    {isActive && (
+                      <span className="active-badge">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="symptom-card-body">
+                  {(symptom.description || symptom.Description) && (
+                    <p className="symptom-card-description">
+                      {symptom.description || symptom.Description}
+                    </p>
+                  )}
+
+                  <div className="symptom-card-date">
+                    <Clock size={14} />
+                    <span>Reported: {reportedDate.toLocaleDateString()}</span>
+                  </div>
+
+                  {(symptom.notes || symptom.Notes) && (
+                    <div className="symptom-card-notes">
+                      <strong>Notes:</strong>
+                      <p>{symptom.notes || symptom.Notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="symptom-card-footer">
+                  <div className="symptom-card-meta">
+                    {(symptom.addedByDoctor || symptom.AddedByDoctor) && (
+                      <span>Added by: Dr. {symptom.addedByDoctor?.firstName || symptom.AddedByDoctor?.FirstName} {symptom.addedByDoctor?.lastName || symptom.AddedByDoctor?.LastName}</span>
+                    )}
+                    <span>Created: {new Date(symptom.createdAt || symptom.CreatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="symptom-card-actions">
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteSymptom(symptom.id || symptom.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+
 {activeTab === 'treatments' && (
   <div className="treatments-view">
     <div className="section-header" style={{marginBottom: '1.5rem'}}>
@@ -3898,11 +4104,76 @@ const updateDailyAppointments = (date, calendarData) => {
       )}
 
       {/* Create Symptom Modal */}
-      {showModal === 'createSymptom' && selectedPatient && (
-        <div className="modal-overlay" onClick={closeModal}>
-          {/* ... symptom modal content ... */}
+{showModal === 'createSymptom' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Record Symptom for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitSymptom} className="modal-body">
+        <div className="form-group">
+          <label>Symptom Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.name || ''}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            placeholder="e.g., Headache, Fever, Cough"
+          />
         </div>
-      )}
+
+        <div className="form-group">
+          <label>Description *</label>
+          <textarea
+            required
+            rows="3"
+            value={formData.description || ''}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            placeholder="Detailed description of the symptom"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Severity Level (1-5) *</label>
+          <select
+            required
+            value={formData.severityLevel || 1}
+            onChange={(e) => setFormData({...formData, severityLevel: parseInt(e.target.value)})}
+          >
+            <option value="1">1 - Very Mild</option>
+            <option value="2">2 - Mild</option>
+            <option value="3">3 - Moderate</option>
+            <option value="4">4 - Severe</option>
+            <option value="5">5 - Very Severe</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            rows="2"
+            value={formData.notes || ''}
+            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+            placeholder="Additional notes or observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Recording...' : 'Record Symptom'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* Create Appointment Modal */}
       {showModal === 'createAppointment' && selectedPatient && (
@@ -5357,6 +5628,160 @@ card-treatment {
 .allergy-item.inactive {
   opacity: 0.6;
   border-left-color: #9ca3af !important;
+}
+  /* Symptom Styles */
+.symptoms-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.symptoms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.symptom-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s;
+  border-left: 4px solid #f59e0b;
+}
+
+.symptom-card.inactive {
+  opacity: 0.7;
+  border-left-color: #9ca3af;
+}
+
+.symptom-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.symptom-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.symptom-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #d97706;
+  margin-bottom: 0.5rem;
+}
+
+.symptom-card-patient {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.symptom-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.symptom-card-description {
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.symptom-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.symptom-card-notes {
+  padding: 0.75rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.symptom-card-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.symptom-card-notes p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.symptom-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.symptom-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.symptom-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.severity-level-1 {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.severity-level-2 {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.severity-level-3 {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.severity-level-4 {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+.severity-level-5 {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 768px) {
+  .symptoms-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
