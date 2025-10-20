@@ -1,27 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
-  Calendar, 
-  FileText, 
-  Activity, 
-  Search,
-  ChevronRight,
-  AlertCircle,
-  LogOut,
-  X,
-  Save,
-  Eye,
-  Stethoscope,
-  ClipboardList,
-  Trash2,
-  Edit,
-  Clock,
-  MapPin,
-  Plus,
-  Pill,
-  Beaker
+  Users, Calendar, FileText, Activity, Search, ChevronRight, 
+  AlertCircle, LogOut, X, Save, Eye, Stethoscope, ClipboardList, 
+  Trash2, Edit, Clock, MapPin, Plus, Pill, Beaker 
 } from 'lucide-react';
-import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService } from '../services/apiService';
+import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService, allergyService, treatmentService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
@@ -30,6 +13,10 @@ const DoctorDashboard = () => {
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showModal, setShowModal] = useState(null);
+  const [allergies, setAllergies] = useState([]);
+  const [treatments, setTreatments] = useState([]);
+  const [selectedTreatment, setSelectedTreatment] = useState(null);
+  const [selectedAllergy, setSelectedAllergy] = useState(null);
   const [stats, setStats] = useState({
     totalPatients: 0,
     todayAppointments: 0,
@@ -72,6 +59,8 @@ const DoctorDashboard = () => {
       await fetchPrescriptions();
       await fetchLabResults();
       await fetchObservations();
+      await fetchAllergies();
+      await fetchTreatments();
     } catch (err) {
       console.error('Dashboard initialization error:', err);
       setError('Failed to load dashboard data');
@@ -162,6 +151,30 @@ const DoctorDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching observations:', err);
+    }
+  };
+  const fetchAllergies = async () => {
+    try {
+      const response = await allergyService.getAllAllergies();
+      
+      if (response.success || response.Success) {
+        const allergiesList = response.data || response.Data || [];
+        setAllergies(allergiesList);
+      }
+    } catch (err) {
+      console.error('Error fetching allergies:', err);
+    }
+  };
+  const fetchTreatments = async () => {
+    try {
+      const response = await treatmentService.getAllTreatments();
+      
+      if (response.success || response.Success) {
+        const treatmentsList = response.data || response.Data || [];
+        setTreatments(treatmentsList);
+      }
+    } catch (err) {
+      console.error('Error fetching treatments:', err);
     }
   };
   const fetchAppointments = async (doctorId) => {
@@ -560,6 +573,229 @@ const DoctorDashboard = () => {
       setLoading(false);
     }
   };
+  const handleCreateAllergy = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    
+    if (!clientId) {
+      setError('Cannot create allergy: Patient ID not found');
+      return;
+    }
+    
+    setFormData({
+      ClientId: clientId,
+      AllergyName: '',
+      AllergyType: '',
+      Severity: 'Mild',
+      Reaction: '',
+      Notes: '',
+      DiagnosedDate: new Date().toISOString().split('T')[0],
+      IsActive: true,
+      Treatment: ''
+    });
+    setShowModal('createAllergy');
+  };
+  
+  const handleEditAllergy = (allergy) => {
+    setSelectedAllergy(allergy);
+    
+    const diagnosedDate = new Date(allergy.diagnosedDate || allergy.DiagnosedDate);
+    
+    setFormData({
+      AllergyName: allergy.allergyName || allergy.AllergyName || '',
+      AllergyType: allergy.allergyType || allergy.AllergyType || '',
+      Severity: allergy.severity || allergy.Severity || 'Mild',
+      Reaction: allergy.reaction || allergy.Reaction || '',
+      Notes: allergy.notes || allergy.Notes || '',
+      DiagnosedDate: diagnosedDate.toISOString().split('T')[0],
+      IsActive: allergy.isActive ?? allergy.IsActive ?? true,
+      Treatment: allergy.treatment || allergy.Treatment || ''
+    });
+    setShowModal('editAllergy');
+  };
+  
+  const handleDeleteAllergy = (allergyId) => {
+    setDeleteConfirm({
+      type: 'allergy',
+      id: allergyId,
+      message: 'Are you sure you want to delete this allergy record? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitAllergy = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await allergyService.createAllergy(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Allergy record created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchAllergies();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create allergy');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating allergy');
+      console.error('Allergy submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateAllergy = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const allergyId = selectedAllergy.id || selectedAllergy.Id;
+      
+      const response = await allergyService.updateAllergy(allergyId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Allergy record updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedAllergy(null);
+        await fetchAllergies();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update allergy');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating allergy');
+      console.error('Allergy update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateTreatment = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    if (!clientId) {
+      setError('Cannot create treatment: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create treatment: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    setFormData({
+      Title: '',
+      Description: '',
+      StartDate: new Date().toISOString().split('T')[0],
+      EndDate: null, 
+      Status: 'Active',
+      TreatmentPlan: '',
+      Goals: '',
+      ProgressNotes: '',
+      PrescriptionId: null,  
+      NextAppointmentId: null,
+      DiagnosisId: null,
+      ClientId: clientId,
+      ProvidedByDoctorId: doctorId
+    });
+    setShowModal('createTreatment');
+  };
+  
+  const handleEditTreatment = (treatment) => {
+    setSelectedTreatment(treatment);
+    
+    const startDate = new Date(treatment.startDate || treatment.StartDate);
+    const endDate = treatment.endDate || treatment.EndDate 
+      ? new Date(treatment.endDate || treatment.EndDate) 
+      : null;
+    
+    setFormData({
+      Title: treatment.title || treatment.Title || '',
+      Description: treatment.description || treatment.Description || '',
+      StartDate: startDate.toISOString().split('T')[0],
+      EndDate: endDate ? endDate.toISOString().split('T')[0] : '',
+      Status: treatment.status || treatment.Status || 'Active',
+      TreatmentPlan: treatment.treatmentPlan || treatment.TreatmentPlan || '',
+      Goals: treatment.goals || treatment.Goals || '',
+      ProgressNotes: treatment.progressNotes || treatment.ProgressNotes || ''
+    });
+    setShowModal('editTreatment');
+  };
+  
+  const handleDeleteTreatment = (treatmentId) => {
+    setDeleteConfirm({
+      type: 'treatment',
+      id: treatmentId,
+      message: 'Are you sure you want to delete this treatment plan? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitTreatment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+
+      console.log('Sending treatment data:', formData);
+
+      const response = await treatmentService.createTreatment(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Treatment created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchTreatments();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create treatment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating treatment');
+      console.error('Treatment submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateTreatment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const treatmentId = selectedTreatment.id || selectedTreatment.Id;
+      
+      const response = await treatmentService.updateTreatment(treatmentId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Treatment updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedTreatment(null);
+        await fetchTreatments();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update treatment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating treatment');
+      console.error('Treatment update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditLabResult = (labResult) => {
     setSelectedLabResult(labResult);
     
@@ -688,6 +924,11 @@ const DoctorDashboard = () => {
       const prescriptionsRes = await prescriptionService.getActivePrescriptionsByClientId(clientId);
       const labResultsRes = await labResultService.getLabResultsByClientId(clientId);
       const observationsRes = await clinicalObservationService.getObservationsByClientId(clientId);
+      const allergiesRes = await allergyService.getAllergiesByClientId(clientId);
+
+      const allergies = (allergiesRes.success || allergiesRes.Success)
+        ? (allergiesRes.data || allergiesRes.Data || [])
+        : [];
 
       const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
         ? (diagnosesRes.data || diagnosesRes.Data || [])
@@ -715,7 +956,8 @@ const DoctorDashboard = () => {
         symptoms,
         prescriptions,
         labResults,
-        observations
+        observations,
+        allergies 
       });
 
       setShowModal('patientHistory');
@@ -763,6 +1005,10 @@ const DoctorDashboard = () => {
         response = await labResultService.deleteLabResult(deleteConfirm.id);
       } else if (deleteConfirm.type === 'observation') {
         response = await clinicalObservationService.deleteObservation(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'allergy') {
+        response = await allergyService.deleteAllergy(deleteConfirm.id);
+      }else if (deleteConfirm.type === 'treatment') {
+        response = await treatmentService.deleteTreatment(deleteConfirm.id);
       }
 
 
@@ -784,9 +1030,19 @@ const DoctorDashboard = () => {
           await fetchPrescriptions();
         }
 
+        // Refresh treatments if treatment was deleted
+        if (deleteConfirm.type === 'treatment') {
+          await fetchTreatments();
+        }
+
         // Refresh observations if observation was deleted
         if (deleteConfirm.type === 'observation') {
           await fetchObservations();
+        }
+
+        // Refresh allergies if allergy was deleted
+        if (deleteConfirm.type === 'allergy') {
+          await fetchAllergies();
         }
 
         // Refresh lab results if lab result was deleted
@@ -1015,6 +1271,12 @@ const DoctorDashboard = () => {
           Overview
         </button>
         <button
+          className={activeTab === 'treatments' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('treatments')}
+        >
+          Treatment Plans ({treatments.length})
+        </button>
+        <button
           className={activeTab === 'patients' ? 'tab tab-active' : 'tab'}
           onClick={() => setActiveTab('patients')}
         >
@@ -1043,6 +1305,12 @@ const DoctorDashboard = () => {
           onClick={() => setActiveTab('observations')}
         >
           Clinical Observations ({observations.length})
+        </button>
+        <button
+          className={activeTab === 'allergies' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('allergies')}
+        >
+          Allergies ({allergies.length})
         </button>
         
       </div>
@@ -1161,6 +1429,22 @@ const DoctorDashboard = () => {
                       >
                         <Activity size={16} />
                       </button>
+
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateAllergy(patient)}
+                        title="Add Allergy"
+                      >
+                        <AlertCircle size={16} />
+                      </button>
+
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateTreatment(patient)}
+                        title="Create Treatment Plan"
+                      >
+                        <FileText size={16} />
+                      </button>
                       
                     </div>
                   </div>
@@ -1242,6 +1526,15 @@ const DoctorDashboard = () => {
                   >
                     <Calendar size={16} />
                     Schedule Appointment
+                  </button>
+
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateTreatment(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <FileText size={16} />
+                    Create Treatment Plan
                   </button>
 
                   <button 
@@ -1771,6 +2064,254 @@ const DoctorDashboard = () => {
     )}
   </div>
 )}
+
+{activeTab === 'allergies' && (
+  <div className="allergies-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Allergy Records</h2>
+    </div>
+
+    {allergies.length === 0 ? (
+      <div className="empty-state">
+        <AlertCircle size={64} color="#9ca3af" />
+        <p className="empty-text">No allergy records found</p>
+        <p className="empty-subtext">Add allergy records for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="allergies-grid">
+        {allergies
+          .sort((a, b) => {
+            const dateA = new Date(a.diagnosedDate || a.DiagnosedDate);
+            const dateB = new Date(b.diagnosedDate || b.DiagnosedDate);
+            return dateB - dateA;
+          })
+          .map((allergy, index) => {
+            const diagnosedDate = new Date(allergy.diagnosedDate || allergy.DiagnosedDate);
+            const isActive = allergy.isActive ?? allergy.IsActive ?? true;
+            const severity = allergy.severity || allergy.Severity;
+            
+            const clientName = allergy.clientName || allergy.ClientName || 'Unknown Patient';
+            
+            // Determine severity color
+            const getSeverityColor = (sev) => {
+              const sevLower = sev?.toLowerCase();
+              if (sevLower === 'severe' || sevLower === 'life-threatening') return '#dc2626';
+              if (sevLower === 'moderate') return '#f59e0b';
+              return '#10b981';
+            };
+            
+            return (
+              <div key={index} className={`allergy-card ${!isActive ? 'inactive' : ''}`} style={{borderLeftColor: getSeverityColor(severity)}}>
+                <div className="allergy-card-header">
+                  <div>
+                    <div className="allergy-card-title">
+                      {allergy.allergyName || allergy.AllergyName}
+                    </div>
+                    <div className="allergy-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                    <span className={`severity-badge severity-${severity?.toLowerCase()}`}>
+                      {severity}
+                    </span>
+                    {isActive && (
+                      <span className="active-badge">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="allergy-card-body">
+                  {(allergy.allergyType || allergy.AllergyType) && (
+                    <div className="allergy-card-type">
+                      <strong>Type:</strong>
+                      <span>{allergy.allergyType || allergy.AllergyType}</span>
+                    </div>
+                  )}
+
+                  {(allergy.reaction || allergy.Reaction) && (
+                    <div className="allergy-card-reaction">
+                      <strong>Reaction:</strong>
+                      <p>{allergy.reaction || allergy.Reaction}</p>
+                    </div>
+                  )}
+
+                  {(allergy.treatment || allergy.Treatment) && (
+                    <div className="allergy-card-treatment">
+                      <strong>Treatment:</strong>
+                      <p>{allergy.treatment || allergy.Treatment}</p>
+                    </div>
+                  )}
+
+                  <div className="allergy-card-date">
+                    <Clock size={14} />
+                    <span>Diagnosed: {diagnosedDate.toLocaleDateString()}</span>
+                  </div>
+
+                  {(allergy.notes || allergy.Notes) && (
+                    <div className="allergy-card-notes">
+                      <strong>Notes:</strong>
+                      <p>{allergy.notes || allergy.Notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="allergy-card-footer">
+                  <div className="allergy-card-meta">
+                    <span>Added by: {allergy.createdByRole || allergy.CreatedByRole}</span>
+                    <span>Created: {new Date(allergy.createdAt || allergy.CreatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="allergy-card-actions">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => handleEditAllergy(allergy)}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteAllergy(allergy.id || allergy.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+{activeTab === 'treatments' && (
+  <div className="treatments-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Treatment Plans</h2>
+    </div>
+
+    {treatments.length === 0 ? (
+      <div className="empty-state">
+        <FileText size={64} color="#9ca3af" />
+        <p className="empty-text">No treatment plans created yet</p>
+        <p className="empty-subtext">Create treatment plans for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="treatments-grid">
+        {treatments
+          .sort((a, b) => {
+            const dateA = new Date(a.startDate || a.StartDate);
+            const dateB = new Date(b.startDate || b.StartDate);
+            return dateB - dateA;
+          })
+          .map((treatment, index) => {
+            const startDate = new Date(treatment.startDate || treatment.StartDate);
+            const endDate = treatment.endDate || treatment.EndDate 
+              ? new Date(treatment.endDate || treatment.EndDate) 
+              : null;
+            const status = treatment.status || treatment.Status;
+            
+            const client = treatment.client || treatment.Client;
+            const clientName = client 
+              ? `${client.firstName || client.FirstName} ${client.lastName || client.LastName}`
+              : 'Unknown Patient';
+            
+            const doctor = treatment.providedByDoctor || treatment.ProvidedByDoctor;
+            const doctorName = doctor 
+              ? `Dr. ${doctor.firstName || doctor.FirstName} ${doctor.lastName || doctor.LastName}`
+              : 'Unknown Doctor';
+            
+            return (
+              <div key={index} className="treatment-card">
+                <div className="treatment-card-header">
+                  <div>
+                    <div className="treatment-card-title">
+                      {treatment.title || treatment.Title}
+                    </div>
+                    <div className="treatment-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <span className={`status-badge status-${status.toLowerCase()}`}>
+                    {status}
+                  </span>
+                </div>
+
+                <div className="treatment-card-body">
+                  {(treatment.description || treatment.Description) && (
+                    <p className="treatment-card-description">
+                      {treatment.description || treatment.Description}
+                    </p>
+                  )}
+
+                  <div className="treatment-card-dates">
+                    <div className="date-item">
+                      <Clock size={14} />
+                      <span>Start: {startDate.toLocaleDateString()}</span>
+                    </div>
+                    {endDate && (
+                      <div className="date-item">
+                        <Clock size={14} />
+                        <span>End: {endDate.toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(treatment.treatmentPlan || treatment.TreatmentPlan) && (
+                    <div className="treatment-card-plan">
+                      <strong>Treatment Plan:</strong>
+                      <p>{treatment.treatmentPlan || treatment.TreatmentPlan}</p>
+                    </div>
+                  )}
+
+                  {(treatment.goals || treatment.Goals) && (
+                    <div className="treatment-card-goals">
+                      <strong>Goals:</strong>
+                      <p>{treatment.goals || treatment.Goals}</p>
+                    </div>
+                  )}
+
+                  {(treatment.progressNotes || treatment.ProgressNotes) && (
+                    <div className="treatment-card-progress">
+                      <strong>Progress Notes:</strong>
+                      <p>{treatment.progressNotes || treatment.ProgressNotes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="treatment-card-footer">
+                  <div className="treatment-card-meta">
+                    <span>Doctor: {doctorName}</span>
+                    <span>Created: {new Date(treatment.createdAt || treatment.CreatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="treatment-card-actions">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => handleEditTreatment(treatment)}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteTreatment(treatment.id || treatment.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+
       </main>
 {/* Create Lab Result Modal */}
 {showModal === 'createLabResult' && selectedPatient && (
@@ -1902,8 +2443,8 @@ const DoctorDashboard = () => {
                       </div>
                     )}
                     
-                    {/* Edit Lab Result Modal */}
-                    {showModal === 'editLabResult' && selectedLabResult && (
+{/* Edit Lab Result Modal */}
+{showModal === 'editLabResult' && selectedLabResult && (
                       <div className="modal-overlay" onClick={closeModal}>
                         <div className="modal" onClick={(e) => e.stopPropagation()}>
                           <div className="modal-header">
@@ -2029,10 +2570,9 @@ const DoctorDashboard = () => {
                             </div>
                           </form>
                         </div>
-                      </div>
-                    )}
+                      </div>)}
 
-                    {/* Create Clinical Observation Modal */}
+{/* Create Clinical Observation Modal */}
 {showModal === 'createObservation' && selectedPatient && (
   <div className="modal-overlay" onClick={closeModal}>
     <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -2172,6 +2712,459 @@ const DoctorDashboard = () => {
           <button type="submit" className="submit-btn" disabled={loading}>
             <Save size={18} />
             {loading ? 'Saving...' : 'Record Observation'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Create Allergy Modal */}
+{showModal === 'createAllergy' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Add Allergy for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitAllergy} className="modal-body">
+        <div className="form-group">
+          <label>Allergy Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.AllergyName || ''}
+            onChange={(e) => setFormData({...formData, AllergyName: e.target.value})}
+            placeholder="e.g., Penicillin, Peanuts"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Allergy Type</label>
+            <input
+              type="text"
+              value={formData.AllergyType || ''}
+              onChange={(e) => setFormData({...formData, AllergyType: e.target.value})}
+              placeholder="e.g., Drug, Food, Environmental"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Severity *</label>
+            <select
+              required
+              value={formData.Severity || 'Mild'}
+              onChange={(e) => setFormData({...formData, Severity: e.target.value})}
+            >
+              <option value="Mild">Mild</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Severe">Severe</option>
+              <option value="Life-Threatening">Life-Threatening</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Reaction</label>
+          <textarea
+            rows="3"
+            value={formData.Reaction || ''}
+            onChange={(e) => setFormData({...formData, Reaction: e.target.value})}
+            placeholder="Describe the allergic reaction"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Treatment</label>
+          <textarea
+            rows="3"
+            value={formData.Treatment || ''}
+            onChange={(e) => setFormData({...formData, Treatment: e.target.value})}
+            placeholder="Recommended treatment or emergency action"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Diagnosed Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.DiagnosedDate || ''}
+              onChange={(e) => setFormData({...formData, DiagnosedDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.75rem'}}>
+              <input
+                type="checkbox"
+                checked={formData.IsActive ?? true}
+                onChange={(e) => setFormData({...formData, IsActive: e.target.checked})}
+                style={{width: 'auto'}}
+              />
+              Currently Active
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Additional Notes</label>
+          <textarea
+            rows="2"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Any additional information"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Adding...' : 'Add Allergy'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Edit Allergy Modal */}
+{showModal === 'editAllergy' && selectedAllergy && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Edit Allergy Record</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleUpdateAllergy} className="modal-body">
+        <div className="form-group">
+          <label>Allergy Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.AllergyName || ''}
+            onChange={(e) => setFormData({...formData, AllergyName: e.target.value})}
+            placeholder="e.g., Penicillin, Peanuts"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Allergy Type</label>
+            <input
+              type="text"
+              value={formData.AllergyType || ''}
+              onChange={(e) => setFormData({...formData, AllergyType: e.target.value})}
+              placeholder="e.g., Drug, Food, Environmental"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Severity *</label>
+            <select
+              required
+              value={formData.Severity || 'Mild'}
+              onChange={(e) => setFormData({...formData, Severity: e.target.value})}
+            >
+              <option value="Mild">Mild</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Severe">Severe</option>
+              <option value="Life-Threatening">Life-Threatening</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Reaction</label>
+          <textarea
+            rows="3"
+            value={formData.Reaction || ''}
+            onChange={(e) => setFormData({...formData, Reaction: e.target.value})}
+            placeholder="Describe the allergic reaction"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Treatment</label>
+          <textarea
+            rows="3"
+            value={formData.Treatment || ''}
+            onChange={(e) => setFormData({...formData, Treatment: e.target.value})}
+            placeholder="Recommended treatment or emergency action"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Diagnosed Date</label>
+            <input
+              type="date"
+              value={formData.DiagnosedDate || ''}
+              onChange={(e) => setFormData({...formData, DiagnosedDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.75rem'}}>
+              <input
+                type="checkbox"
+                checked={formData.IsActive ?? true}
+                onChange={(e) => setFormData({...formData, IsActive: e.target.checked})}
+                style={{width: 'auto'}}
+              />
+              Currently Active
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Additional Notes</label>
+          <textarea
+            rows="2"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Any additional information"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Updating...' : 'Update Allergy'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+{/* Create Treatment Modal */}
+{showModal === 'createTreatment' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Create Treatment Plan for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitTreatment} className="modal-body">
+        <div className="form-group">
+          <label>Title *</label>
+          <input
+            type="text"
+            required
+            value={formData.Title || ''}
+            onChange={(e) => setFormData({...formData, Title: e.target.value})}
+            placeholder="e.g., Diabetes Management Plan"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description *</label>
+          <textarea
+            required
+            rows="3"
+            value={formData.Description || ''}
+            onChange={(e) => setFormData({...formData, Description: e.target.value})}
+            placeholder="Brief description of the treatment"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Start Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.StartDate || ''}
+              onChange={(e) => setFormData({...formData, StartDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>End Date</label>
+            <input
+              type="date"
+              value={formData.EndDate || ''}
+              onChange={(e) => setFormData({...formData, EndDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Status *</label>
+          <select
+            required
+            value={formData.Status || 'Active'}
+            onChange={(e) => setFormData({...formData, Status: e.target.value})}
+          >
+            <option value="Active">Active</option>
+            <option value="Planned">Planned</option>
+            <option value="Completed">Completed</option>
+            <option value="Discontinued">Discontinued</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Treatment Plan *</label>
+          <textarea
+            required
+            rows="4"
+            value={formData.TreatmentPlan || ''}
+            onChange={(e) => setFormData({...formData, TreatmentPlan: e.target.value})}
+            placeholder="Detailed treatment plan including medications, procedures, therapies..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Goals</label>
+          <textarea
+            rows="3"
+            value={formData.Goals || ''}
+            onChange={(e) => setFormData({...formData, Goals: e.target.value})}
+            placeholder="Treatment goals and expected outcomes"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Progress Notes</label>
+          <textarea
+            rows="3"
+            value={formData.ProgressNotes || ''}
+            onChange={(e) => setFormData({...formData, ProgressNotes: e.target.value})}
+            placeholder="Initial observations and notes"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Creating...' : 'Create Treatment'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Edit Treatment Modal */}
+{showModal === 'editTreatment' && selectedTreatment && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Edit Treatment Plan</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleUpdateTreatment} className="modal-body">
+        <div className="form-group">
+          <label>Title</label>
+          <input
+            type="text"
+            value={formData.Title || ''}
+            onChange={(e) => setFormData({...formData, Title: e.target.value})}
+            placeholder="e.g., Diabetes Management Plan"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description</label>
+          <textarea
+            rows="3"
+            value={formData.Description || ''}
+            onChange={(e) => setFormData({...formData, Description: e.target.value})}
+            placeholder="Brief description of the treatment"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Start Date</label>
+            <input
+              type="date"
+              value={formData.StartDate || ''}
+              onChange={(e) => setFormData({...formData, StartDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>End Date</label>
+            <input
+              type="date"
+              value={formData.EndDate || ''}
+              onChange={(e) => setFormData({...formData, EndDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Status</label>
+          <select
+            value={formData.Status || 'Active'}
+            onChange={(e) => setFormData({...formData, Status: e.target.value})}
+          >
+            <option value="Active">Active</option>
+            <option value="Planned">Planned</option>
+            <option value="Completed">Completed</option>
+            <option value="Discontinued">Discontinued</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Treatment Plan</label>
+          <textarea
+            rows="4"
+            value={formData.TreatmentPlan || ''}
+            onChange={(e) => setFormData({...formData, TreatmentPlan: e.target.value})}
+            placeholder="Detailed treatment plan including medications, procedures, therapies..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Goals</label>
+          <textarea
+            rows="3"
+            value={formData.Goals || ''}
+            onChange={(e) => setFormData({...formData, Goals: e.target.value})}
+            placeholder="Treatment goals and expected outcomes"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Progress Notes</label>
+          <textarea
+            rows="3"
+            value={formData.ProgressNotes || ''}
+            onChange={(e) => setFormData({...formData, ProgressNotes: e.target.value})}
+            placeholder="Update progress and observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Updating...' : 'Update Treatment'}
           </button>
         </div>
       </form>
@@ -2608,6 +3601,89 @@ const DoctorDashboard = () => {
                     <p className="no-data">No lab results recorded</p>
                   )}
                 </div>
+                <div className="history-section">
+                    <h3>Allergies ({patientHistory?.allergies?.length || 0})</h3>
+                    {patientHistory?.allergies?.length > 0 ? (
+                      <div className="history-list">
+                        {patientHistory.allergies.map((allergy, idx) => {
+                          const diagnosedDate = new Date(allergy.diagnosedDate || allergy.DiagnosedDate);
+                          const isActive = allergy.isActive ?? allergy.IsActive ?? true;
+                          const severity = allergy.severity || allergy.Severity;
+                          
+                          return (
+                            <div key={idx} className={`history-item allergy-item ${!isActive ? 'inactive' : ''}`}>
+                              <div className="history-item-header">
+                                <div>
+                                  <strong style={{fontSize: '1rem', color: '#dc2626'}}>
+                                    {allergy.allergyName || allergy.AllergyName}
+                                  </strong>
+                                  {(allergy.allergyType || allergy.AllergyType) && (
+                                    <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+                                      Type: {allergy.allergyType || allergy.AllergyType}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                                  <span className={`severity-badge severity-${severity?.toLowerCase()}`}>
+                                    {severity}
+                                  </span>
+                                  {isActive && (
+                                    <span className="active-badge">
+                                      Active
+                                    </span>
+                                  )}
+                                  <button 
+                                    className="action-btn-small"
+                                    onClick={() => handleEditAllergy(allergy)}
+                                    title="Edit allergy"
+                                    style={{width: '32px', height: '32px'}}
+                                  >
+                                    <Edit size={14} />
+                                  </button>
+                                  <button 
+                                    className="delete-icon-btn"
+                                    onClick={() => handleDeleteAllergy(allergy.id || allergy.Id)}
+                                    title="Delete allergy"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {(allergy.reaction || allergy.Reaction) && (
+                                <div style={{marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '6px', borderLeft: '3px solid #ef4444'}}>
+                                  <strong style={{display: 'block', marginBottom: '0.25rem', color: '#991b1b', fontSize: '0.875rem'}}>Reaction:</strong>
+                                  <p style={{margin: 0, fontSize: '0.875rem', color: '#7f1d1d', whiteSpace: 'pre-wrap'}}>{allergy.reaction || allergy.Reaction}</p>
+                                </div>
+                              )}
+                              
+                              {(allergy.treatment || allergy.Treatment) && (
+                                <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '3px solid #3b82f6'}}>
+                                  <strong style={{display: 'block', marginBottom: '0.25rem', color: '#1e40af', fontSize: '0.875rem'}}>Treatment:</strong>
+                                  <p style={{margin: 0, fontSize: '0.875rem', color: '#1e3a8a', whiteSpace: 'pre-wrap'}}>{allergy.treatment || allergy.Treatment}</p>
+                                </div>
+                              )}
+                              
+                              {(allergy.notes || allergy.Notes) && (
+                                <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                                  <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                                  <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{allergy.notes || allergy.Notes}</p>
+                                </div>
+                              )}
+                              
+                              <div className="history-item-meta">
+                                <span>Diagnosed: {diagnosedDate.toLocaleDateString()}</span>
+                                <span>Added by: {allergy.createdByRole || allergy.CreatedByRole}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="no-data">No allergies recorded</p>
+                    )}
+                  </div>
+
                 </>
               )}
             </div>
@@ -3674,6 +4750,401 @@ const dashboardStyles = `
 .observation-card-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+
+/* Treatment Styles */
+  .treatments-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .treatments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .treatment-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #8b5cf6;
+  }
+
+  .treatment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .treatment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .treatment-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #6b21a8;
+    margin-bottom: 0.5rem;
+  }
+
+  .treatment-card-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .treatment-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .treatment-card-description {
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .treatment-card-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+  }
+
+  .treatment-card-plan,
+  .treatment-card-goals,
+  .treatment-card-progress {
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-plan {
+    background-color: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .treatment-card-plan strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #1e40af;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-plan p {
+    margin: 0;
+    color: #1e3a8a;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .treatment-card-goals {
+    background-color: #f0fdf4;
+    border-left: 3px solid #10b981;
+  }
+
+  .treatment-card-goals strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #065f46;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-goals p {
+    margin: 0;
+    color: #064e3b;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .treatment-card-progress {
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+  }
+
+  .treatment-card-progress strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-progress p {
+    margin: 0;
+    color: #78350f;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .treatment-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .treatment-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .treatment-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .status-planned {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-on {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  @media (max-width: 768px) {
+    .treatments-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Allergy Styles */
+.allergies-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.allergies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.allergy-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s;
+  border-left: 4px solid #10b981;
+}
+
+.allergy-card.inactive {
+  opacity: 0.7;
+  border-left-color: #9ca3af;
+}
+
+.allergy-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.allergy-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.allergy-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+.allergy-card-patient {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.allergy-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.allergy-card-type {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.allergy-card-type strong {
+  color: #111827;
+  min-width: 60px;
+}
+
+.allergy-card-reaction,
+.allergy-card-treatment {
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.allergy-card-reaction {
+  background-color: #fef2f2;
+  border-left: 3px solid #ef4444;
+}
+
+.allergy-card-reaction strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #991b1b;
+  font-size: 0.875rem;
+}
+
+.allergy-card-reaction p {
+  margin: 0;
+  color: #7f1d1d;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+card-treatment {
+  background-color: #f0f9ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.allergy-card-treatment strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #1e40af;
+  font-size: 0.875rem;
+}
+
+.allergy-card-treatment p {
+  margin: 0;
+  color: #1e3a8a;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.allergy-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.allergy-card-notes {
+  padding: 0.75rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.allergy-card-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.allergy-card-notes p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.allergy-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.allergy-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.allergy-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.severity-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.severity-mild {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.severity-moderate {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.severity-severe {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.severity-life-threatening {
+  background-color: #fce7f3;
+  color: #9f1239;
+  font-weight: 600;
+}
+
+.allergy-item {
+  border-left: 3px solid #dc2626 !important;
+}
+
+.allergy-item.inactive {
+  opacity: 0.6;
+  border-left-color: #9ca3af !important;
+}
+
+@media (max-width: 768px) {
+  .allergies-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {

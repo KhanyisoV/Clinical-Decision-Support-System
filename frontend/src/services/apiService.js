@@ -423,6 +423,78 @@ export const appointmentService = {
     }
   }
 };
+// Allergy Service
+export const allergyService = {
+  // Get all allergies (filtered by role on backend)
+  getAllAllergies: async () => {
+    try {
+      const response = await API.get('/allergy');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch allergies');
+    }
+  },
+
+  // Get allergy by ID
+  getAllergyById: async (allergyId) => {
+    try {
+      const response = await API.get(`/allergy/${allergyId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch allergy');
+    }
+  },
+
+  // Get allergies by client ID
+  getAllergiesByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/allergy/client/${clientId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch allergies');
+    }
+  },
+
+  // Get active allergies by client ID
+  getActiveAllergiesByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/allergy/client/${clientId}/active`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active allergies');
+    }
+  },
+
+  // Create new allergy (Doctor and Client only)
+  createAllergy: async (allergyData) => {
+    try {
+      const response = await API.post('/allergy', allergyData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to create allergy');
+    }
+  },
+
+  // Update allergy (Doctor and Client only)
+  updateAllergy: async (allergyId, allergyData) => {
+    try {
+      const response = await API.put(`/allergy/${allergyId}`, allergyData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update allergy');
+    }
+  },
+
+  // Delete allergy (Doctor and Client only)
+  deleteAllergy: async (allergyId) => {
+    try {
+      const response = await API.delete(`/allergy/${allergyId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete allergy');
+    }
+  }
+};
 // Prescription Service
 export const prescriptionService = {
   // Get all prescriptions (filtered by role on backend)
@@ -625,6 +697,78 @@ export const clinicalObservationService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete observation');
+    }
+  }
+};
+// Treatment Service
+export const treatmentService = {
+  // Get all treatments (filtered by role on backend)
+  getAllTreatments: async () => {
+    try {
+      const response = await API.get('/treatment');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch treatments');
+    }
+  },
+
+  // Get treatment by ID
+  getTreatmentById: async (treatmentId) => {
+    try {
+      const response = await API.get(`/treatment/${treatmentId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch treatment');
+    }
+  },
+
+  // Get active treatments by client ID
+  getActiveTreatmentsByClientId: async (clientId) => {
+    try {
+      const response = await API.get(`/treatment/client/${clientId}/active`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active treatments');
+    }
+  },
+
+  // Get treatments by status
+  getTreatmentsByStatus: async (status) => {
+    try {
+      const response = await API.get(`/treatment/status/${status}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch treatments');
+    }
+  },
+
+  // Create new treatment (Doctor only)
+  createTreatment: async (treatmentData) => {
+    try {
+      const response = await API.post('/treatment', treatmentData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to create treatment');
+    }
+  },
+
+  // Update treatment (Doctor only)
+  updateTreatment: async (treatmentId, treatmentData) => {
+    try {
+      const response = await API.put(`/treatment/${treatmentId}`, treatmentData);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to update treatment');
+    }
+  },
+
+  // Delete treatment (Doctor only)
+  deleteTreatment: async (treatmentId) => {
+    try {
+      const response = await API.delete(`/treatment/${treatmentId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to delete treatment');
     }
   }
 };
