@@ -4,6 +4,7 @@ using FinalYearProject.Repositories;
 using FinalYearProject.Models;
 using FinalYearProject.DTOs;
 using FinalYearProject.Services;
+using FinalYearProject.Data;
 
 namespace FinalYearProject.Controllers
 {
@@ -14,15 +15,18 @@ namespace FinalYearProject.Controllers
         private readonly IDiagnosisRepository _diagnosisRepo;
         private readonly IClientRepository _clientRepo;
         private readonly IDoctorRepository _doctorRepo;
+        private readonly AppDbContext _context;
 
         public DiagnosisController(
             IDiagnosisRepository diagnosisRepo,
             IClientRepository clientRepo,
-            IDoctorRepository doctorRepo)
+            IDoctorRepository doctorRepo,
+             AppDbContext context)
         {
             _diagnosisRepo = diagnosisRepo;
             _clientRepo = clientRepo;
             _doctorRepo = doctorRepo;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         // Doctor adds diagnosis to client
@@ -337,24 +341,41 @@ namespace FinalYearProject.Controllers
         }
 
         // Delete diagnosis (only by doctor)
+        
         [HttpDelete("{id}")]
         [Authorize(Roles = "Doctor,Admin")]
-        public IActionResult DeleteDiagnosis(int id)
+        public async Task<IActionResult> DeleteDiagnosis(int id)
         {
             try
             {
-                var diagnosis = _diagnosisRepo.GetById(id);
+                var diagnosis = await _context.Diagnoses.FindAsync(id);
                 if (diagnosis == null)
-                    return NotFound("Diagnosis not found");
+                {
+                    return NotFound(new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "Diagnosis not found"
+                    });
+                }
 
-                _diagnosisRepo.Delete(diagnosis);
-                _diagnosisRepo.Save();
+                _context.Diagnoses.Remove(diagnosis);
+                await _context.SaveChangesAsync();
 
-                return Ok("Diagnosis deleted successfully");
+                return Ok(new ApiResponseDto
+                {
+                    Success = true,
+                    Message = "Diagnosis deleted successfully"
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An error occurred: {ex.Message}");
+                Console.WriteLine($"Error deleting diagnosis: {ex.Message}");
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred while deleting the diagnosis",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
 

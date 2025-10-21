@@ -9,13 +9,7 @@ const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [stats, setStats] = useState({
-    TotalClients: 0,
-    TotalDoctors: 0,
-    TotalAdmins: 0,
-    ActiveDiagnoses: 0,
-    RecentRegistrations: 0
-  });
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
@@ -77,6 +71,7 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    console.log('🚀 useEffect running - loading dashboard stats');
     loadDashboardStats();
   }, []);
 
@@ -104,17 +99,45 @@ const AdminDashboard = () => {
     }
   }, [activeTab]);
 
+  // const loadDashboardStats = async () => {
+  //   try {
+  //     setLoading(true);
+  //     setError(null);
+  //     const response = await adminService.getDashboardStats();
+  //     if (response.success) {
+  //       setStats(response.data);
+  //     } else {
+  //       setError(response.message);
+  //     }
+  //   } catch (err) {
+  //     setError(err.message);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔍 Fetching dashboard stats...');
       const response = await adminService.getDashboardStats();
+      console.log('✅ Response received:', response);
+      console.log('📊 Response data:', response.data);
+      
       if (response.success) {
+        console.log('Setting stats to:', response.data);
         setStats(response.data);
+        
+        // Log stats after setting
+        setTimeout(() => {
+          console.log('Stats state after update:', stats);
+        }, 100);
       } else {
         setError(response.message);
       }
     } catch (err) {
+      console.error('❌ Error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -261,16 +284,22 @@ const AdminDashboard = () => {
     </button>
   );
 
-  const StatCard = ({ title, value, icon, color = '#007bff' }) => (
-    <div style={{...styles.statCard, borderLeft: `4px solid ${color}`}}>
-      <div style={styles.statHeader}>
-        <span style={styles.statIcon}>{icon}</span>
-        <h3 style={styles.statTitle}>{title}</h3>
+  const StatCard = ({ title, value, icon, color = '#007bff' }) => {
+    const displayValue = loading ? '...' : (value ?? 0);
+    console.log(`📊 StatCard - ${title}: value=${value}, display=${displayValue}`);
+    
+    return (
+      <div style={{...styles.statCard, borderLeft: `4px solid ${color}`}}>
+        <div style={styles.statHeader}>
+          <span style={styles.statIcon}>{icon}</span>
+          <h3 style={styles.statTitle}>{title}</h3>
+        </div>
+        <div style={styles.statValue}>
+          {displayValue}
+        </div>
       </div>
-      <div style={styles.statValue}>{loading ? '...' : value}</div>
-    </div>
-  );
-
+    );
+  };
   const renderContent = () => {
     switch (activeTab) {
       case 'clients':
@@ -310,36 +339,36 @@ const AdminDashboard = () => {
       )}
 
       <div style={styles.statsGrid}>
-        <StatCard
-          title="Total Clients"
-          value={stats.TotalClients}
-          icon="👥"
-          color="#28a745"
-        />
-        <StatCard
-          title="Total Doctors"
-          value={stats.TotalDoctors}
-          icon="👨‍⚕️"
-          color="#17a2b8"
-        />
-        <StatCard
-          title="Total Admins"
-          value={stats.TotalAdmins}
-          icon="👔"
-          color="#ffc107"
-        />
-        <StatCard
-          title="Active Diagnoses"
-          value={stats.ActiveDiagnoses}
-          icon="📋"
-          color="#dc3545"
-        />
-        <StatCard
-          title="Recent Registrations"
-          value={stats.RecentRegistrations}
-          icon="🆕"
-          color="#6f42c1"
-        />
+      <StatCard
+        title="Total Clients"
+        value={stats?.totalClients}
+        icon="👥"
+        color="#28a745"
+      />
+      <StatCard
+        title="Total Doctors"
+        value={stats?.totalDoctors}
+        icon="👨‍⚕️"
+        color="#17a2b8"
+      />
+      <StatCard
+        title="Total Admins"
+        value={stats?.totalAdmins}
+        icon="👔"
+        color="#ffc107"
+      />
+      <StatCard
+        title="Active Diagnoses"
+        value={stats?.activeDiagnoses}
+        icon="📋"
+        color="#dc3545"
+      />
+      <StatCard
+        title="Recent Registrations"
+        value={stats?.recentRegistrations}
+        icon="🆕"
+        color="#6f42c1"
+      />
       </div>
 
       <div style={styles.quickActions}>

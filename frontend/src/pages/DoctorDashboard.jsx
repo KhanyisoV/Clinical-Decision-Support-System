@@ -1,40 +1,50 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
-  Calendar, 
-  FileText, 
-  Activity, 
-  Search,
-  ChevronRight,
-  AlertCircle,
-  LogOut,
-  X,
-  Save,
-  Eye,
-  Stethoscope,
-  ClipboardList
+  Users, Calendar, FileText, Activity, Search, ChevronRight, 
+  AlertCircle, LogOut, X, Save, Eye, Stethoscope, ClipboardList, 
+  Trash2, Edit, Clock, MapPin, Plus, Pill, Beaker 
 } from 'lucide-react';
-import { doctorService, symptomService, diagnosisService } from '../services/apiService';
+import ReactCalendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+
+
+import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService, allergyService, treatmentService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [patients, setPatients] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showModal, setShowModal] = useState(null);
+  const [allergies, setAllergies] = useState([]);
+  const [treatments, setTreatments] = useState([]);
+  const [symptoms, setSymptoms] = useState([]);
+  const [selectedSymptom, setSelectedSymptom] = useState(null);
+  const [selectedTreatment, setSelectedTreatment] = useState(null);
+  const [selectedAllergy, setSelectedAllergy] = useState(null);
   const [stats, setStats] = useState({
     totalPatients: 0,
     todayAppointments: 0,
-    pendingDiagnoses: 0,
+    scheduledAppointments: 0,
     activeTreatments: 0
   });
+  const [observations, setObservations] = useState([]);
+  const [selectedObservation, setSelectedObservation] = useState(null);
+  const [labResults, setLabResults] = useState([]);
+  const [selectedLabResult, setSelectedLabResult] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [formData, setFormData] = useState({});
   const [patientHistory, setPatientHistory] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [appointments, setAppointments] = useState([]);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   useEffect(() => {
     initializeDashboard();
@@ -50,9 +60,14 @@ const DoctorDashboard = () => {
         setLoading(false);
         return;
       }
-
+  
       setUser(userData);
       await fetchDashboardData(userData.userName);
+      await fetchPrescriptions();
+      await fetchLabResults();
+      await fetchAllergies();
+      await fetchSymptoms();
+      await fetchTreatments();
     } catch (err) {
       console.error('Dashboard initialization error:', err);
       setError('Failed to load dashboard data');
@@ -60,30 +75,30 @@ const DoctorDashboard = () => {
       setLoading(false);
     }
   };
-
   const fetchDashboardData = async (username) => {
     try {
-      // Fetch doctor's profile to get the ID
+      let doctorId = null;
+      
       try {
         const profileResponse = await doctorService.getProfile(username);
-        console.log('Profile response:', profileResponse);
         
         if (profileResponse.success || profileResponse.Success) {
           const profileData = profileResponse.data || profileResponse.Data;
-          console.log('Profile data:', profileData);
           
-          // Update user state with doctor's ID
+          // IMPORTANT: Extract and store doctor ID first
+          doctorId = profileData.id || profileData.Id;
+          console.log('Doctor ID retrieved:', doctorId);
+          
           setUser(prev => ({
             ...prev,
             ...profileData,
-            id: profileData.id || profileData.Id // Ensure ID is set
-          }));
+            id: doctorId
+          }));  
           
-          // Also update localStorage
           const updatedUser = {
             ...JSON.parse(localStorage.getItem('user') || '{}'),
             ...profileData,
-            id: profileData.id || profileData.Id
+            id: doctorId
           };
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
@@ -92,69 +107,1200 @@ const DoctorDashboard = () => {
         setError('Failed to load doctor profile. Please try logging in again.');
         return;
       }
-
-      // Fetch assigned patients/clients
+  
+      // Fetch patients
       const patientsResponse = await doctorService.getAssignedClients(username);
-      console.log('Patients response:', patientsResponse);
-      
       if (patientsResponse.success || patientsResponse.Success) {
         const patientsList = patientsResponse.data || patientsResponse.Data || [];
-        console.log('Patients list:', patientsList);
         setPatients(patientsList);
         
         setStats(prev => ({
           ...prev,
           totalPatients: patientsList.length
         }));
+        
+        // Fetch symptoms after patients are loaded
+        if (patientsList.length > 0) {
+          await fetchSymptomsForPatients(patientsList);
+        }
       } else {
-        console.warn('No patients data in response');
         setPatients([]);
       }
+      
+      // Fetch observations
+      await fetchObservations();
+      
+      // CRITICAL: Fetch appointments AFTER we have the doctor ID
+      if (doctorId) {
+        console.log('Calling fetchAppointments with doctorId:', doctorId);
+        await fetchAppointments(doctorId);
+      } else {
+        console.error('Doctor ID not available, cannot fetch appointments');
+      }
+      
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message || 'Some data could not be loaded');
     }
   };
 
-const handleViewPatientHistory = async (patient) => {
-  setSelectedPatient(patient);
-  setLoading(true);
-  setError(null);
+  const fetchSymptomsForPatients = async (patientsList) => {
+    try {
+      let allSymptoms = [];
+      
+      for (const patient of patientsList) {
+        try {
+          const response = await symptomService.getSymptomsByClientUsername(patient.userName);
+          
+          if (response.success || response.Success) {
+            const patientSymptoms = response.data || response.Data || [];
+            const symptomsWithPatient = patientSymptoms.map(symptom => ({
+              ...symptom,
+              client: patient
+            }));
+            allSymptoms = [...allSymptoms, ...symptomsWithPatient];
+          }
+        } catch (err) {
+          console.error(`Error fetching symptoms for patient ${patient.userName}:`, err);
+        }
+      }
+      
+      console.log('Total symptoms fetched:', allSymptoms.length);
+      setSymptoms(allSymptoms);
+      
+    } catch (err) {
+      console.error('Error fetching symptoms:', err);
+    }
+  };
+  
+  const fetchPrescriptions = async () => {
+    try {
+      const response = await prescriptionService.getAllPrescriptions();
+      
+      if (response.success || response.Success) {
+        const prescriptionsList = response.data || response.Data || [];
+        setPrescriptions(prescriptionsList);
+      }
+    } catch (err) {
+      console.error('Error fetching prescriptions:', err);
+    }
+  };
+  const fetchLabResults = async () => {
+    try {
+      const response = await labResultService.getAllLabResults();
+      
+      if (response.success || response.Success) {
+        const labResultsList = response.data || response.Data || [];
+        setLabResults(labResultsList);
+      }
+    } catch (err) {
+      console.error('Error fetching lab results:', err);
+    }
+  };
+  const fetchObservations = async () => {
+    try {
+      // Get doctorId from state or localStorage
+      const userData = user || JSON.parse(localStorage.getItem('user') || '{}');
+      const doctorId = userData?.id || userData?.Id;
+      
+      console.log('Fetching observations for doctor ID:', doctorId);
+      
+      if (doctorId) {
+        const response = await clinicalObservationService.getObservationsByDoctorId(doctorId);
+        
+        console.log('Observations response:', response);
+        
+        if (response.success || response.Success) {
+          const observationsList = response.data || response.Data || [];
+          setObservations(observationsList);
+        }
+      } else {
+        console.warn('No doctor ID available to fetch observations');
+      }
+    } catch (err) {
+      console.error('Error fetching observations:', err);
+    }
+  };
+  const fetchAllergies = async () => {
+    try {
+      const response = await allergyService.getAllAllergies();
+      
+      if (response.success || response.Success) {
+        const allergiesList = response.data || response.Data || [];
+        setAllergies(allergiesList);
+      }
+    } catch (err) {
+      console.error('Error fetching allergies:', err);
+    }
+  };
+  const fetchTreatments = async () => {
+    try {
+      const response = await treatmentService.getAllTreatments();
+      
+      if (response.success || response.Success) {
+        const treatmentsList = response.data || response.Data || [];
+        
+        setTreatments(treatmentsList);
+  
+        // Count active treatments
+        const activeTreatmentsCount = treatmentsList.filter(trt => 
+          (trt.status || trt.Status) === 'Active'
+        ).length;
+  
+        // Count treatments starting today (optional)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayTreatments = treatmentsList.filter(trt => {
+          const startDate = new Date(trt.startDate || trt.StartDate);
+          startDate.setHours(0, 0, 0, 0);
+          return startDate.getTime() === today.getTime();
+        });
+  
+        setStats(prev => ({
+          ...prev,
+          activeTreatments: activeTreatmentsCount,
+          todayTreatments: todayTreatments.length // optional
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching treatments:', err);
+    }
+  };
 
-  try {
-    // ✅ Use username endpoints
-    const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
-    const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
 
-    const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
-      ? (diagnosesRes.data || diagnosesRes.Data || [])
-      : [];
+  const fetchSymptoms = async () => {
+    try {
+      // Get all patients first
+      const currentPatients = patients.length > 0 ? patients : [];
+      
+      if (currentPatients.length === 0) {
+        console.log('No patients available to fetch symptoms');
+        return;
+      }
+  
+      // Fetch symptoms for each patient
+      let allSymptoms = [];
+      
+      for (const patient of currentPatients) {
+        try {
+          const response = await symptomService.getSymptomsByClientUsername(patient.userName);
+          
+          if (response.success || response.Success) {
+            const patientSymptoms = response.data || response.Data || [];
+            // Add patient info to each symptom
+            const symptomsWithPatient = patientSymptoms.map(symptom => ({
+              ...symptom,
+              client: patient
+            }));
+            allSymptoms = [...allSymptoms, ...symptomsWithPatient];
+          }
+        } catch (err) {
+          console.error(`Error fetching symptoms for patient ${patient.userName}:`, err);
+        }
+      }
+      
+      console.log('Total symptoms fetched:', allSymptoms.length);
+      setSymptoms(allSymptoms);
+      
+    } catch (err) {
+      console.error('Error fetching symptoms:', err);
+    }
+  };
 
-    const symptoms = (symptomsRes.success || symptomsRes.Success)
-      ? (symptomsRes.data || symptomsRes.Data || [])
-      : [];
+  const fetchAppointments = async (doctorId) => {
+    try {
+      console.log('=== FETCH APPOINTMENTS DEBUG ===');
+      console.log('1. Input doctorId:', doctorId, '| Type:', typeof doctorId);
+      
+      const response = await appointmentService.getAllAppointments();
+      console.log('2. API Response:', response);
+      
+      if (response.success || response.Success) {
+        const appointmentsList = response.data || response.Data || [];
+        console.log('3. Total appointments:', appointmentsList.length);
+        
+        if (appointmentsList.length > 0) {
+          console.log('4. Sample appointment:', appointmentsList[0]);
+          console.log('5. Sample appointment keys:', Object.keys(appointmentsList[0]));
+          
+          // Check all possible doctor ID fields
+          appointmentsList.forEach((apt, idx) => {
+            console.log(`Appointment ${idx}:`, {
+              doctorId: apt.doctorId,
+              DoctorId: apt.DoctorId,
+              doctor_id: apt.doctor_id,
+              Doctor_Id: apt.Doctor_Id
+            });
+            console.log(`Full doctor object for appointment ${idx}:`, apt.doctor);
+          });
+        }
 
-    setPatientHistory({
-      diagnoses,
-      symptoms
-    });
+        const doctorAppointments = appointmentsList.filter(apt => {
+          const aptDoctorId = apt.doctor?.id ?? apt.Doctor?.Id;
+          const aptDoctorUsername = apt.doctor?.userName ?? apt.Doctor?.UserName;
+          
+          // Get current user from state or localStorage
+          const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+          const currentUsername = currentUser.userName;
+          
+          // Match by ID (if valid) OR username (fallback for backend bug)
+          const matchById = aptDoctorId != null && aptDoctorId !== 0 && Number(aptDoctorId) === Number(doctorId);
+          const matchByUsername = aptDoctorUsername && currentUsername && 
+                                 aptDoctorUsername.toLowerCase() === currentUsername.toLowerCase();
+          
+          console.log(`Appointment ${apt.id}:`, {
+            aptDoctorId,
+            aptDoctorUsername,
+            currentUsername,
+            matchById,
+            matchByUsername,
+            finalMatch: matchById || matchByUsername
+          });
+          
+          return matchById || matchByUsername;
+        });
+        
+        console.log('6. Filtered appointments:', doctorAppointments.length);
+        console.log('7. Filtered data:', doctorAppointments);
+  
+        setAppointments(doctorAppointments);
+  
+        // Update stats
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+  
+        const todayAppointments = doctorAppointments.filter(apt => {
+          const aptDate = new Date(apt.appointmentDate || apt.AppointmentDate);
+          aptDate.setHours(0, 0, 0, 0);
+          return aptDate.getTime() === today.getTime();
+        });
+  
+        const scheduledCount = doctorAppointments.filter(apt => 
+          (apt.status || apt.Status) === 'Scheduled'
+        ).length;
+  
+        setStats(prev => ({
+          ...prev,
+          todayAppointments: todayAppointments.length,
+          scheduledAppointments: scheduledCount
+        }));
+  
+        // Calendar Data
+        const calendarData = doctorAppointments.map(apt => {
+          const date = new Date(apt.appointmentDate || apt.AppointmentDate);
+          
+          const client = apt.client || apt.Client;
+          const patientName = client 
+            ? `${client.firstName || client.FirstName} ${client.lastName || client.LastName}`
+            : 'Unknown Patient';
+          
+          let startTime = apt.startTime || apt.StartTime || 'Time not set';
+          if (typeof startTime === 'string' && startTime.includes(':')) {
+            startTime = startTime.substring(0, 5);
+          }
+          
+          return {
+            date: date.toISOString().split('T')[0],
+            status: (apt.status || apt.Status),
+            patientName: patientName,
+            time: startTime,
+            appointmentId: apt.id || apt.Id,
+            title: apt.title || apt.Title,
+            fullDate: date
+          };
+        });
+  
+        console.log('8. Calendar events created:', calendarData);
+        setCalendarEvents(calendarData);
+      }
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+    }
+  };
+  
 
-    setShowModal('patientHistory');
-  } catch (err) {
-    setError(err.message || 'Failed to load patient history');
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
-
- const handleCreateDiagnosis = (patient) => {
+  const handleCreateAppointment = (patient) => {
     setSelectedPatient(patient);
     
     const clientId = patient.id || patient.Id;
     const doctorId = user?.id || user?.Id;
     
-    console.log('Creating diagnosis - Patient ID:', clientId, 'Doctor ID:', doctorId);
+    if (!clientId) {
+      setError('Cannot create appointment: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create appointment: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    setFormData({
+      Title: '',
+      Description: '',
+      AppointmentDate: tomorrow.toISOString().split('T')[0],
+      StartTime: '09:00',
+      EndTime: '10:00',
+      Status: 'Scheduled',
+      Location: '',
+      Notes: '',
+      ClientId: clientId,
+      DoctorId: doctorId
+    });
+    setShowModal('createAppointment');
+  };
+  
+  const handleEditAppointment = (appointment) => {
+    setSelectedAppointment(appointment);
+    
+    const aptDate = new Date(appointment.appointmentDate || appointment.AppointmentDate);
+    const dateStr = aptDate.toISOString().split('T')[0];
+    
+    // Convert TimeSpan to HH:MM format
+    const formatTime = (timeSpan) => {
+      if (typeof timeSpan === 'string' && timeSpan.includes(':')) {
+        return timeSpan.substring(0, 5); // Get HH:MM from HH:MM:SS
+      }
+      return timeSpan;
+    };
+    
+    setFormData({
+      Title: appointment.title || appointment.Title || '',
+      Description: appointment.description || appointment.Description || '',
+      AppointmentDate: dateStr,
+      StartTime: formatTime(appointment.startTime || appointment.StartTime),
+      EndTime: formatTime(appointment.endTime || appointment.EndTime),
+      Status: appointment.status || appointment.Status || 'Scheduled',
+      Location: appointment.location || appointment.Location || '',
+      Notes: appointment.notes || appointment.Notes || '',
+      ClientId: appointment.clientId || appointment.ClientId,
+      DoctorId: appointment.doctorId || appointment.DoctorId
+    });
+    setShowModal('editAppointment');
+  };
+  
+  const handleDeleteAppointment = (appointmentId) => {
+    setDeleteConfirm({
+      type: 'appointment',
+      id: appointmentId,
+      message: 'Are you sure you want to delete this appointment? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitAppointment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Convert HH:MM to TimeSpan format (HH:MM:SS)
+      const appointmentData = {
+        ...formData,
+        StartTime: formData.StartTime + ':00',
+        EndTime: formData.EndTime + ':00'
+      };
+      
+      const response = await appointmentService.createAppointment(appointmentData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Appointment created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        const doctorId = user?.id || user?.Id;
+        await fetchAppointments(doctorId);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create appointment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating appointment');
+      console.error('Appointment submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreatePrescription = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    if (!clientId) {
+      setError('Cannot create prescription: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create prescription: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    // Set default dates
+    const today = new Date();
+    const twoWeeksLater = new Date();
+    twoWeeksLater.setDate(today.getDate() + 14);
+    
+    setFormData({
+      MedicationName: '',
+      Dosage: '',
+      Frequency: '',
+      StartDate: today.toISOString().split('T')[0],
+      EndDate: twoWeeksLater.toISOString().split('T')[0],
+      Instructions: '',
+      Notes: '',
+      Status: 'Active',
+      ClientId: clientId,
+      PrescribedByDoctorId: doctorId
+    });
+    setShowModal('createPrescription');
+  };
+  
+  const handleEditPrescription = (prescription) => {
+    setSelectedPrescription(prescription);
+    
+    const startDate = new Date(prescription.startDate || prescription.StartDate);
+    const endDate = prescription.endDate || prescription.EndDate 
+      ? new Date(prescription.endDate || prescription.EndDate) 
+      : null;
+    
+    setFormData({
+      MedicationName: prescription.medicationName || prescription.MedicationName || '',
+      Dosage: prescription.dosage || prescription.Dosage || '',
+      Frequency: prescription.frequency || prescription.Frequency || '',
+      StartDate: startDate.toISOString().split('T')[0],
+      EndDate: endDate ? endDate.toISOString().split('T')[0] : '',
+      Instructions: prescription.instructions || prescription.Instructions || '',
+      Notes: prescription.notes || prescription.Notes || '',
+      Status: prescription.status || prescription.Status || 'Active',
+      IsActive: prescription.isActive ?? prescription.IsActive ?? true,
+      ClientId: prescription.clientId || prescription.ClientId,
+      PrescribedByDoctorId: prescription.prescribedByDoctorId || prescription.PrescribedByDoctorId
+    });
+    setShowModal('editPrescription');
+  };
+  
+  const handleDeletePrescription = (prescriptionId) => {
+    setDeleteConfirm({
+      type: 'prescription',
+      id: prescriptionId,
+      message: 'Are you sure you want to delete this prescription? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitPrescription = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await prescriptionService.createPrescription(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Prescription created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchPrescriptions();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create prescription');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating prescription');
+      console.error('Prescription submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdatePrescription = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const prescriptionId = selectedPrescription.id || selectedPrescription.Id;
+      
+      const response = await prescriptionService.updatePrescription(prescriptionId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Prescription updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPrescription(null);
+        await fetchPrescriptions();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update prescription');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating prescription');
+      console.error('Prescription update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateLabResult = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    
+    if (!clientId) {
+      setError('Cannot create lab result: Patient ID not found');
+      return;
+    }
+    
+    setFormData({
+      ClientId: clientId,
+      TestName: '',
+      TestType: '',
+      TestDate: new Date().toISOString().split('T')[0],
+      Result: '',
+      Status: 'Pending',
+      Notes: '',
+      ReferenceRange: '',
+      IsAbnormal: false,
+      PerformedBy: ''
+    });
+    setShowModal('createLabResult');
+  };
+  const handleCreateObservation = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    if (!clientId) {
+      setError('Cannot create observation: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create observation: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    setFormData({
+      Gender: patient.gender || patient.Gender || '',
+      Age: 0,
+      Height: 0,
+      Weight: 0,
+      BloodPressure: '',
+      HeartRate: 0,
+      ObservationType: '',
+      Value: '',
+      Notes: '',
+      ObservationDate: new Date().toISOString().split('T')[0],
+      ClientId: clientId,
+      RecordedByDoctorId: doctorId
+    });
+    setShowModal('createObservation');
+  };
+  
+  const handleEditObservation = (observation) => {
+    setSelectedObservation(observation);
+    
+    const obsDate = new Date(observation.observationDate || observation.ObservationDate);
+    
+    setFormData({
+      Gender: observation.gender || observation.Gender || '',
+      Age: observation.age || observation.Age || 0,
+      Height: observation.height || observation.Height || 0,
+      Weight: observation.weight || observation.Weight || 0,
+      BloodPressure: observation.bloodPressure || observation.BloodPressure || '',
+      HeartRate: observation.heartRate || observation.HeartRate || 0,
+      ObservationType: observation.observationType || observation.ObservationType || '',
+      Value: observation.value || observation.Value || '',
+      Notes: observation.notes || observation.Notes || '',
+      ObservationDate: obsDate.toISOString().split('T')[0]
+    });
+    setShowModal('editObservation');
+  };
+  
+  const handleDeleteObservation = (observationId) => {
+    setDeleteConfirm({
+      type: 'observation',
+      id: observationId,
+      message: 'Are you sure you want to delete this clinical observation? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitObservation = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await clinicalObservationService.createObservation(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Clinical observation created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchObservations();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create observation');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating observation');
+      console.error('Observation submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateObservation = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const observationId = selectedObservation.id || selectedObservation.Id;
+      
+      const response = await clinicalObservationService.updateObservation(observationId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Clinical observation updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedObservation(null);
+        await fetchObservations();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update observation');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating observation');
+      console.error('Observation update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateAllergy = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    
+    if (!clientId) {
+      setError('Cannot create allergy: Patient ID not found');
+      return;
+    }
+    
+    setFormData({
+      ClientId: clientId,
+      AllergyName: '',
+      AllergyType: '',
+      Severity: 'Mild',
+      Reaction: '',
+      Notes: '',
+      DiagnosedDate: new Date().toISOString().split('T')[0],
+      IsActive: true,
+      Treatment: ''
+    });
+    setShowModal('createAllergy');
+  };
+  
+  const handleEditAllergy = (allergy) => {
+    setSelectedAllergy(allergy);
+    
+    const diagnosedDate = new Date(allergy.diagnosedDate || allergy.DiagnosedDate);
+    
+    setFormData({
+      AllergyName: allergy.allergyName || allergy.AllergyName || '',
+      AllergyType: allergy.allergyType || allergy.AllergyType || '',
+      Severity: allergy.severity || allergy.Severity || 'Mild',
+      Reaction: allergy.reaction || allergy.Reaction || '',
+      Notes: allergy.notes || allergy.Notes || '',
+      DiagnosedDate: diagnosedDate.toISOString().split('T')[0],
+      IsActive: allergy.isActive ?? allergy.IsActive ?? true,
+      Treatment: allergy.treatment || allergy.Treatment || ''
+    });
+    setShowModal('editAllergy');
+  };
+  
+  const handleDeleteAllergy = (allergyId) => {
+    setDeleteConfirm({
+      type: 'allergy',
+      id: allergyId,
+      message: 'Are you sure you want to delete this allergy record? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitAllergy = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await allergyService.createAllergy(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Allergy record created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchAllergies();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create allergy');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating allergy');
+      console.error('Allergy submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateAllergy = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const allergyId = selectedAllergy.id || selectedAllergy.Id;
+      
+      const response = await allergyService.updateAllergy(allergyId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Allergy record updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedAllergy(null);
+        await fetchAllergies();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update allergy');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating allergy');
+      console.error('Allergy update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleCreateTreatment = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
+    
+    if (!clientId) {
+      setError('Cannot create treatment: Patient ID not found');
+      return;
+    }
+    
+    if (!doctorId) {
+      setError('Cannot create treatment: Doctor ID not found. Please refresh the page.');
+      return;
+    }
+    
+    setFormData({
+      Title: '',
+      Description: '',
+      StartDate: new Date().toISOString().split('T')[0],
+      EndDate: null, 
+      Status: 'Active',
+      TreatmentPlan: '',
+      Goals: '',
+      ProgressNotes: '',
+      PrescriptionId: null,  
+      NextAppointmentId: null,
+      DiagnosisId: null,
+      ClientId: clientId,
+      ProvidedByDoctorId: doctorId
+    });
+    setShowModal('createTreatment');
+  };
+  
+  const handleEditTreatment = (treatment) => {
+    setSelectedTreatment(treatment);
+    
+    const startDate = new Date(treatment.startDate || treatment.StartDate);
+    const endDate = treatment.endDate || treatment.EndDate 
+      ? new Date(treatment.endDate || treatment.EndDate) 
+      : null;
+    
+    setFormData({
+      Title: treatment.title || treatment.Title || '',
+      Description: treatment.description || treatment.Description || '',
+      StartDate: startDate.toISOString().split('T')[0],
+      EndDate: endDate ? endDate.toISOString().split('T')[0] : '',
+      Status: treatment.status || treatment.Status || 'Active',
+      TreatmentPlan: treatment.treatmentPlan || treatment.TreatmentPlan || '',
+      Goals: treatment.goals || treatment.Goals || '',
+      ProgressNotes: treatment.progressNotes || treatment.ProgressNotes || ''
+    });
+    setShowModal('editTreatment');
+  };
+  
+  const handleDeleteTreatment = (treatmentId) => {
+    setDeleteConfirm({
+      type: 'treatment',
+      id: treatmentId,
+      message: 'Are you sure you want to delete this treatment plan? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitTreatment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+
+      console.log('Sending treatment data:', formData);
+
+      const response = await treatmentService.createTreatment(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Treatment created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchTreatments();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create treatment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating treatment');
+      console.error('Treatment submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateTreatment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const treatmentId = selectedTreatment.id || selectedTreatment.Id;
+      
+      const response = await treatmentService.updateTreatment(treatmentId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Treatment updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedTreatment(null);
+        await fetchTreatments();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update treatment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating treatment');
+      console.error('Treatment update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditLabResult = (labResult) => {
+    setSelectedLabResult(labResult);
+    
+    const testDate = new Date(labResult.testDate || labResult.TestDate);
+    
+    setFormData({
+      TestName: labResult.testName || labResult.TestName || '',
+      TestType: labResult.testType || labResult.TestType || '',
+      TestDate: testDate.toISOString().split('T')[0],
+      Result: labResult.result || labResult.Result || '',
+      Status: labResult.status || labResult.Status || 'Pending',
+      Notes: labResult.notes || labResult.Notes || '',
+      ReferenceRange: labResult.referenceRange || labResult.ReferenceRange || '',
+      IsAbnormal: labResult.isAbnormal ?? labResult.IsAbnormal ?? false,
+      PerformedBy: labResult.performedBy || labResult.PerformedBy || ''
+    });
+    setShowModal('editLabResult');
+  };
+  
+  const handleDeleteLabResult = (labResultId) => {
+    setDeleteConfirm({
+      type: 'labresult',
+      id: labResultId,
+      message: 'Are you sure you want to delete this lab result? This action cannot be undone.'
+    });
+  };
+  
+  const handleSubmitLabResult = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+     
+      const response = await labResultService.createLabResult(formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Lab result created successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedPatient(null);
+        await fetchLabResults();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to create lab result');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while creating lab result');
+      console.error('Lab result submission error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleUpdateLabResult = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const labResultId = selectedLabResult.id || selectedLabResult.Id;
+      
+      const response = await labResultService.updateLabResult(labResultId, formData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Lab result updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedLabResult(null);
+        await fetchLabResults();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update lab result');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating lab result');
+      console.error('Lab result update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleUpdateAppointment = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const appointmentId = selectedAppointment.id || selectedAppointment.Id;
+      
+      // Convert HH:MM to TimeSpan format (HH:MM:SS)
+      const appointmentData = {
+        ...formData,
+        StartTime: formData.StartTime + ':00',
+        EndTime: formData.EndTime + ':00'
+      };
+      
+      const response = await appointmentService.updateAppointment(appointmentId, appointmentData);
+      
+      if (response.success || response.Success) {
+        setSuccess('Appointment updated successfully!');
+        setShowModal(null);
+        setFormData({});
+        setSelectedAppointment(null);
+        const doctorId = user?.id || user?.Id;
+        await fetchAppointments(doctorId);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to update appointment');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while updating appointment');
+      console.error('Appointment update error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleViewPatientHistory = async (patient) => {
+    setSelectedPatient(patient);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const clientId = patient.id || patient.Id;
+      
+      const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
+      const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
+      
+     // Get prescriptions - filter from already loaded prescriptions state
+      console.log('All prescriptions in state:', prescriptions);
+      console.log('Target clientId:', clientId);
+      console.log('Target patient userName:', patient.userName);
+
+      const patientPrescriptions = prescriptions.filter(p => {
+        const pClientId = p.clientId || p.ClientId || p.client?.id || p.Client?.Id;
+        const pClientUsername = p.client?.userName || p.Client?.UserName;
+        
+        // Match by ID (if valid and not 0) OR username (fallback for backend bug)
+        const matchById = pClientId != null && pClientId !== 0 && String(pClientId) === String(clientId);
+        const matchByUsername = pClientUsername && pClientUsername.toLowerCase() === patient.userName.toLowerCase();
+        
+        console.log(`Prescription ${p.id}:`, {
+          clientId: pClientId,
+          clientUsername: pClientUsername,
+          matchById,
+          matchByUsername,
+          finalMatch: matchById || matchByUsername
+        });
+        
+        return matchById || matchByUsername;
+      });
+
+      console.log('Filtered prescriptions for patient:', patientPrescriptions);
+      const labResultsRes = await labResultService.getLabResultsByClientId(clientId);
+      const observationsRes = await clinicalObservationService.getObservationsByClientId(clientId);
+      const allergiesRes = await allergyService.getAllergiesByClientId(clientId);
+
+      const allergies = (allergiesRes.success || allergiesRes.Success)
+        ? (allergiesRes.data || allergiesRes.Data || [])
+        : [];
+
+      const diagnoses = (diagnosesRes.success || diagnosesRes.Success)
+        ? (diagnosesRes.data || diagnosesRes.Data || [])
+        : [];
+
+      const symptoms = (symptomsRes.success || symptomsRes.Success)
+        ? (symptomsRes.data || symptomsRes.Data || [])
+        : [];
+
+      const labResults = (labResultsRes.success || labResultsRes.Success)
+        ? (labResultsRes.data || labResultsRes.Data || [])
+        : [];
+
+
+      const observations = (observationsRes.success || observationsRes.Success)
+        ? (observationsRes.data || observationsRes.Data || [])
+        : [];
+
+      setPatientHistory({
+        diagnoses,
+        symptoms,
+        prescriptions: patientPrescriptions,  // Use the renamed variable
+        labResults,
+        observations,
+        allergies 
+      });
+
+      setShowModal('patientHistory');
+    } catch (err) {
+      setError(err.message || 'Failed to load patient history');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDiagnosis = (diagnosisId) => {
+    setDeleteConfirm({
+      type: 'diagnosis',
+      id: diagnosisId,
+      message: 'Are you sure you want to delete this diagnosis? This action cannot be undone.'
+    });
+  };
+
+  const handleDeleteSymptom = (symptomId) => {
+    setDeleteConfirm({
+      type: 'symptom',
+      id: symptomId,
+      message: 'Are you sure you want to delete this symptom? This action cannot be undone.'
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      let response;
+      if (deleteConfirm.type === 'diagnosis') {
+        response = await diagnosisService.deleteDiagnosis(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'symptom') {
+        response = await symptomService.deleteSymptom(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'appointment') {
+        response = await appointmentService.deleteAppointment(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'prescription') {
+        response = await prescriptionService.deletePrescription(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'labresult') {
+        response = await labResultService.deleteLabResult(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'observation') {
+        response = await clinicalObservationService.deleteObservation(deleteConfirm.id);
+      } else if (deleteConfirm.type === 'allergy') {
+        response = await allergyService.deleteAllergy(deleteConfirm.id);
+      }else if (deleteConfirm.type === 'treatment') {
+        response = await treatmentService.deleteTreatment(deleteConfirm.id);
+      }
+
+
+      if (response.success || response.Success) {
+        setSuccess(`${deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)} deleted successfully!`);
+        
+        // Refresh patient history
+        if (selectedPatient) {
+          await handleViewPatientHistory(selectedPatient);
+        }
+        
+        // Refresh appointments if appointment was deleted
+        if (deleteConfirm.type === 'appointment') {
+          const doctorId = user?.id || user?.Id;
+          await fetchAppointments(doctorId);
+        }
+        
+        // Refresh prescriptions if prescription was deleted
+        if (deleteConfirm.type === 'prescription') {
+          await fetchPrescriptions();
+        }
+
+        // Refresh treatments if treatment was deleted
+        if (deleteConfirm.type === 'treatment') {
+          await fetchTreatments();
+        }
+
+        // Refresh observations if observation was deleted
+        if (deleteConfirm.type === 'observation') {
+          await fetchObservations();
+        }
+
+        // Refresh allergies if allergy was deleted
+        if (deleteConfirm.type === 'allergy') {
+          await fetchAllergies();
+        }
+
+        // Refresh lab results if lab result was deleted
+        if (deleteConfirm.type === 'labresult') {
+          await fetchLabResults();
+        }
+        setTimeout(() => setSuccess(null), 3000);
+      }
+      else {
+        setError(response.message || response.Message || 'Failed to delete');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while deleting');
+      console.error('Delete error:', err);
+    } finally {
+      setLoading(false);
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleCreateDiagnosis = (patient) => {
+    setSelectedPatient(patient);
+    
+    const clientId = patient.id || patient.Id;
+    const doctorId = user?.id || user?.Id;
     
     if (!clientId) {
       setError('Cannot create diagnosis: Patient ID not found');
@@ -187,9 +1333,6 @@ const handleViewPatientHistory = async (patient) => {
     const clientId = patient.id || patient.Id;
     const doctorId = user?.id || user?.Id;
     
-    console.log('Creating symptom - Patient ID:', clientId, 'Doctor ID:', doctorId);
-    console.log('Current user object:', user);
-    
     if (!clientId) {
       setError('Cannot create symptom: Patient ID not found');
       return;
@@ -216,8 +1359,6 @@ const handleViewPatientHistory = async (patient) => {
     setLoading(true);
     setError(null);
 
-    console.log('Submitting diagnosis with data:', formData);
-
     try {
       const response = await diagnosisService.createDiagnosis(formData);
       
@@ -241,8 +1382,6 @@ const handleViewPatientHistory = async (patient) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    console.log('Submitting symptom with data:', formData);
 
     try {
       const response = await symptomService.createSymptom(formData);
@@ -365,11 +1504,57 @@ const handleViewPatientHistory = async (patient) => {
           Overview
         </button>
         <button
+          className={activeTab === 'treatments' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('treatments')}
+        >
+          Treatment Plans ({treatments.length})
+        </button>
+        <button
           className={activeTab === 'patients' ? 'tab tab-active' : 'tab'}
           onClick={() => setActiveTab('patients')}
         >
           My Patients ({patients.length})
         </button>
+        <button
+          className={activeTab === 'appointments' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('appointments')}
+        >
+          Appointments ({appointments.length})
+        </button>
+        <button
+          className={activeTab === 'prescriptions' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('prescriptions')}
+        >
+          Prescriptions ({prescriptions.length})
+        </button>
+        <button
+          className={activeTab === 'labresults' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('labresults')}
+        >
+          Lab Results ({labResults.length})
+        </button>
+        <button
+          className={activeTab === 'observations' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('observations')}
+        >
+          Clinical Observations ({observations.length})
+        </button>
+        <button
+          className={activeTab === 'allergies' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('allergies')}
+        >
+          Allergies ({allergies.length})
+        </button>
+
+        <button
+          className={activeTab === 'symptoms' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('symptoms')}
+        >
+          Symptoms ({symptoms.length})
+        </button>
+
+
+        
       </div>
 
       <main className="main">
@@ -398,11 +1583,11 @@ const handleViewPatientHistory = async (patient) => {
 
               <div className="stat-card">
                 <div className="stat-icon stat-icon-yellow">
-                  <FileText size={24} />
+                  <Calendar size={24} />
                 </div>
                 <div>
-                  <div className="stat-value">{stats.pendingDiagnoses}</div>
-                  <div className="stat-label">Pending Reviews</div>
+                  <div className="stat-value">{stats.scheduledAppointments}</div>
+                  <div className="stat-label">Scheduled Appointments</div>
                 </div>
               </div>
 
@@ -416,6 +1601,67 @@ const handleViewPatientHistory = async (patient) => {
                 </div>
               </div>
             </div>
+
+            <div className="dashboard-calendar" style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+  {/* Calendar */}
+  <div style={{ flex: 1, minWidth: '300px' }}>
+    <ReactCalendar
+      value={selectedDate}
+      onChange={(date) => {
+        setSelectedDate(date);
+      }}
+      tileClassName={({ date, view }) => {
+        if (view !== 'month') return null;
+        
+        const dateStr = date.toISOString().split('T')[0];
+        const event = calendarEvents.find(e => e.date === dateStr);
+        
+        if (event) {
+          if (event.status === 'Scheduled' || event.status === 'Confirmed') return 'calendar-scheduled';
+          if (event.status === 'Cancelled') return 'calendar-cancelled';
+        }
+        return null;
+      }}
+      showNeighboringMonth={false}
+    />
+  </div>
+
+  {/* Appointments for Selected Date */}
+  <div style={{ flex: 1, minWidth: '300px' }}>
+    <h3 style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: '600' }}>
+      Appointments on {selectedDate.toLocaleDateString()}
+    </h3>
+    {calendarEvents.filter(e => e.date === selectedDate.toISOString().split('T')[0]).length > 0 ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {calendarEvents
+          .filter(e => e.date === selectedDate.toISOString().split('T')[0])
+          .map((event, idx) => (
+            <div key={idx} style={{
+              padding: '1rem',
+              backgroundColor: '#f9fafb',
+              borderRadius: '8px',
+              borderLeft: `4px solid ${event.status === 'Scheduled' || event.status === 'Confirmed' ? '#10b981' : '#ef4444'}`
+            }}>
+              <div style={{ fontWeight: '600', color: '#111827', marginBottom: '0.25rem' }}>
+                {event.title || 'Appointment'}
+              </div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                {event.patientName} • {event.time}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.5rem' }}>
+                Status: {event.status}
+              </div>
+            </div>
+          ))}
+      </div>
+    ) : (
+      <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No appointments scheduled for this date</p>
+    )}
+  </div>
+</div>
+
+
+
 
             <div className="section">
               <div className="section-header">
@@ -456,11 +1702,53 @@ const handleViewPatientHistory = async (patient) => {
                       </button>
                       <button 
                         className="action-btn-small"
+                        onClick={() => handleCreateLabResult(patient)}
+                        title="Add Lab Result"
+                      >
+                        <Beaker size={16} />
+                      </button>
+                      
+                      <button 
+                        className="action-btn-small"
                         onClick={() => handleCreateSymptom(patient)}
                         title="Add Symptom"
                       >
                         <ClipboardList size={16} />
                       </button>
+                      <button  className="action-btn-small" onClick={() => handleCreateAppointment(patient)}>
+                      <Calendar size={16} />
+                      </button>
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreatePrescription(patient)}
+                        title="New Prescription"
+                      >
+                        <Pill size={16} />
+                      </button>
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateObservation(patient)}
+                        title="Record Observation"
+                      >
+                        <Activity size={16} />
+                      </button>
+
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateAllergy(patient)}
+                        title="Add Allergy"
+                      >
+                        <AlertCircle size={16} />
+                      </button>
+
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => handleCreateTreatment(patient)}
+                        title="Create Treatment Plan"
+                      >
+                        <FileText size={16} />
+                      </button>
+                      
                     </div>
                   </div>
                 ))}
@@ -534,6 +1822,50 @@ const handleViewPatientHistory = async (patient) => {
                     <ClipboardList size={16} />
                     Add Symptom
                   </button>
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateAppointment(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <Calendar size={16} />
+                    Schedule Appointment
+                  </button>
+
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateTreatment(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <FileText size={16} />
+                    Create Treatment Plan
+                  </button>
+
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateObservation(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <ClipboardList size={16} />
+                    Record Observation
+                  </button>
+
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreatePrescription(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <Pill size={16} />
+                    New Prescription
+                  </button>
+                  <button 
+                    className="tertiary-btn"
+                    onClick={() => handleCreateLabResult(patient)}
+                    style={{marginTop: '0.5rem'}}
+                  >
+                    <Beaker size={16} />
+                    Add Lab Result
+                  </button>
+
                 </div>
               ))}
               {filteredPatients.length === 0 && (
@@ -549,8 +1881,1873 @@ const handleViewPatientHistory = async (patient) => {
               )}
             </div>
           </div>
+          
+        )}{activeTab === 'appointments' && (
+          <div className="appointments-view">
+            <div className="section-header" style={{marginBottom: '1.5rem'}}>
+              <h2 className="section-title">Appointments Schedule</h2>
+            </div>
+
+            {appointments.length === 0 ? (
+              <div className="empty-state">
+                <Calendar size={64} color="#9ca3af" />
+                <p className="empty-text">No appointments scheduled</p>
+                <p className="empty-subtext">Schedule appointments for your patients from the Patients tab</p>
+              </div>
+            ) : (
+              <div className="appointments-grid">
+                {appointments
+                  .sort((a, b) => {
+                    const dateA = new Date(a.appointmentDate || a.AppointmentDate);
+                    const dateB = new Date(b.appointmentDate || b.AppointmentDate);
+                    return dateB - dateA;
+                  })
+                  .map((appointment, index) => {
+                    const aptDate = new Date(appointment.appointmentDate || appointment.AppointmentDate);
+                    const isUpcoming = aptDate >= new Date();
+                    const status = appointment.status || appointment.Status;
+                    
+                    return (
+                      <div key={index} className="appointment-card">
+                        <div className="appointment-card-header">
+                          <div>
+                            <div className="appointment-card-title">
+                              {appointment.title || appointment.Title}
+                            </div>
+                            <div className="appointment-card-date">
+                              <Clock size={14} />
+                              {aptDate.toLocaleDateString()} at {appointment.startTime || appointment.StartTime}
+                            </div>
+                          </div>
+                          <span className={`status-badge status-${status.toLowerCase()}`}>
+                            {status}
+                          </span>
+                        </div>
+
+                        <div className="appointment-card-body">
+                          <div className="appointment-card-info">
+                            <strong>Patient:</strong>
+                            <span>
+                              {appointment.client?.firstName || appointment.Client?.FirstName}{' '}
+                              {appointment.client?.lastName || appointment.Client?.LastName}
+                            </span>
+                          </div>
+
+                          {(appointment.location || appointment.Location) && (
+                            <div className="appointment-card-info">
+                              <MapPin size={14} />
+                              <span>{appointment.location || appointment.Location}</span>
+                            </div>
+                          )}
+
+                          {(appointment.description || appointment.Description) && (
+                            <p className="appointment-card-description">
+                              {appointment.description || appointment.Description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="appointment-card-actions">
+                          <button 
+                            className="secondary-btn"
+                            onClick={() => handleEditAppointment(appointment)}
+                          >
+                            <Edit size={16} />
+                            Edit
+                          </button>
+                          <button 
+                            className="delete-btn-small"
+                            onClick={() => handleDeleteAppointment(appointment.id || appointment.Id)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
         )}
+        {activeTab === 'prescriptions' && (
+          <div className="prescriptions-view">
+            <div className="section-header" style={{marginBottom: '1.5rem'}}>
+              <h2 className="section-title">Prescription History</h2>
+            </div>
+
+            {prescriptions.length === 0 ? (
+              <div className="empty-state">
+                <Pill size={64} color="#9ca3af" />
+                <p className="empty-text">No prescriptions created yet</p>
+                <p className="empty-subtext">Create prescriptions for your patients from the Patients tab</p>
+              </div>
+            ) : (
+              <div className="prescriptions-grid">
+                {prescriptions
+                  .sort((a, b) => {
+                    const dateA = new Date(a.createdAt || a.CreatedAt);
+                    const dateB = new Date(b.createdAt || b.CreatedAt);
+                    return dateB - dateA;
+                  })
+                  .map((prescription, index) => {
+                    const startDate = new Date(prescription.startDate || prescription.StartDate);
+                    const endDate = prescription.endDate || prescription.EndDate 
+                      ? new Date(prescription.endDate || prescription.EndDate) 
+                      : null;
+                    const isActive = prescription.isActive ?? prescription.IsActive ?? true;
+                    const status = prescription.status || prescription.Status;
+                    
+                    const client = prescription.client || prescription.Client;
+                    const clientName = client 
+                      ? `${client.firstName || client.FirstName} ${client.lastName || client.LastName}`
+                      : 'Unknown Patient';
+                    
+                    return (
+                      <div key={index} className="prescription-card">
+                        <div className="prescription-card-header">
+                          <div>
+                            <div className="prescription-card-title">
+                              {prescription.medicationName || prescription.MedicationName}
+                            </div>
+                            <div className="prescription-card-patient">
+                              <Users size={14} />
+                              {clientName}
+                            </div>
+                          </div>
+                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                            <span className={`status-badge status-${status.toLowerCase()}`}>
+                              {status}
+                            </span>
+                            {isActive && (
+                              <span className="active-badge">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="prescription-card-body">
+                          <div className="prescription-card-dosage">
+                            <strong>Dosage:</strong>
+                            <span>{prescription.dosage || prescription.Dosage}</span>
+                          </div>
+
+                          <div className="prescription-card-frequency">
+                            <strong>Frequency:</strong>
+                            <span>{prescription.frequency || prescription.Frequency}</span>
+                          </div>
+
+                          <div className="prescription-card-dates">
+                            <div className="date-item">
+                              <Clock size={14} />
+                              <span>Start: {startDate.toLocaleDateString()}</span>
+                            </div>
+                            {endDate && (
+                              <div className="date-item">
+                                <Clock size={14} />
+                                <span>End: {endDate.toLocaleDateString()}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {(prescription.instructions || prescription.Instructions) && (
+                            <div className="prescription-card-instructions">
+                              <strong>Instructions:</strong>
+                              <p>{prescription.instructions || prescription.Instructions}</p>
+                            </div>
+                          )}
+
+                          {(prescription.notes || prescription.Notes) && (
+                            <div className="prescription-card-notes">
+                              <strong>Notes:</strong>
+                              <p>{prescription.notes || prescription.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="prescription-card-footer">
+                          <div className="prescription-card-meta">
+                            <span>Created: {new Date(prescription.createdAt || prescription.CreatedAt).toLocaleDateString()}</span>
+                            {(prescription.updatedAt || prescription.UpdatedAt) && (
+                              <span>Updated: {new Date(prescription.updatedAt || prescription.UpdatedAt).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          <div className="prescription-card-actions">
+                            <button 
+                              className="secondary-btn"
+                              onClick={() => handleEditPrescription(prescription)}
+                            >
+                              <Edit size={16} />
+                              Edit
+                            </button>
+                            <button 
+                              className="delete-btn-small"
+                              onClick={() => handleDeletePrescription(prescription.id || prescription.Id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab === 'labresults' && (
+          <div className="labresults-view">
+            <div className="section-header" style={{marginBottom: '1.5rem'}}>
+              <h2 className="section-title">Lab Results History</h2>
+            </div>
+
+            {labResults.length === 0 ? (
+              <div className="empty-state">
+                <Beaker size={64} color="#9ca3af" />
+                <p className="empty-text">No lab results recorded yet</p>
+                <p className="empty-subtext">Add lab results for your patients from the Patients tab</p>
+              </div>
+            ) : (
+              <div className="labresults-grid">
+                {labResults
+                  .sort((a, b) => {
+                    const dateA = new Date(a.testDate || a.TestDate);
+                    const dateB = new Date(b.testDate || b.TestDate);
+                    return dateB - dateA;
+                  })
+                  .map((labResult, index) => {
+                    const testDate = new Date(labResult.testDate || labResult.TestDate);
+                    const isAbnormal = labResult.isAbnormal ?? labResult.IsAbnormal ?? false;
+                    const status = labResult.status || labResult.Status;
+                    
+                    const clientName = labResult.clientName || labResult.ClientName || 'Unknown Patient';
+                    
+                    return (
+                      <div key={index} className={`labresult-card ${isAbnormal ? 'abnormal' : ''}`}>
+                        <div className="labresult-card-header">
+                          <div>
+                            <div className="labresult-card-title">
+                              {labResult.testName || labResult.TestName}
+                            </div>
+                            <div className="labresult-card-patient">
+                              <Users size={14} />
+                              {clientName}
+                            </div>
+                          </div>
+                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                            <span className={`status-badge status-${status.toLowerCase()}`}>
+                              {status}
+                            </span>
+                            {isAbnormal && (
+                              <span className="abnormal-badge">
+                                Abnormal
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="labresult-card-body">
+                          <div className="labresult-card-type">
+                            <strong>Test Type:</strong>
+                            <span>{labResult.testType || labResult.TestType}</span>
+                          </div>
+
+                          <div className="labresult-card-result">
+                            <strong>Result:</strong>
+                            <span className={isAbnormal ? 'abnormal-result' : ''}>
+                              {labResult.result || labResult.Result}
+                            </span>
+                          </div>
+
+                          {(labResult.referenceRange || labResult.ReferenceRange) && (
+                            <div className="labresult-card-reference">
+                              <strong>Reference Range:</strong>
+                              <span>{labResult.referenceRange || labResult.ReferenceRange}</span>
+                            </div>
+                          )}
+
+                          <div className="labresult-card-date">
+                            <Clock size={14} />
+                            <span>Test Date: {testDate.toLocaleDateString()}</span>
+                          </div>
+
+                          {(labResult.performedBy || labResult.PerformedBy) && (
+                            <div className="labresult-card-performed">
+                              <strong>Performed By:</strong>
+                              <span>{labResult.performedBy || labResult.PerformedBy}</span>
+                            </div>
+                          )}
+
+                          {(labResult.notes || labResult.Notes) && (
+                            <div className="labresult-card-notes">
+                              <strong>Notes:</strong>
+                              <p>{labResult.notes || labResult.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="labresult-card-footer">
+                          <div className="labresult-card-meta">
+                            <span>Created: {new Date(labResult.createdAt || labResult.CreatedAt).toLocaleDateString()}</span>
+                            {(labResult.updatedAt || labResult.UpdatedAt) && (
+                              <span>Updated: {new Date(labResult.updatedAt || labResult.UpdatedAt).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                          <div className="labresult-card-actions">
+                            <button 
+                              className="secondary-btn"
+                              onClick={() => handleEditLabResult(labResult)}
+                            >
+                              <Edit size={16} />
+                              Edit
+                            </button>
+                            <button 
+                              className="delete-btn-small"
+                              onClick={() => handleDeleteLabResult(labResult.id || labResult.Id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                    
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+{activeTab === 'observations' && (
+  <div className="observations-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Clinical Observations History</h2>
+    </div>
+
+    {observations.length === 0 ? (
+      <div className="empty-state">
+        <ClipboardList size={64} color="#9ca3af" />
+        <p className="empty-text">No clinical observations recorded yet</p>
+        <p className="empty-subtext">Record clinical observations for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="observations-grid">
+        {observations
+          .sort((a, b) => {
+            const dateA = new Date(a.observationDate || a.ObservationDate);
+            const dateB = new Date(b.observationDate || b.ObservationDate);
+            return dateB - dateA;
+          })
+          .map((observation, index) => {
+            const obsDate = new Date(observation.observationDate || observation.ObservationDate);
+            
+            const clientName = observation.client?.firstName || observation.Client?.FirstName 
+              ? `${observation.client?.firstName || observation.Client?.FirstName} ${observation.client?.lastName || observation.Client?.LastName}`
+              : 'Unknown Patient';
+            
+            const bmi = observation.height && observation.weight 
+              ? (observation.weight / Math.pow(observation.height / 100, 2)).toFixed(1)
+              : null;
+            
+            return (
+              <div key={index} className="observation-card">
+                <div className="observation-card-header">
+                  <div>
+                    <div className="observation-card-title">
+                      Clinical Observation
+                    </div>
+                    <div className="observation-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <div className="observation-card-date">
+                    <Clock size={14} />
+                    {obsDate.toLocaleDateString()}
+                  </div>
+                </div>
+
+                <div className="observation-card-body">
+                  <div className="observation-vitals-grid">
+                    {observation.gender && (
+                      <div className="vital-item">
+                        <strong>Gender:</strong>
+                        <span>{observation.gender || observation.Gender}</span>
+                      </div>
+                    )}
+                    
+                    {observation.age && (
+                      <div className="vital-item">
+                        <strong>Age:</strong>
+                        <span>{observation.age || observation.Age} years</span>
+                      </div>
+                    )}
+                    
+                    {observation.height && (
+                      <div className="vital-item">
+                        <strong>Height:</strong>
+                        <span>{observation.height || observation.Height} cm</span>
+                      </div>
+                    )}
+                    
+                    {observation.weight && (
+                      <div className="vital-item">
+                        <strong>Weight:</strong>
+                        <span>{observation.weight || observation.Weight} kg</span>
+                      </div>
+                    )}
+                    
+                    {bmi && (
+                      <div className="vital-item">
+                        <strong>BMI:</strong>
+                        <span className={bmi < 18.5 || bmi > 25 ? 'abnormal-result' : ''}>{bmi}</span>
+                      </div>
+                    )}
+                    
+                    {observation.bloodPressure && (
+                      <div className="vital-item">
+                        <strong>Blood Pressure:</strong>
+                        <span>{observation.bloodPressure || observation.BloodPressure}</span>
+                      </div>
+                    )}
+                    
+                    {observation.heartRate && (
+                      <div className="vital-item">
+                        <strong>Heart Rate:</strong>
+                        <span>{observation.heartRate || observation.HeartRate} bpm</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(observation.observationType || observation.ObservationType) && (
+                    <div className="observation-type-section">
+                      <strong>Observation Type:</strong>
+                      <span>{observation.observationType || observation.ObservationType}</span>
+                      {(observation.value || observation.Value) && (
+                        <span className="observation-value"> - {observation.value || observation.Value}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {(observation.notes || observation.Notes) && (
+                    <div className="observation-card-notes">
+                      <strong>Notes:</strong>
+                      <p>{observation.notes || observation.Notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="observation-card-footer">
+                  <div className="observation-card-meta">
+                    <span>Recorded: {new Date(observation.createdAt || observation.CreatedAt).toLocaleDateString()}</span>
+                    {(observation.updatedAt || observation.UpdatedAt) && (
+                      <span>Updated: {new Date(observation.updatedAt || observation.UpdatedAt).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                  <div className="observation-card-actions">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => handleEditObservation(observation)}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteObservation(observation.id || observation.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+
+{activeTab === 'allergies' && (
+  <div className="allergies-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Allergy Records</h2>
+    </div>
+
+    {allergies.length === 0 ? (
+      <div className="empty-state">
+        <AlertCircle size={64} color="#9ca3af" />
+        <p className="empty-text">No allergy records found</p>
+        <p className="empty-subtext">Add allergy records for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="allergies-grid">
+        {allergies
+          .sort((a, b) => {
+            const dateA = new Date(a.diagnosedDate || a.DiagnosedDate);
+            const dateB = new Date(b.diagnosedDate || b.DiagnosedDate);
+            return dateB - dateA;
+          })
+          .map((allergy, index) => {
+            const diagnosedDate = new Date(allergy.diagnosedDate || allergy.DiagnosedDate);
+            const isActive = allergy.isActive ?? allergy.IsActive ?? true;
+            const severity = allergy.severity || allergy.Severity;
+            
+            const clientName = allergy.clientName || allergy.ClientName || 'Unknown Patient';
+            
+            // Determine severity color
+            const getSeverityColor = (sev) => {
+              const sevLower = sev?.toLowerCase();
+              if (sevLower === 'severe' || sevLower === 'life-threatening') return '#dc2626';
+              if (sevLower === 'moderate') return '#f59e0b';
+              return '#10b981';
+            };
+            
+            return (
+              <div key={index} className={`allergy-card ${!isActive ? 'inactive' : ''}`} style={{borderLeftColor: getSeverityColor(severity)}}>
+                <div className="allergy-card-header">
+                  <div>
+                    <div className="allergy-card-title">
+                      {allergy.allergyName || allergy.AllergyName}
+                    </div>
+                    <div className="allergy-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                    <span className={`severity-badge severity-${severity?.toLowerCase()}`}>
+                      {severity}
+                    </span>
+                    {isActive && (
+                      <span className="active-badge">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="allergy-card-body">
+                  {(allergy.allergyType || allergy.AllergyType) && (
+                    <div className="allergy-card-type">
+                      <strong>Type:</strong>
+                      <span>{allergy.allergyType || allergy.AllergyType}</span>
+                    </div>
+                  )}
+
+                  {(allergy.reaction || allergy.Reaction) && (
+                    <div className="allergy-card-reaction">
+                      <strong>Reaction:</strong>
+                      <p>{allergy.reaction || allergy.Reaction}</p>
+                    </div>
+                  )}
+
+                  {(allergy.treatment || allergy.Treatment) && (
+                    <div className="allergy-card-treatment">
+                      <strong>Treatment:</strong>
+                      <p>{allergy.treatment || allergy.Treatment}</p>
+                    </div>
+                  )}
+
+                  <div className="allergy-card-date">
+                    <Clock size={14} />
+                    <span>Diagnosed: {diagnosedDate.toLocaleDateString()}</span>
+                  </div>
+
+                  {(allergy.notes || allergy.Notes) && (
+                    <div className="allergy-card-notes">
+                      <strong>Notes:</strong>
+                      <p>{allergy.notes || allergy.Notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="allergy-card-footer">
+                  <div className="allergy-card-meta">
+                    <span>Added by: {allergy.createdByRole || allergy.CreatedByRole}</span>
+                    <span>Created: {new Date(allergy.createdAt || allergy.CreatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="allergy-card-actions">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => handleEditAllergy(allergy)}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteAllergy(allergy.id || allergy.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+{activeTab === 'symptoms' && (
+  <div className="symptoms-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Recorded Symptoms</h2>
+    </div>
+
+    {symptoms.length === 0 ? (
+      <div className="empty-state">
+        <ClipboardList size={64} color="#9ca3af" />
+        <p className="empty-text">No symptoms recorded yet</p>
+        <p className="empty-subtext">Record symptoms for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="symptoms-grid">
+        {symptoms
+          .sort((a, b) => {
+            const dateA = new Date(a.dateReported || a.DateReported || a.createdAt || a.CreatedAt);
+            const dateB = new Date(b.dateReported || b.DateReported || b.createdAt || b.CreatedAt);
+            return dateB - dateA;
+          })
+          .map((symptom, index) => {
+            const reportedDate = new Date(symptom.dateReported || symptom.DateReported || symptom.createdAt || symptom.CreatedAt);
+            const isActive = symptom.isActive ?? symptom.IsActive ?? true;
+            
+            const clientName = symptom.client?.firstName || symptom.Client?.FirstName 
+              ? `${symptom.client?.firstName || symptom.Client?.FirstName} ${symptom.client?.lastName || symptom.Client?.LastName}`
+              : 'Unknown Patient';
+            
+            return (
+              <div key={index} className={`symptom-card ${!isActive ? 'inactive' : ''}`}>
+                <div className="symptom-card-header">
+                  <div>
+                    <div className="symptom-card-title">
+                      {symptom.name || symptom.Name}
+                    </div>
+                    <div className="symptom-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                    <span className={`severity-badge severity-level-${symptom.severityLevel || symptom.SeverityLevel}`}>
+                      Severity: {symptom.severityLevel || symptom.SeverityLevel}/5
+                    </span>
+                    {isActive && (
+                      <span className="active-badge">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="symptom-card-body">
+                  {(symptom.description || symptom.Description) && (
+                    <p className="symptom-card-description">
+                      {symptom.description || symptom.Description}
+                    </p>
+                  )}
+
+                  <div className="symptom-card-date">
+                    <Clock size={14} />
+                    <span>Reported: {reportedDate.toLocaleDateString()}</span>
+                  </div>
+
+                  {(symptom.notes || symptom.Notes) && (
+                    <div className="symptom-card-notes">
+                      <strong>Notes:</strong>
+                      <p>{symptom.notes || symptom.Notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="symptom-card-footer">
+                  <div className="symptom-card-meta">
+                    {(symptom.addedByDoctor || symptom.AddedByDoctor) && (
+                      <span>Added by: Dr. {symptom.addedByDoctor?.firstName || symptom.AddedByDoctor?.FirstName} {symptom.addedByDoctor?.lastName || symptom.AddedByDoctor?.LastName}</span>
+                    )}
+                    <span>Created: {new Date(symptom.createdAt || symptom.CreatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="symptom-card-actions">
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteSymptom(symptom.id || symptom.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+
+{activeTab === 'treatments' && (
+  <div className="treatments-view">
+    <div className="section-header" style={{marginBottom: '1.5rem'}}>
+      <h2 className="section-title">Treatment Plans</h2>
+    </div>
+
+    {treatments.length === 0 ? (
+      <div className="empty-state">
+        <FileText size={64} color="#9ca3af" />
+        <p className="empty-text">No treatment plans created yet</p>
+        <p className="empty-subtext">Create treatment plans for your patients from the Patients tab</p>
+      </div>
+    ) : (
+      <div className="treatments-grid">
+        {treatments
+          .sort((a, b) => {
+            const dateA = new Date(a.startDate || a.StartDate);
+            const dateB = new Date(b.startDate || b.StartDate);
+            return dateB - dateA;
+          })
+          .map((treatment, index) => {
+            const startDate = new Date(treatment.startDate || treatment.StartDate);
+            const endDate = treatment.endDate || treatment.EndDate 
+              ? new Date(treatment.endDate || treatment.EndDate) 
+              : null;
+            const status = treatment.status || treatment.Status;
+            
+            const client = treatment.client || treatment.Client;
+            const clientName = client 
+              ? `${client.firstName || client.FirstName} ${client.lastName || client.LastName}`
+              : 'Unknown Patient';
+            
+            const doctor = treatment.providedByDoctor || treatment.ProvidedByDoctor;
+            const doctorName = doctor 
+              ? `Dr. ${doctor.firstName || doctor.FirstName} ${doctor.lastName || doctor.LastName}`
+              : 'Unknown Doctor';
+            
+            return (
+              <div key={index} className="treatment-card">
+                <div className="treatment-card-header">
+                  <div>
+                    <div className="treatment-card-title">
+                      {treatment.title || treatment.Title}
+                    </div>
+                    <div className="treatment-card-patient">
+                      <Users size={14} />
+                      {clientName}
+                    </div>
+                  </div>
+                  <span className={`status-badge status-${status.toLowerCase()}`}>
+                    {status}
+                  </span>
+                </div>
+
+                <div className="treatment-card-body">
+                  {(treatment.description || treatment.Description) && (
+                    <p className="treatment-card-description">
+                      {treatment.description || treatment.Description}
+                    </p>
+                  )}
+
+                  <div className="treatment-card-dates">
+                    <div className="date-item">
+                      <Clock size={14} />
+                      <span>Start: {startDate.toLocaleDateString()}</span>
+                    </div>
+                    {endDate && (
+                      <div className="date-item">
+                        <Clock size={14} />
+                        <span>End: {endDate.toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(treatment.treatmentPlan || treatment.TreatmentPlan) && (
+                    <div className="treatment-card-plan">
+                      <strong>Treatment Plan:</strong>
+                      <p>{treatment.treatmentPlan || treatment.TreatmentPlan}</p>
+                    </div>
+                  )}
+
+                  {(treatment.goals || treatment.Goals) && (
+                    <div className="treatment-card-goals">
+                      <strong>Goals:</strong>
+                      <p>{treatment.goals || treatment.Goals}</p>
+                    </div>
+                  )}
+
+                  {(treatment.progressNotes || treatment.ProgressNotes) && (
+                    <div className="treatment-card-progress">
+                      <strong>Progress Notes:</strong>
+                      <p>{treatment.progressNotes || treatment.ProgressNotes}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="treatment-card-footer">
+                  <div className="treatment-card-meta">
+                    <span>Doctor: {doctorName}</span>
+                    <span>Created: {new Date(treatment.createdAt || treatment.CreatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="treatment-card-actions">
+                    <button 
+                      className="secondary-btn"
+                      onClick={() => handleEditTreatment(treatment)}
+                    >
+                      <Edit size={16} />
+                      Edit
+                    </button>
+                    <button 
+                      className="delete-btn-small"
+                      onClick={() => handleDeleteTreatment(treatment.id || treatment.Id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+)}
+
       </main>
+{/* Create Lab Result Modal */}
+{showModal === 'createLabResult' && selectedPatient && (
+                      <div className="modal-overlay" onClick={closeModal}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                          <div className="modal-header">
+                            <h2>New Lab Result for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+                            <button onClick={closeModal} className="close-btn">
+                              <X size={24} />
+                            </button>
+                          </div>
+                          <form onSubmit={handleSubmitLabResult} className="modal-body">
+                            <div className="form-group">
+                              <label>Test Name *</label>
+                              <input
+                                type="text"
+                                required
+                                value={formData.TestName || ''}
+                                onChange={(e) => setFormData({...formData, TestName: e.target.value})}
+                                placeholder="e.g., Complete Blood Count"
+                              />
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Test Type *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.TestType || ''}
+                                  onChange={(e) => setFormData({...formData, TestType: e.target.value})}
+                                  placeholder="e.g., Blood Test"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Test Date *</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={formData.TestDate || ''}
+                                  onChange={(e) => setFormData({...formData, TestDate: e.target.value})}
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Result *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.Result || ''}
+                                  onChange={(e) => setFormData({...formData, Result: e.target.value})}
+                                  placeholder="e.g., 150 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Status *</label>
+                                <select
+                                  required
+                                  value={formData.Status || 'Pending'}
+                                  onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="In Progress">In Progress</option>
+                                  <option value="Completed">Completed</option>
+                                  <option value="Cancelled">Cancelled</option>
+                                </select>
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Reference Range</label>
+                                <input
+                                  type="text"
+                                  value={formData.ReferenceRange || ''}
+                                  onChange={(e) => setFormData({...formData, ReferenceRange: e.target.value})}
+                                  placeholder="e.g., 70-100 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Performed By</label>
+                                <input
+                                  type="text"
+                                  value={formData.PerformedBy || ''}
+                                  onChange={(e) => setFormData({...formData, PerformedBy: e.target.value})}
+                                  placeholder="Lab technician name"
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.IsAbnormal || false}
+                                  onChange={(e) => setFormData({...formData, IsAbnormal: e.target.checked})}
+                                  style={{width: 'auto'}}
+                                />
+                                Mark as Abnormal
+                              </label>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label>Notes</label>
+                              <textarea
+                                rows="3"
+                                value={formData.Notes || ''}
+                                onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                                placeholder="Additional notes or observations"
+                              />
+                            </div>
+                    
+                            <div className="modal-footer">
+                              <button type="button" onClick={closeModal} className="cancel-btn">
+                                Cancel
+                              </button>
+                              <button type="submit" className="submit-btn" disabled={loading}>
+                                <Save size={18} />
+                                {loading ? 'Creating...' : 'Create Lab Result'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+                    
+{/* Edit Lab Result Modal */}
+{showModal === 'editLabResult' && selectedLabResult && (
+                      <div className="modal-overlay" onClick={closeModal}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                          <div className="modal-header">
+                            <h2>Edit Lab Result</h2>
+                            <button onClick={closeModal} className="close-btn">
+                              <X size={24} />
+                            </button>
+                          </div>
+                          <form onSubmit={handleUpdateLabResult} className="modal-body">
+                            <div className="form-group">
+                              <label>Test Name *</label>
+                              <input
+                                type="text"
+                                required
+                                value={formData.TestName || ''}
+                                onChange={(e) => setFormData({...formData, TestName: e.target.value})}
+                                placeholder="e.g., Complete Blood Count"
+                              />
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Test Type *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.TestType || ''}
+                                  onChange={(e) => setFormData({...formData, TestType: e.target.value})}
+                                  placeholder="e.g., Blood Test"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Test Date *</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={formData.TestDate || ''}
+                                  onChange={(e) => setFormData({...formData, TestDate: e.target.value})}
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Result *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={formData.Result || ''}
+                                  onChange={(e) => setFormData({...formData, Result: e.target.value})}
+                                  placeholder="e.g., 150 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Status *</label>
+                                <select
+                                  required
+                                  value={formData.Status || 'Pending'}
+                                  onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                                >
+                                  <option value="Pending">Pending</option>
+                                  <option value="In Progress">In Progress</option>
+                                  <option value="Completed">Completed</option>
+                                  <option value="Cancelled">Cancelled</option>
+                                </select>
+                              </div>
+                            </div>
+                    
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label>Reference Range</label>
+                                <input
+                                  type="text"
+                                  value={formData.ReferenceRange || ''}
+                                  onChange={(e) => setFormData({...formData, ReferenceRange: e.target.value})}
+                                  placeholder="e.g., 70-100 mg/dL"
+                                />
+                              </div>
+                    
+                              <div className="form-group">
+                                <label>Performed By</label>
+                                <input
+                                  type="text"
+                                  value={formData.PerformedBy || ''}
+                                  onChange={(e) => setFormData({...formData, PerformedBy: e.target.value})}
+                                  placeholder="Lab technician name"
+                                />
+                              </div>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.IsAbnormal || false}
+                                  onChange={(e) => setFormData({...formData, IsAbnormal: e.target.checked})}
+                                  style={{width: 'auto'}}
+                                />
+                                Mark as Abnormal
+                              </label>
+                            </div>
+                    
+                            <div className="form-group">
+                              <label>Notes</label>
+                              <textarea
+                                rows="3"
+                                value={formData.Notes || ''}
+                                onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                                placeholder="Additional notes or observations"
+                              />
+                            </div>
+                    
+                            <div className="modal-footer">
+                              <button type="button" onClick={closeModal} className="cancel-btn">
+                                Cancel
+                              </button>
+                              <button type="submit" className="submit-btn" disabled={loading}>
+                                <Save size={18} />
+                                {loading ? 'Updating...' : 'Update Lab Result'}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>)}
+
+{/* Create Clinical Observation Modal */}
+{showModal === 'createObservation' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Clinical Observation for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitObservation} className="modal-body">
+        <div className="form-row">
+          <div className="form-group">
+            <label>Gender *</label>
+            <select
+              required
+              value={formData.Gender || ''}
+              onChange={(e) => setFormData({...formData, Gender: e.target.value})}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Age *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              max="150"
+              value={formData.Age || ''}
+              onChange={(e) => setFormData({...formData, Age: parseInt(e.target.value)})}
+              placeholder="Age in years"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Height (cm) *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.1"
+              value={formData.Height || ''}
+              onChange={(e) => setFormData({...formData, Height: parseFloat(e.target.value)})}
+              placeholder="e.g., 170"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Weight (kg) *</label>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.1"
+              value={formData.Weight || ''}
+              onChange={(e) => setFormData({...formData, Weight: parseFloat(e.target.value)})}
+              placeholder="e.g., 70"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Blood Pressure</label>
+            <input
+              type="text"
+              value={formData.BloodPressure || ''}
+              onChange={(e) => setFormData({...formData, BloodPressure: e.target.value})}
+              placeholder="e.g., 120/80"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Heart Rate (bpm)</label>
+            <input
+              type="number"
+              min="0"
+              value={formData.HeartRate || ''}
+              onChange={(e) => setFormData({...formData, HeartRate: parseInt(e.target.value)})}
+              placeholder="e.g., 72"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Observation Type</label>
+            <input
+              type="text"
+              value={formData.ObservationType || ''}
+              onChange={(e) => setFormData({...formData, ObservationType: e.target.value})}
+              placeholder="e.g., Physical Examination"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Observation Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.ObservationDate || ''}
+              onChange={(e) => setFormData({...formData, ObservationDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Value/Result</label>
+          <input
+            type="text"
+            value={formData.Value || ''}
+            onChange={(e) => setFormData({...formData, Value: e.target.value})}
+            placeholder="Any specific measurement or finding"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            rows="4"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Additional clinical notes or observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Saving...' : 'Record Observation'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Create Allergy Modal */}
+{showModal === 'createAllergy' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Add Allergy for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitAllergy} className="modal-body">
+        <div className="form-group">
+          <label>Allergy Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.AllergyName || ''}
+            onChange={(e) => setFormData({...formData, AllergyName: e.target.value})}
+            placeholder="e.g., Penicillin, Peanuts"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Allergy Type</label>
+            <input
+              type="text"
+              value={formData.AllergyType || ''}
+              onChange={(e) => setFormData({...formData, AllergyType: e.target.value})}
+              placeholder="e.g., Drug, Food, Environmental"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Severity *</label>
+            <select
+              required
+              value={formData.Severity || 'Mild'}
+              onChange={(e) => setFormData({...formData, Severity: e.target.value})}
+            >
+              <option value="Mild">Mild</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Severe">Severe</option>
+              <option value="Life-Threatening">Life-Threatening</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Reaction</label>
+          <textarea
+            rows="3"
+            value={formData.Reaction || ''}
+            onChange={(e) => setFormData({...formData, Reaction: e.target.value})}
+            placeholder="Describe the allergic reaction"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Treatment</label>
+          <textarea
+            rows="3"
+            value={formData.Treatment || ''}
+            onChange={(e) => setFormData({...formData, Treatment: e.target.value})}
+            placeholder="Recommended treatment or emergency action"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Diagnosed Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.DiagnosedDate || ''}
+              onChange={(e) => setFormData({...formData, DiagnosedDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.75rem'}}>
+              <input
+                type="checkbox"
+                checked={formData.IsActive ?? true}
+                onChange={(e) => setFormData({...formData, IsActive: e.target.checked})}
+                style={{width: 'auto'}}
+              />
+              Currently Active
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Additional Notes</label>
+          <textarea
+            rows="2"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Any additional information"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Adding...' : 'Add Allergy'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Edit Allergy Modal */}
+{showModal === 'editAllergy' && selectedAllergy && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Edit Allergy Record</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleUpdateAllergy} className="modal-body">
+        <div className="form-group">
+          <label>Allergy Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.AllergyName || ''}
+            onChange={(e) => setFormData({...formData, AllergyName: e.target.value})}
+            placeholder="e.g., Penicillin, Peanuts"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Allergy Type</label>
+            <input
+              type="text"
+              value={formData.AllergyType || ''}
+              onChange={(e) => setFormData({...formData, AllergyType: e.target.value})}
+              placeholder="e.g., Drug, Food, Environmental"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Severity *</label>
+            <select
+              required
+              value={formData.Severity || 'Mild'}
+              onChange={(e) => setFormData({...formData, Severity: e.target.value})}
+            >
+              <option value="Mild">Mild</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Severe">Severe</option>
+              <option value="Life-Threatening">Life-Threatening</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Reaction</label>
+          <textarea
+            rows="3"
+            value={formData.Reaction || ''}
+            onChange={(e) => setFormData({...formData, Reaction: e.target.value})}
+            placeholder="Describe the allergic reaction"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Treatment</label>
+          <textarea
+            rows="3"
+            value={formData.Treatment || ''}
+            onChange={(e) => setFormData({...formData, Treatment: e.target.value})}
+            placeholder="Recommended treatment or emergency action"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Diagnosed Date</label>
+            <input
+              type="date"
+              value={formData.DiagnosedDate || ''}
+              onChange={(e) => setFormData({...formData, DiagnosedDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.75rem'}}>
+              <input
+                type="checkbox"
+                checked={formData.IsActive ?? true}
+                onChange={(e) => setFormData({...formData, IsActive: e.target.checked})}
+                style={{width: 'auto'}}
+              />
+              Currently Active
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Additional Notes</label>
+          <textarea
+            rows="2"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Any additional information"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Updating...' : 'Update Allergy'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+{/* Create Treatment Modal */}
+{showModal === 'createTreatment' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Create Treatment Plan for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitTreatment} className="modal-body">
+        <div className="form-group">
+          <label>Title *</label>
+          <input
+            type="text"
+            required
+            value={formData.Title || ''}
+            onChange={(e) => setFormData({...formData, Title: e.target.value})}
+            placeholder="e.g., Diabetes Management Plan"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description *</label>
+          <textarea
+            required
+            rows="3"
+            value={formData.Description || ''}
+            onChange={(e) => setFormData({...formData, Description: e.target.value})}
+            placeholder="Brief description of the treatment"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Start Date *</label>
+            <input
+              type="date"
+              required
+              value={formData.StartDate || ''}
+              onChange={(e) => setFormData({...formData, StartDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>End Date</label>
+            <input
+              type="date"
+              value={formData.EndDate || ''}
+              onChange={(e) => setFormData({...formData, EndDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Status *</label>
+          <select
+            required
+            value={formData.Status || 'Active'}
+            onChange={(e) => setFormData({...formData, Status: e.target.value})}
+          >
+            <option value="Active">Active</option>
+            <option value="Planned">Planned</option>
+            <option value="Completed">Completed</option>
+            <option value="Discontinued">Discontinued</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Treatment Plan *</label>
+          <textarea
+            required
+            rows="4"
+            value={formData.TreatmentPlan || ''}
+            onChange={(e) => setFormData({...formData, TreatmentPlan: e.target.value})}
+            placeholder="Detailed treatment plan including medications, procedures, therapies..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Goals</label>
+          <textarea
+            rows="3"
+            value={formData.Goals || ''}
+            onChange={(e) => setFormData({...formData, Goals: e.target.value})}
+            placeholder="Treatment goals and expected outcomes"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Progress Notes</label>
+          <textarea
+            rows="3"
+            value={formData.ProgressNotes || ''}
+            onChange={(e) => setFormData({...formData, ProgressNotes: e.target.value})}
+            placeholder="Initial observations and notes"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Creating...' : 'Create Treatment'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Edit Treatment Modal */}
+{showModal === 'editTreatment' && selectedTreatment && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Edit Treatment Plan</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleUpdateTreatment} className="modal-body">
+        <div className="form-group">
+          <label>Title</label>
+          <input
+            type="text"
+            value={formData.Title || ''}
+            onChange={(e) => setFormData({...formData, Title: e.target.value})}
+            placeholder="e.g., Diabetes Management Plan"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description</label>
+          <textarea
+            rows="3"
+            value={formData.Description || ''}
+            onChange={(e) => setFormData({...formData, Description: e.target.value})}
+            placeholder="Brief description of the treatment"
+          />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Start Date</label>
+            <input
+              type="date"
+              value={formData.StartDate || ''}
+              onChange={(e) => setFormData({...formData, StartDate: e.target.value})}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>End Date</label>
+            <input
+              type="date"
+              value={formData.EndDate || ''}
+              onChange={(e) => setFormData({...formData, EndDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Status</label>
+          <select
+            value={formData.Status || 'Active'}
+            onChange={(e) => setFormData({...formData, Status: e.target.value})}
+          >
+            <option value="Active">Active</option>
+            <option value="Planned">Planned</option>
+            <option value="Completed">Completed</option>
+            <option value="Discontinued">Discontinued</option>
+            <option value="On Hold">On Hold</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Treatment Plan</label>
+          <textarea
+            rows="4"
+            value={formData.TreatmentPlan || ''}
+            onChange={(e) => setFormData({...formData, TreatmentPlan: e.target.value})}
+            placeholder="Detailed treatment plan including medications, procedures, therapies..."
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Goals</label>
+          <textarea
+            rows="3"
+            value={formData.Goals || ''}
+            onChange={(e) => setFormData({...formData, Goals: e.target.value})}
+            placeholder="Treatment goals and expected outcomes"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Progress Notes</label>
+          <textarea
+            rows="3"
+            value={formData.ProgressNotes || ''}
+            onChange={(e) => setFormData({...formData, ProgressNotes: e.target.value})}
+            placeholder="Update progress and observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Updating...' : 'Update Treatment'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Edit Clinical Observation Modal */}
+{showModal === 'editObservation' && selectedObservation && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Edit Clinical Observation</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleUpdateObservation} className="modal-body">
+        <div className="form-row">
+          <div className="form-group">
+            <label>Gender</label>
+            <select
+              value={formData.Gender || ''}
+              onChange={(e) => setFormData({...formData, Gender: e.target.value})}
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Age</label>
+            <input
+              type="number"
+              min="0"
+              max="150"
+              value={formData.Age || ''}
+              onChange={(e) => setFormData({...formData, Age: parseInt(e.target.value)})}
+              placeholder="Age in years"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Height (cm)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.Height || ''}
+              onChange={(e) => setFormData({...formData, Height: parseFloat(e.target.value)})}
+              placeholder="e.g., 170"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Weight (kg)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={formData.Weight || ''}
+              onChange={(e) => setFormData({...formData, Weight: parseFloat(e.target.value)})}
+              placeholder="e.g., 70"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Blood Pressure</label>
+            <input
+              type="text"
+              value={formData.BloodPressure || ''}
+              onChange={(e) => setFormData({...formData, BloodPressure: e.target.value})}
+              placeholder="e.g., 120/80"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Heart Rate (bpm)</label>
+            <input
+              type="number"
+              min="0"
+              value={formData.HeartRate || ''}
+              onChange={(e) => setFormData({...formData, HeartRate: parseInt(e.target.value)})}
+              placeholder="e.g., 72"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Observation Type</label>
+            <input
+              type="text"
+              value={formData.ObservationType || ''}
+              onChange={(e) => setFormData({...formData, ObservationType: e.target.value})}
+              placeholder="e.g., Physical Examination"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Observation Date</label>
+            <input
+              type="date"
+              value={formData.ObservationDate || ''}
+              onChange={(e) => setFormData({...formData, ObservationDate: e.target.value})}
+            />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Value/Result</label>
+          <input
+            type="text"
+            value={formData.Value || ''}
+            onChange={(e) => setFormData({...formData, Value: e.target.value})}
+            placeholder="Any specific measurement or finding"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            rows="4"
+            value={formData.Notes || ''}
+            onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+            placeholder="Additional clinical notes or observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Updating...' : 'Update Observation'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Delete</h2>
+              <button onClick={() => setDeleteConfirm(null)} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="delete-warning">
+                <AlertCircle size={48} color="#ef4444" />
+                <p>{deleteConfirm.message}</p>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  onClick={() => setDeleteConfirm(null)} 
+                  className="cancel-btn"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete} 
+                  className="delete-btn" 
+                  disabled={loading}
+                >
+                  <Trash2 size={18} />
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Patient History Modal */}
       {showModal === 'patientHistory' && selectedPatient && (
@@ -577,15 +3774,45 @@ const handleViewPatientHistory = async (patient) => {
                         {patientHistory.diagnoses.map((diagnosis, idx) => (
                           <div key={idx} className="history-item">
                             <div className="history-item-header">
-                              <strong>{diagnosis.title}</strong>
-                              <span className={`status-badge status-${diagnosis.status?.toLowerCase()}`}>
-                                {diagnosis.status}
-                              </span>
+                              <strong>{diagnosis.title || diagnosis.Title}</strong>
+                              <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                                <span className={`status-badge status-${(diagnosis.status || diagnosis.Status)?.toLowerCase()}`}>
+                                  {diagnosis.status || diagnosis.Status}
+                                </span>
+                                <button 
+                                  className="delete-icon-btn"
+                                  onClick={() => handleDeleteDiagnosis(diagnosis.id || diagnosis.Id)}
+                                  title="Delete diagnosis"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </div>
-                            <p>{diagnosis.description}</p>
+                            <p>{diagnosis.description || diagnosis.Description}</p>
+                            
+                            {(diagnosis.diagnosisCode || diagnosis.DiagnosisCode) && (
+                              <div style={{marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
+                                <strong>Code:</strong> {diagnosis.diagnosisCode || diagnosis.DiagnosisCode}
+                              </div>
+                            )}
+                            
+                            {(diagnosis.treatmentPlan || diagnosis.TreatmentPlan) && (
+                              <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '3px solid #3b82f6'}}>
+                                <strong style={{display: 'block', marginBottom: '0.25rem', color: '#1e40af', fontSize: '0.875rem'}}>Treatment Plan:</strong>
+                                <p style={{margin: 0, fontSize: '0.875rem', color: '#1e3a8a', whiteSpace: 'pre-wrap'}}>{diagnosis.treatmentPlan || diagnosis.TreatmentPlan}</p>
+                              </div>
+                            )}
+                            
+                            {(diagnosis.notes || diagnosis.Notes) && (
+                              <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                                <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                                <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{diagnosis.notes || diagnosis.Notes}</p>
+                              </div>
+                            )}
+                            
                             <div className="history-item-meta">
-                              <span>Severity: {diagnosis.severity}/5</span>
-                              <span>Date: {new Date(diagnosis.dateDiagnosed || diagnosis.createdAt).toLocaleDateString()}</span>
+                              <span>Severity: {diagnosis.severity || diagnosis.Severity}/5</span>
+                              <span>Date: {new Date(diagnosis.dateDiagnosed || diagnosis.DateDiagnosed || diagnosis.createdAt || diagnosis.CreatedAt).toLocaleDateString()}</span>
                             </div>
                           </div>
                         ))}
@@ -603,9 +3830,18 @@ const handleViewPatientHistory = async (patient) => {
                           <div key={idx} className="history-item">
                             <div className="history-item-header">
                               <strong>{symptom.name}</strong>
-                              <span className="severity-badge">
-                                Severity: {symptom.severityLevel}/5
-                              </span>
+                              <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                                <span className="severity-badge">
+                                  Severity: {symptom.severityLevel}/5
+                                </span>
+                                <button 
+                                  className="delete-icon-btn"
+                                  onClick={() => handleDeleteSymptom(symptom.id)}
+                                  title="Delete symptom"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
                             </div>
                             {symptom.description && <p>{symptom.description}</p>}
                             <div className="history-item-meta">
@@ -619,6 +3855,234 @@ const handleViewPatientHistory = async (patient) => {
                       <p className="no-data">No symptoms recorded</p>
                     )}
                   </div>
+                  <div className="history-section">
+                    <h3>Prescriptions ({patientHistory?.prescriptions?.length || 0})</h3>
+                    {patientHistory?.prescriptions?.length > 0 ? (
+                      <div className="history-list">
+                        {patientHistory.prescriptions.map((prescription, idx) => (
+                          <div key={idx} className="history-item prescription-item">
+                            <div className="history-item-header">
+                              <div>
+                                <strong style={{fontSize: '1rem', color: '#111827'}}>
+                                  {prescription.medicationName || prescription.MedicationName}
+                                </strong>
+                                <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+                                  {prescription.dosage || prescription.Dosage} - {prescription.frequency || prescription.Frequency}
+                                </div>
+                              </div>
+                              <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                                <span className={`status-badge status-${(prescription.status || prescription.Status)?.toLowerCase()}`}>
+                                  {prescription.status || prescription.Status}
+                                </span>
+                                <button 
+                                  className="action-btn-small"
+                                  onClick={() => handleEditPrescription(prescription)}
+                                  title="Edit prescription"
+                                  style={{width: '32px', height: '32px'}}
+                                >
+                                  <Edit size={14} />
+                                </button>
+                                <button 
+                                  className="delete-icon-btn"
+                                  onClick={() => handleDeletePrescription(prescription.id || prescription.Id)}
+                                  title="Delete prescription"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {(prescription.instructions || prescription.Instructions) && (
+                              <div style={{marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '3px solid #3b82f6'}}>
+                                <strong style={{display: 'block', marginBottom: '0.25rem', color: '#1e40af', fontSize: '0.875rem'}}>Instructions:</strong>
+                                <p style={{margin: 0, fontSize: '0.875rem', color: '#1e3a8a', whiteSpace: 'pre-wrap'}}>{prescription.instructions || prescription.Instructions}</p>
+                              </div>
+                            )}
+                            
+                            {(prescription.notes || prescription.Notes) && (
+                              <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                                <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                                <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{prescription.notes || prescription.Notes}</p>
+                              </div>
+                            )}
+                            
+                            <div className="history-item-meta">
+                              <span>Start: {new Date(prescription.startDate || prescription.StartDate).toLocaleDateString()}</span>
+                              {(prescription.endDate || prescription.EndDate) && (
+                                <span>End: {new Date(prescription.endDate || prescription.EndDate).toLocaleDateString()}</span>
+                              )}
+                              {(prescription.isActive ?? prescription.IsActive) && <span className="active-indicator">Active</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="no-data">No prescriptions recorded</p>
+                    )}
+                  </div>
+
+                  <div className="history-section">
+                  <h3>Lab Results ({patientHistory?.labResults?.length || 0})</h3>
+                  {patientHistory?.labResults?.length > 0 ? (
+                    <div className="history-list">
+                      {patientHistory.labResults.map((labResult, idx) => (
+                        <div key={idx} className={`history-item lab-result-item ${(labResult.isAbnormal ?? labResult.IsAbnormal) ? 'abnormal' : ''}`}>
+                          <div className="history-item-header">
+                            <div>
+                              <strong style={{fontSize: '1rem', color: (labResult.isAbnormal ?? labResult.IsAbnormal) ? '#dc2626' : '#059669'}}>
+                                {labResult.testName || labResult.TestName}
+                              </strong>
+                              <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+                                {labResult.testType || labResult.TestType} - {new Date(labResult.testDate || labResult.TestDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                              <span className={`status-badge status-${(labResult.status || labResult.Status)?.toLowerCase().replace(' ', '-')}`}>
+                                {labResult.status || labResult.Status}
+                              </span>
+                              {(labResult.isAbnormal ?? labResult.IsAbnormal) && (
+                                <span className="abnormal-badge">
+                                  Abnormal
+                                </span>
+                              )}
+                              <button 
+                                className="action-btn-small"
+                                onClick={() => handleEditLabResult(labResult)}
+                                title="Edit lab result"
+                                style={{width: '32px', height: '32px'}}
+                              >
+                                <Edit size={14} />
+                              </button>
+                              <button 
+                                className="delete-icon-btn"
+                                onClick={() => handleDeleteLabResult(labResult.id || labResult.Id)}
+                                title="Delete lab result"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div style={{marginTop: '0.75rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem'}}>
+                            <div>
+                              <strong style={{fontSize: '0.875rem', color: '#111827'}}>Result:</strong>
+                              <span style={{fontSize: '0.875rem', color: (labResult.isAbnormal ?? labResult.IsAbnormal) ? '#dc2626' : '#374151', fontWeight: (labResult.isAbnormal ?? labResult.IsAbnormal) ? '600' : 'normal', marginLeft: '0.5rem'}}>
+                                {labResult.result || labResult.Result}
+                              </span>
+                            </div>
+                            
+                            {(labResult.referenceRange || labResult.ReferenceRange) && (
+                              <div>
+                                <strong style={{fontSize: '0.875rem', color: '#111827'}}>Reference:</strong>
+                                <span style={{fontSize: '0.875rem', color: '#6b7280', marginLeft: '0.5rem'}}>
+                                  {labResult.referenceRange || labResult.ReferenceRange}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {(labResult.performedBy || labResult.PerformedBy) && (
+                            <div style={{marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280'}}>
+                              <strong>Performed By:</strong> {labResult.performedBy || labResult.PerformedBy}
+                            </div>
+                          )}
+                          
+                          {(labResult.notes || labResult.Notes) && (
+                            <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                              <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                              <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{labResult.notes || labResult.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-data">No lab results recorded</p>
+                  )}
+                </div>
+                <div className="history-section">
+                    <h3>Allergies ({patientHistory?.allergies?.length || 0})</h3>
+                    {patientHistory?.allergies?.length > 0 ? (
+                      <div className="history-list">
+                        {patientHistory.allergies.map((allergy, idx) => {
+                          const diagnosedDate = new Date(allergy.diagnosedDate || allergy.DiagnosedDate);
+                          const isActive = allergy.isActive ?? allergy.IsActive ?? true;
+                          const severity = allergy.severity || allergy.Severity;
+                          
+                          return (
+                            <div key={idx} className={`history-item allergy-item ${!isActive ? 'inactive' : ''}`}>
+                              <div className="history-item-header">
+                                <div>
+                                  <strong style={{fontSize: '1rem', color: '#dc2626'}}>
+                                    {allergy.allergyName || allergy.AllergyName}
+                                  </strong>
+                                  {(allergy.allergyType || allergy.AllergyType) && (
+                                    <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
+                                      Type: {allergy.allergyType || allergy.AllergyType}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                                  <span className={`severity-badge severity-${severity?.toLowerCase()}`}>
+                                    {severity}
+                                  </span>
+                                  {isActive && (
+                                    <span className="active-badge">
+                                      Active
+                                    </span>
+                                  )}
+                                  <button 
+                                    className="action-btn-small"
+                                    onClick={() => handleEditAllergy(allergy)}
+                                    title="Edit allergy"
+                                    style={{width: '32px', height: '32px'}}
+                                  >
+                                    <Edit size={14} />
+                                  </button>
+                                  <button 
+                                    className="delete-icon-btn"
+                                    onClick={() => handleDeleteAllergy(allergy.id || allergy.Id)}
+                                    title="Delete allergy"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {(allergy.reaction || allergy.Reaction) && (
+                                <div style={{marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#fef2f2', borderRadius: '6px', borderLeft: '3px solid #ef4444'}}>
+                                  <strong style={{display: 'block', marginBottom: '0.25rem', color: '#991b1b', fontSize: '0.875rem'}}>Reaction:</strong>
+                                  <p style={{margin: 0, fontSize: '0.875rem', color: '#7f1d1d', whiteSpace: 'pre-wrap'}}>{allergy.reaction || allergy.Reaction}</p>
+                                </div>
+                              )}
+                              
+                              {(allergy.treatment || allergy.Treatment) && (
+                                <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#f0f9ff', borderRadius: '6px', borderLeft: '3px solid #3b82f6'}}>
+                                  <strong style={{display: 'block', marginBottom: '0.25rem', color: '#1e40af', fontSize: '0.875rem'}}>Treatment:</strong>
+                                  <p style={{margin: 0, fontSize: '0.875rem', color: '#1e3a8a', whiteSpace: 'pre-wrap'}}>{allergy.treatment || allergy.Treatment}</p>
+                                </div>
+                              )}
+                              
+                              {(allergy.notes || allergy.Notes) && (
+                                <div style={{marginTop: '0.5rem', padding: '0.75rem', backgroundColor: '#fffbeb', borderRadius: '6px', borderLeft: '3px solid #f59e0b'}}>
+                                  <strong style={{display: 'block', marginBottom: '0.25rem', color: '#92400e', fontSize: '0.875rem'}}>Notes:</strong>
+                                  <p style={{margin: 0, fontSize: '0.875rem', color: '#78350f', whiteSpace: 'pre-wrap'}}>{allergy.notes || allergy.Notes}</p>
+                                </div>
+                              )}
+                              
+                              <div className="history-item-meta">
+                                <span>Diagnosed: {diagnosedDate.toLocaleDateString()}</span>
+                                <span>Added by: {allergy.createdByRole || allergy.CreatedByRole}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="no-data">No allergies recorded</p>
+                    )}
+                  </div>
+
                 </>
               )}
             </div>
@@ -721,24 +4185,96 @@ const handleViewPatientHistory = async (patient) => {
       )}
 
       {/* Create Symptom Modal */}
-      {showModal === 'createSymptom' && selectedPatient && (
+{showModal === 'createSymptom' && selectedPatient && (
+  <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header">
+        <h2>Record Symptom for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+        <button onClick={closeModal} className="close-btn">
+          <X size={24} />
+        </button>
+      </div>
+      <form onSubmit={handleSubmitSymptom} className="modal-body">
+        <div className="form-group">
+          <label>Symptom Name *</label>
+          <input
+            type="text"
+            required
+            value={formData.name || ''}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            placeholder="e.g., Headache, Fever, Cough"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description *</label>
+          <textarea
+            required
+            rows="3"
+            value={formData.description || ''}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            placeholder="Detailed description of the symptom"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Severity Level (1-5) *</label>
+          <select
+            required
+            value={formData.severityLevel || 1}
+            onChange={(e) => setFormData({...formData, severityLevel: parseInt(e.target.value)})}
+          >
+            <option value="1">1 - Very Mild</option>
+            <option value="2">2 - Mild</option>
+            <option value="3">3 - Moderate</option>
+            <option value="4">4 - Severe</option>
+            <option value="5">5 - Very Severe</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Notes</label>
+          <textarea
+            rows="2"
+            value={formData.notes || ''}
+            onChange={(e) => setFormData({...formData, notes: e.target.value})}
+            placeholder="Additional notes or observations"
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" onClick={closeModal} className="cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="submit-btn" disabled={loading}>
+            <Save size={18} />
+            {loading ? 'Recording...' : 'Record Symptom'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+      {/* Create Appointment Modal */}
+      {showModal === 'createAppointment' && selectedPatient && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Record Symptom for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+              <h2>Schedule Appointment for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
               <button onClick={closeModal} className="close-btn">
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmitSymptom} className="modal-body">
+            <form onSubmit={handleSubmitAppointment} className="modal-body">
               <div className="form-group">
-                <label>Symptom Name *</label>
+                <label>Title *</label>
                 <input
                   type="text"
                   required
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g., Headache, Fatigue"
+                  value={formData.Title || ''}
+                  onChange={(e) => setFormData({...formData, Title: e.target.value})}
+                  placeholder="e.g., Follow-up Consultation"
                 />
               </div>
 
@@ -746,32 +4282,78 @@ const handleViewPatientHistory = async (patient) => {
                 <label>Description</label>
                 <textarea
                   rows="3"
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Detailed description of the symptom"
+                  value={formData.Description || ''}
+                  onChange={(e) => setFormData({...formData, Description: e.target.value})}
+                  placeholder="Purpose of the appointment"
                 />
               </div>
 
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.AppointmentDate || ''}
+                    onChange={(e) => setFormData({...formData, AppointmentDate: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select
+                    required
+                    value={formData.Status || 'Scheduled'}
+                    onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                  >
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Rescheduled">Rescheduled</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.StartTime || ''}
+                    onChange={(e) => setFormData({...formData, StartTime: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.EndTime || ''}
+                    onChange={(e) => setFormData({...formData, EndTime: e.target.value})}
+                  />
+                </div>
+              </div>
+
               <div className="form-group">
-                <label>Severity Level (1-5) *</label>
-                <select
-                  required
-                  value={formData.severityLevel || 1}
-                  onChange={(e) => setFormData({...formData, severityLevel: parseInt(e.target.value)})}
-                >
-                  {[1,2,3,4,5,6,7,8,9,10].map(level => (
-                    <option key={level} value={level}>{level}</option>
-                  ))}
-                </select>
+                <label>Location</label>
+                <input
+                  type="text"
+                  value={formData.Location || ''}
+                  onChange={(e) => setFormData({...formData, Location: e.target.value})}
+                  placeholder="e.g., Room 301, Building A"
+                />
               </div>
 
               <div className="form-group">
                 <label>Notes</label>
                 <textarea
                   rows="2"
-                  value={formData.notes || ''}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  placeholder="Additional observations"
+                  value={formData.Notes || ''}
+                  onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                  placeholder="Additional notes"
                 />
               </div>
 
@@ -781,41 +4363,372 @@ const handleViewPatientHistory = async (patient) => {
                 </button>
                 <button type="submit" className="submit-btn" disabled={loading}>
                   <Save size={18} />
-                  {loading ? 'Saving...' : 'Record Symptom'}
+                  {loading ? 'Scheduling...' : 'Schedule Appointment'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
-  );
-};
 
-const loadingStyles = `
-  .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    gap: 1rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-  
-  .spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid #f3f4f6;
-    border-top: 4px solid #3b82f6;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-`;
+      {/* Edit Appointment Modal */}
+      {showModal === 'editAppointment' && selectedAppointment && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Appointment</h2>
+              <button onClick={closeModal} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateAppointment} className="modal-body">
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.Title || ''}
+                  onChange={(e) => setFormData({...formData, Title: e.target.value})}
+                  placeholder="e.g., Follow-up Consultation"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  rows="3"
+                  value={formData.Description || ''}
+                  onChange={(e) => setFormData({...formData, Description: e.target.value})}
+                  placeholder="Purpose of the appointment"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.AppointmentDate || ''}
+                    onChange={(e) => setFormData({...formData, AppointmentDate: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select
+                    required
+                    value={formData.Status || 'Scheduled'}
+                    onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                  >
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Rescheduled">Rescheduled</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.StartTime || ''}
+                    onChange={(e) => setFormData({...formData, StartTime: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.EndTime || ''}
+                    onChange={(e) => setFormData({...formData, EndTime: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Location</label>
+                <input
+                  type="text"
+                  value={formData.Location || ''}
+                  onChange={(e) => setFormData({...formData, Location: e.target.value})}
+                  placeholder="e.g., Room 301, Building A"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Notes</label>
+                <textarea
+                  rows="2"
+                  value={formData.Notes || ''}
+                  onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                  placeholder="Additional notes"
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={closeModal} className="cancel-btn">
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn" disabled={loading}>
+                  <Save size={18} />
+                  {loading ? 'Updating...' : 'Update Appointment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Prescription Modal */}
+      {showModal === 'createPrescription' && selectedPatient && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>New Prescription for {selectedPatient.firstName} {selectedPatient.lastName}</h2>
+              <button onClick={closeModal} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitPrescription} className="modal-body">
+              <div className="form-group">
+                <label>Medication Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.MedicationName || ''}
+                  onChange={(e) => setFormData({...formData, MedicationName: e.target.value})}
+                  placeholder="e.g., Amoxicillin"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Dosage *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.Dosage || ''}
+                    onChange={(e) => setFormData({...formData, Dosage: e.target.value})}
+                    placeholder="e.g., 500mg"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Frequency *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.Frequency || ''}
+                    onChange={(e) => setFormData({...formData, Frequency: e.target.value})}
+                    placeholder="e.g., Twice daily"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.StartDate || ''}
+                    onChange={(e) => setFormData({...formData, StartDate: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    value={formData.EndDate || ''}
+                    onChange={(e) => setFormData({...formData, EndDate: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Status *</label>
+                <select
+                  required
+                  value={formData.Status || 'Active'}
+                  onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Discontinued">Discontinued</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Instructions</label>
+                <textarea
+                  rows="3"
+                  value={formData.Instructions || ''}
+                  onChange={(e) => setFormData({...formData, Instructions: e.target.value})}
+                  placeholder="How to take the medication"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Notes</label>
+                <textarea
+                  rows="2"
+                  value={formData.Notes || ''}
+                  onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                  placeholder="Additional notes"
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={closeModal} className="cancel-btn">
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn" disabled={loading}>
+                  <Save size={18} />
+                  {loading ? 'Creating...' : 'Create Prescription'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Prescription Modal */}
+      {showModal === 'editPrescription' && selectedPrescription && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Prescription</h2>
+              <button onClick={closeModal} className="close-btn">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdatePrescription} className="modal-body">
+              <div className="form-group">
+                <label>Medication Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.MedicationName || ''}
+                  onChange={(e) => setFormData({...formData, MedicationName: e.target.value})}
+                  placeholder="e.g., Amoxicillin"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Dosage *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.Dosage || ''}
+                    onChange={(e) => setFormData({...formData, Dosage: e.target.value})}
+                    placeholder="e.g., 500mg"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Frequency *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.Frequency || ''}
+                    onChange={(e) => setFormData({...formData, Frequency: e.target.value})}
+                    placeholder="e.g., Twice daily"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.StartDate || ''}
+                    onChange={(e) => setFormData({...formData, StartDate: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    value={formData.EndDate || ''}
+                    onChange={(e) => setFormData({...formData, EndDate: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Status *</label>
+                  <select
+                    required
+                    value={formData.Status || 'Active'}
+                    onChange={(e) => setFormData({...formData, Status: e.target.value})}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Discontinued">Discontinued</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Is Active</label>
+                  <select
+                    value={formData.IsActive ? 'true' : 'false'}
+                    onChange={(e) => setFormData({...formData, IsActive: e.target.value === 'true'})}
+                  >
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Instructions</label>
+                <textarea
+                  rows="3"
+                  value={formData.Instructions || ''}
+                  onChange={(e) => setFormData({...formData, Instructions: e.target.value})}
+                  placeholder="How to take the medication"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Notes</label>
+                <textarea
+                  rows="2"
+                  value={formData.Notes || ''}
+                  onChange={(e) => setFormData({...formData, Notes: e.target.value})}
+                  placeholder="Additional notes"
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" onClick={closeModal} className="cancel-btn">
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn" disabled={loading}>
+                  <Save size={18} />
+                  {loading ? 'Updating...' : 'Update Prescription'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div> 
+  );  
+};
 
 const dashboardStyles = `
   * {
@@ -823,7 +4736,1329 @@ const dashboardStyles = `
     margin: 0;
     padding: 0;
   }
+  .tertiary-btn:hover {
+    background-color: #e5e7eb;
+  }
+    
+/* Calendar wrapper for card-like appearance */
+.dashboard-calendar {
+  width: 100%;
+  max-width: 900px;
+  margin: 30px auto;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 30px;
+  transition: all 0.3s ease;
+}
+
+/* Calendar navigation (month/year) */
+.react-calendar__navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.react-calendar__navigation button {
+  background-color: #f3f4f6;
+  color: #111827;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.react-calendar__navigation button:hover {
+  background-color: #e5e7eb;
+}
+
+/* Calendar tiles */
+.react-calendar__tile {
+  border-radius: 12px;
+  height: 70px; /* bigger tiles */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+/* Today highlight */
+.react-calendar__tile--now {
+  background-color: #e0f2fe;
+  font-weight: 700;
+  color: #0c4a6e;
+}
+
+/* Selected day */
+.react-calendar__tile--active {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+/* Scheduled appointments */
+.calendar-scheduled {
+  background-color: #10b981 !important; /* bright green */
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+/* Cancelled appointments */
+.calendar-cancelled {
+  background-color: #ef4444 !important; /* red */
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+}
+
+/* Hover effect for tiles */
+.react-calendar__tile:hover {
+  background-color: #f3f4f6;
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .react-calendar__tile {
+    height: 60px;
+    font-size: 14px;
+  }
+  .dashboard-calendar {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .react-calendar__tile {
+    height: 50px;
+    font-size: 13px;
+  }
+  .dashboard-calendar {
+    padding: 15px;
+  }
+}
+
   
+    /* Lab Result Styles */
+  .labresults-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .labresults-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .labresult-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #10b981;
+  }
+
+  .labresult-card.abnormal {
+    border-left-color: #ef4444;
+    background-color: #fef2f2;
+  }
+
+  .labresult-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .labresult-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .labresult-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #059669;
+    margin-bottom: 0.5rem;
+  }
+
+  .labresult-card.abnormal .labresult-card-title {
+    color: #dc2626;
+  }
+
+  .labresult-card-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .labresult-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .labresult-card-type,
+  .labresult-card-result,
+  .labresult-card-reference,
+  .labresult-card-performed {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .labresult-card-type strong,
+  .labresult-card-result strong,
+  .labresult-card-reference strong,
+  .labresult-card-performed strong {
+    color: #111827;
+    min-width: 100px;
+  }
+
+  .labresult-card-result .abnormal-result {
+    color: #dc2626;
+    font-weight: 600;
+  }
+
+  .labresult-card-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .labresult-card-notes {
+    padding: 0.75rem;
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .labresult-card-notes strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+    font-size: 0.875rem;
+  }
+
+  .labresult-card-notes p {
+    margin: 0;
+    color: #78350f;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .labresult-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .labresult-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .labresult-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .abnormal-badge {
+    padding: 0.25rem 0.75rem;
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .lab-result-item {
+    border-left: 3px solid #10b981 !important;
+  }
+
+  .lab-result-item.abnormal {
+    border-left-color: #ef4444 !important;
+  }
+
+  .status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-in {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+    .appointments-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+    .prescription-item {
+    border-left: 3px solid #8b5cf6 !important;
+  }
+
+  .prescription-item .history-item-header strong {
+    color: #6b21a8;
+  }
+
+  .appointments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .appointment-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #3b82f6;
+  }
+
+  .appointment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .appointment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .appointment-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 0.5rem;
+  }
+
+  .appointment-card-date {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .appointment-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .appointment-card-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .appointment-card-info strong {
+    color: #111827;
+    min-width: 60px;
+  }
+
+  .appointment-card-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .appointment-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .delete-btn-small {
+    padding: 0.625rem 1rem;
+    background-color: #fee2e2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+  }
+
+  .delete-btn-small:hover {
+    background-color: #fecaca;
+    border-color: #fca5a5;
+  }
+
+  .status-scheduled {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-confirmed {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-rescheduled {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .status-cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  .status-completed {
+    background-color: #e9d5ff;
+    color: #6b21a8;
+  }
+
+  /* Clinical Observation Styles */
+.observations-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.observations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.observation-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s;
+  border-left: 4px solid #6366f1;
+}
+
+.observation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.observation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.observation-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4338ca;
+  margin-bottom: 0.5rem;
+}
+
+.observation-card-patient {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.observation-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.observation-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.observation-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+}
+
+.vital-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.vital-item strong {
+  color: #374151;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.vital-item span {
+  color: #111827;
+  font-weight: 500;
+}
+
+.observation-type-section {
+  padding: 0.75rem;
+  background-color: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.observation-type-section strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #1e40af;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.observation-type-section span {
+  color: #1e3a8a;
+}
+
+.observation-value {
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.observation-card-notes {
+  padding: 0.75rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.observation-card-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.observation-card-notes p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.observation-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.observation-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.observation-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+
+/* Treatment Styles */
+  .treatments-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .treatments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .treatment-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #8b5cf6;
+  }
+
+  .treatment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .treatment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .treatment-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #6b21a8;
+    margin-bottom: 0.5rem;
+  }
+
+  .treatment-card-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .treatment-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .treatment-card-description {
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .treatment-card-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+  }
+
+  .treatment-card-plan,
+  .treatment-card-goals,
+  .treatment-card-progress {
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-plan {
+    background-color: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .treatment-card-plan strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #1e40af;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-plan p {
+    margin: 0;
+    color: #1e3a8a;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .treatment-card-goals {
+    background-color: #f0fdf4;
+    border-left: 3px solid #10b981;
+  }
+
+  .treatment-card-goals strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #065f46;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-goals p {
+    margin: 0;
+    color: #064e3b;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .treatment-card-progress {
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+  }
+
+  .treatment-card-progress strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+    font-size: 0.875rem;
+  }
+
+  .treatment-card-progress p {
+    margin: 0;
+    color: #78350f;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .treatment-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .treatment-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .treatment-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .status-planned {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-on {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  @media (max-width: 768px) {
+    .treatments-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Allergy Styles */
+.allergies-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.allergies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.allergy-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s;
+  border-left: 4px solid #10b981;
+}
+
+.allergy-card.inactive {
+  opacity: 0.7;
+  border-left-color: #9ca3af;
+}
+
+.allergy-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.allergy-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.allergy-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+.allergy-card-patient {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.allergy-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.allergy-card-type {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.allergy-card-type strong {
+  color: #111827;
+  min-width: 60px;
+}
+
+.allergy-card-reaction,
+.allergy-card-treatment {
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.allergy-card-reaction {
+  background-color: #fef2f2;
+  border-left: 3px solid #ef4444;
+}
+
+.allergy-card-reaction strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #991b1b;
+  font-size: 0.875rem;
+}
+
+.allergy-card-reaction p {
+  margin: 0;
+  color: #7f1d1d;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+card-treatment {
+  background-color: #f0f9ff;
+  border-left: 3px solid #3b82f6;
+}
+
+.allergy-card-treatment strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #1e40af;
+  font-size: 0.875rem;
+}
+
+.allergy-card-treatment p {
+  margin: 0;
+  color: #1e3a8a;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.allergy-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.allergy-card-notes {
+  padding: 0.75rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.allergy-card-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.allergy-card-notes p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.allergy-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.allergy-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.allergy-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.severity-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.severity-mild {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.severity-moderate {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.severity-severe {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.severity-life-threatening {
+  background-color: #fce7f3;
+  color: #9f1239;
+  font-weight: 600;
+}
+
+.allergy-item {
+  border-left: 3px solid #dc2626 !important;
+}
+
+.allergy-item.inactive {
+  opacity: 0.6;
+  border-left-color: #9ca3af !important;
+}
+  /* Symptom Styles */
+.symptoms-view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.symptoms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.symptom-card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.2s;
+  border-left: 4px solid #f59e0b;
+}
+
+.symptom-card.inactive {
+  opacity: 0.7;
+  border-left-color: #9ca3af;
+}
+
+.symptom-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.symptom-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.symptom-card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #d97706;
+  margin-bottom: 0.5rem;
+}
+
+.symptom-card-patient {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.symptom-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.symptom-card-description {
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.symptom-card-date {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.symptom-card-notes {
+  padding: 0.75rem;
+  background-color: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.symptom-card-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.symptom-card-notes p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.symptom-card-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.symptom-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.symptom-card-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.severity-level-1 {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.severity-level-2 {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.severity-level-3 {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.severity-level-4 {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+
+.severity-level-5 {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 768px) {
+  .symptoms-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .allergies-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .observations-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .observation-vitals-grid {
+    grid-template-columns: 1fr;
+  }
+}
+    /* Prescription Styles */
+  .prescriptions-view {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .prescriptions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .prescription-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.2s;
+    border-left: 4px solid #8b5cf6;
+  }
+
+  .prescription-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+
+  .prescription-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .prescription-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #6b21a8;
+    margin-bottom: 0.5rem;
+  }
+
+  .prescription-card-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .prescription-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .prescription-card-dosage,
+  .prescription-card-frequency {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .prescription-card-dosage strong,
+  .prescription-card-frequency strong {
+    color: #111827;
+    min-width: 80px;
+  }
+
+  .prescription-card-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #f9fafb;
+    border-radius: 6px;
+  }
+
+  .date-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .prescription-card-instructions,
+  .prescription-card-notes {
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+  }
+
+  .prescription-card-instructions {
+    background-color: #f0f9ff;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .prescription-card-instructions strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #1e40af;
+    font-size: 0.875rem;
+  }
+
+  .prescription-card-instructions p {
+    margin: 0;
+    color: #1e3a8a;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .prescription-card-notes {
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+  }
+
+  .prescription-card-notes strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #92400e;
+    font-size: 0.875rem;
+  }
+
+  .prescription-card-notes p {
+    margin: 0;
+    color: #78350f;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .prescription-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .prescription-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .prescription-card-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .active-badge {
+    padding: 0.25rem 0.75rem;
+    background-color: #d1fae5;
+    color: #065f46;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-active {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-completed {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-discontinued {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
   .dashboard-container {
     min-height: 100vh;
     background-color: #f9fafb;
@@ -1361,6 +6596,25 @@ const dashboardStyles = `
     overflow-y: auto;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   }
+
+  .delete-modal {
+    max-width: 450px;
+  }
+
+  .delete-warning {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .delete-warning p {
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.5;
+  }
   
   .modal-header {
     display: flex;
@@ -1405,6 +6659,15 @@ const dashboardStyles = `
     align-items: center;
     gap: 1rem;
     padding: 2rem;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
   
   .history-section {
@@ -1471,6 +6734,24 @@ const dashboardStyles = `
     border-radius: 12px;
     font-size: 0.75rem;
     font-weight: 500;
+  }
+
+  .delete-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ef4444;
+    padding: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .delete-icon-btn:hover {
+    background-color: #fee2e2;
+    color: #dc2626;
   }
   
   .history-item p {
@@ -1584,6 +6865,30 @@ const dashboardStyles = `
     opacity: 0.6;
     cursor: not-allowed;
   }
+
+  .delete-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .delete-btn:hover:not(:disabled) {
+    background-color: #dc2626;
+  }
+
+  .delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
   
   @media (max-width: 768px) {
     .header {
@@ -1602,6 +6907,13 @@ const dashboardStyles = `
     }
     
     .patients-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .prescriptions-grid {
+      grid-template-columns: 1fr;
+    }
+    .labresults-grid {
       grid-template-columns: 1fr;
     }
     

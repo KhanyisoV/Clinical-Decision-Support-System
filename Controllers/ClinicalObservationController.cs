@@ -24,7 +24,6 @@ namespace FinalYearProject.Controllers
             _doctorRepo = doctorRepo;
         }
 
-        // Doctor creates a clinical observation for a client
         [HttpPost]
         [Authorize(Roles = "Doctor")]
         public IActionResult Create([FromBody] ClinicalObservationCreateDto dto)
@@ -59,14 +58,24 @@ namespace FinalYearProject.Controllers
                 _observationRepo.Add(observation);
                 _observationRepo.Save();
 
-
-                return Ok(new { message = "Observation created successfully", id = observation.Id });
+                // Use the non-generic ApiResponseDto (matches your other simple success responses)
+                return Ok(new ApiResponseDto
+                {
+                    Success = true,
+                    Message = "Observation created successfully"
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "An error occurred", error = ex.Message });
+                return StatusCode(500, new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "An error occurred",
+                    Errors = new List<string> { ex.Message }
+                });
             }
         }
+                
 
 
         // Get all clinical observations (Admin only)
