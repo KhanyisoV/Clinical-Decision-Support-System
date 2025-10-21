@@ -75,7 +75,6 @@ const DoctorDashboard = () => {
       setLoading(false);
     }
   };
-
   const fetchDashboardData = async (username) => {
     try {
       let doctorId = null;
@@ -94,7 +93,7 @@ const DoctorDashboard = () => {
             ...prev,
             ...profileData,
             id: doctorId
-          }));
+          }));  
           
           const updatedUser = {
             ...JSON.parse(localStorage.getItem('user') || '{}'),
@@ -119,6 +118,11 @@ const DoctorDashboard = () => {
           ...prev,
           totalPatients: patientsList.length
         }));
+        
+        // Fetch symptoms after patients are loaded
+        if (patientsList.length > 0) {
+          await fetchSymptomsForPatients(patientsList);
+        }
       } else {
         setPatients([]);
       }
@@ -139,6 +143,36 @@ const DoctorDashboard = () => {
       setError(err.message || 'Some data could not be loaded');
     }
   };
+
+  const fetchSymptomsForPatients = async (patientsList) => {
+    try {
+      let allSymptoms = [];
+      
+      for (const patient of patientsList) {
+        try {
+          const response = await symptomService.getSymptomsByClientUsername(patient.userName);
+          
+          if (response.success || response.Success) {
+            const patientSymptoms = response.data || response.Data || [];
+            const symptomsWithPatient = patientSymptoms.map(symptom => ({
+              ...symptom,
+              client: patient
+            }));
+            allSymptoms = [...allSymptoms, ...symptomsWithPatient];
+          }
+        } catch (err) {
+          console.error(`Error fetching symptoms for patient ${patient.userName}:`, err);
+        }
+      }
+      
+      console.log('Total symptoms fetched:', allSymptoms.length);
+      setSymptoms(allSymptoms);
+      
+    } catch (err) {
+      console.error('Error fetching symptoms:', err);
+    }
+  };
+  
   const fetchPrescriptions = async () => {
     try {
       const response = await prescriptionService.getAllPrescriptions();
@@ -235,17 +269,43 @@ const DoctorDashboard = () => {
 
 
   const fetchSymptoms = async () => {
-  try {
-    const response = await symptomService.getAllSymptoms();
-    
-    if (response.success || response.Success) {
-      const symptomsList = response.data || response.Data || [];
-      setSymptoms(symptomsList);
+    try {
+      // Get all patients first
+      const currentPatients = patients.length > 0 ? patients : [];
+      
+      if (currentPatients.length === 0) {
+        console.log('No patients available to fetch symptoms');
+        return;
+      }
+  
+      // Fetch symptoms for each patient
+      let allSymptoms = [];
+      
+      for (const patient of currentPatients) {
+        try {
+          const response = await symptomService.getSymptomsByClientUsername(patient.userName);
+          
+          if (response.success || response.Success) {
+            const patientSymptoms = response.data || response.Data || [];
+            // Add patient info to each symptom
+            const symptomsWithPatient = patientSymptoms.map(symptom => ({
+              ...symptom,
+              client: patient
+            }));
+            allSymptoms = [...allSymptoms, ...symptomsWithPatient];
+          }
+        } catch (err) {
+          console.error(`Error fetching symptoms for patient ${patient.userName}:`, err);
+        }
+      }
+      
+      console.log('Total symptoms fetched:', allSymptoms.length);
+      setSymptoms(allSymptoms);
+      
+    } catch (err) {
+      console.error('Error fetching symptoms:', err);
     }
-  } catch (err) {
-    console.error('Error fetching symptoms:', err);
-  }
-};
+  };
 
   const fetchAppointments = async (doctorId) => {
     try {
@@ -1072,7 +1132,32 @@ const DoctorDashboard = () => {
       
       const diagnosesRes = await diagnosisService.getDiagnosesByClientUsername(patient.userName);
       const symptomsRes = await symptomService.getSymptomsByClientUsername(patient.userName);
-      const prescriptionsRes = await prescriptionService.getActivePrescriptionsByClientId(clientId);
+      
+     // Get prescriptions - filter from already loaded prescriptions state
+      console.log('All prescriptions in state:', prescriptions);
+      console.log('Target clientId:', clientId);
+      console.log('Target patient userName:', patient.userName);
+
+      const patientPrescriptions = prescriptions.filter(p => {
+        const pClientId = p.clientId || p.ClientId || p.client?.id || p.Client?.Id;
+        const pClientUsername = p.client?.userName || p.Client?.UserName;
+        
+        // Match by ID (if valid and not 0) OR username (fallback for backend bug)
+        const matchById = pClientId != null && pClientId !== 0 && String(pClientId) === String(clientId);
+        const matchByUsername = pClientUsername && pClientUsername.toLowerCase() === patient.userName.toLowerCase();
+        
+        console.log(`Prescription ${p.id}:`, {
+          clientId: pClientId,
+          clientUsername: pClientUsername,
+          matchById,
+          matchByUsername,
+          finalMatch: matchById || matchByUsername
+        });
+        
+        return matchById || matchByUsername;
+      });
+
+      console.log('Filtered prescriptions for patient:', patientPrescriptions);
       const labResultsRes = await labResultService.getLabResultsByClientId(clientId);
       const observationsRes = await clinicalObservationService.getObservationsByClientId(clientId);
       const allergiesRes = await allergyService.getAllergiesByClientId(clientId);
@@ -1089,10 +1174,6 @@ const DoctorDashboard = () => {
         ? (symptomsRes.data || symptomsRes.Data || [])
         : [];
 
-      const prescriptions = (prescriptionsRes.success || prescriptionsRes.Success)
-        ? (prescriptionsRes.data || prescriptionsRes.Data || [])
-        : [];
-
       const labResults = (labResultsRes.success || labResultsRes.Success)
         ? (labResultsRes.data || labResultsRes.Data || [])
         : [];
@@ -1105,7 +1186,7 @@ const DoctorDashboard = () => {
       setPatientHistory({
         diagnoses,
         symptoms,
-        prescriptions,
+        prescriptions: patientPrescriptions,  // Use the renamed variable
         labResults,
         observations,
         allergies 
