@@ -224,6 +224,56 @@ public async Task<IActionResult> GetDashboardStats()
     }
 }
 
+
+[HttpGet("appointments")]
+public async Task<IActionResult> GetAllAppointments()
+{
+    try
+    {
+        var appointments = await _db.Appointments
+            .Include(a => a.Client)
+            .Include(a => a.Doctor)
+            .OrderByDescending(a => a.AppointmentDate)
+            .ThenByDescending(a => a.StartTime)
+            .Select(a => new
+            {
+                a.Id,
+                a.Title,
+                a.Description,
+                a.AppointmentDate,
+                a.StartTime,
+                a.EndTime,
+                a.Status,
+                a.Location,
+                a.Notes,
+                ClientName = (a.Client.FirstName ?? "") + " " + (a.Client.LastName ?? ""),
+                ClientUsername = a.Client.UserName,
+                DoctorName = (a.Doctor.FirstName ?? "") + " " + (a.Doctor.LastName ?? ""),
+                DoctorUsername = a.Doctor.UserName,
+                DoctorSpecialization = a.Doctor.Specialization,
+                a.CreatedAt,
+                a.UpdatedAt
+            })
+            .ToListAsync();
+
+        return Ok(new ApiResponseDto<object>
+        {
+            Success = true,
+            Data = appointments,
+            Message = "Appointments retrieved successfully"
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new ApiResponseDto
+        {
+            Success = false,
+            Message = "An error occurred while retrieving appointments",
+            Errors = new List<string> { ex.Message }
+        });
+    }
+}
+
         // Client Management
         [HttpGet("clients")]
         public async Task<IActionResult> GetAllClients()

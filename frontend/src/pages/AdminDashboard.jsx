@@ -15,6 +15,7 @@ const AdminDashboard = () => {
   const [successMessage, setSuccessMessage] = useState(null);
 
   // Data states
+  const [appointments, setAppointments] = useState([]);
   const [clients, setClients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [admins, setAdmins] = useState([]);
@@ -69,6 +70,18 @@ const AdminDashboard = () => {
     await logout();
     navigate('/login');
   };
+
+  useEffect(() => {
+    if (activeTab === 'clients' && clients.length === 0) {
+      loadClients();
+    } else if (activeTab === 'doctors' && doctors.length === 0) {
+      loadDoctors();
+    } else if (activeTab === 'admins' && admins.length === 0) {
+      loadAdmins();
+    } else if (activeTab === 'appointments' && appointments.length === 0) {
+      loadAppointments();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     console.log('🚀 useEffect running - loading dashboard stats');
@@ -179,6 +192,17 @@ const AdminDashboard = () => {
       const response = await adminService.getAllAdmins();
       if (response.success) {
         setAdmins(response.data);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const loadAppointments = async () => {
+    try {
+      const response = await adminService.getAllAppointments();
+      if (response.success) {
+        setAppointments(response.data);
       }
     } catch (err) {
       setError(err.message);
@@ -301,17 +325,19 @@ const AdminDashboard = () => {
     );
   };
   const renderContent = () => {
-    switch (activeTab) {
-      case 'clients':
-        return renderClientManagement();
-      case 'doctors':
-        return renderDoctorManagement();
-      case 'admins':
-        return renderAdminManagement();
-      default:
-        return renderDashboard();
-    }
-  };
+  switch (activeTab) {
+    case 'clients':
+      return renderClientManagement();
+    case 'doctors':
+      return renderDoctorManagement();
+    case 'admins':
+      return renderAdminManagement();
+    case 'appointments':
+      return renderAppointmentManagement();
+    default:
+      return renderDashboard();
+  }
+};
 
   const renderDashboard = () => (
     <div style={styles.dashboardContent}>
@@ -369,6 +395,25 @@ const AdminDashboard = () => {
         icon="🆕"
         color="#6f42c1"
       />
+
+      <StatCard
+        title="Total Appointments"
+        value={stats?.totalAppointments}
+        icon="📅"
+        color="#007bff"
+      />
+      <StatCard
+        title="Today's Appointments"
+        value={stats?.todaysAppointments}
+        icon="📆"
+        color="#28a745"
+      />
+      <StatCard
+        title="Upcoming Appointments"
+        value={stats?.upcomingAppointments}
+        icon="⏰"
+        color="#17a2b8"
+      />
       </div>
 
       <div style={styles.quickActions}>
@@ -397,6 +442,13 @@ const AdminDashboard = () => {
             style={{...styles.actionButton, backgroundColor: '#6c757d'}}
           >
             Refresh Data
+          </button>
+
+          <button
+            onClick={() => setActiveTab('appointments')}
+            style={{...styles.actionButton, backgroundColor: '#007bff'}}
+          >
+            View Appointments
           </button>
         </div>
       </div>
@@ -637,6 +689,107 @@ const AdminDashboard = () => {
     </div>
   );
 
+  const renderAppointmentManagement = () => {
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case 'Scheduled': return '#007bff';
+      case 'Completed': return '#28a745';
+      case 'Cancelled': return '#dc3545';
+      default: return '#6c757d';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (timeString) => {
+    return timeString.substring(0, 5); // HH:MM format
+  };
+
+  return (
+    <div style={styles.managementContainer}>
+      <div style={styles.managementHeader}>
+        <h2>Appointment Management</h2>
+        <button
+          onClick={loadAppointments}
+          style={{...styles.addButton, backgroundColor: '#007bff'}}
+        >
+          🔄 Refresh
+        </button>
+      </div>
+
+      {error && (
+        <div style={styles.errorMessage}>
+          <p>{error}</p>
+          <button onClick={() => setError(null)} style={styles.retryButton}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <div style={styles.tableContainer}>
+        <table style={styles.table}>
+          <thead>
+            <tr style={styles.tableHeader}>
+              <th style={styles.th}>Date</th>
+              <th style={styles.th}>Time</th>
+              <th style={styles.th}>Title</th>
+              <th style={styles.th}>Client</th>
+              <th style={styles.th}>Doctor</th>
+              <th style={styles.th}>Status</th>
+              <th style={styles.th}>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appointments.map((appointment) => (
+              <tr key={appointment.id} style={styles.tableRow}>
+                <td style={styles.td}>{formatDate(appointment.appointmentDate)}</td>
+                <td style={styles.td}>
+                  {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
+                </td>
+                <td style={styles.td}>
+                  <strong>{appointment.title}</strong>
+                  {appointment.description && (
+                    <div style={{fontSize: '0.85rem', color: '#666', marginTop: '0.25rem'}}>
+                      {appointment.description}
+                    </div>
+                  )}
+                </td>
+                <td style={styles.td}>{appointment.clientName}</td>
+                <td style={styles.td}>
+                  {appointment.doctorName}
+                  {appointment.doctorSpecialization && (
+                    <div style={{fontSize: '0.85rem', color: '#666'}}>
+                      {appointment.doctorSpecialization}
+                    </div>
+                  )}
+                </td>
+                <td style={styles.td}>
+                  <span style={{
+                    ...styles.roleBadge,
+                    backgroundColor: getStatusBadgeColor(appointment.status)
+                  }}>
+                    {appointment.status}
+                  </span>
+                </td>
+                <td style={styles.td}>{appointment.location || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {appointments.length === 0 && (
+          <div style={styles.noData}>No appointments found</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
   const renderModal = () => {
     if (!showModal) return null;
 
@@ -835,6 +988,13 @@ const AdminDashboard = () => {
           isActive={activeTab === 'admins'}
           onClick={setActiveTab}
         />
+
+        <TabButton
+          tabKey="appointments"
+          label="Appointments"
+          isActive={activeTab === 'appointments'}
+          onClick={setActiveTab}
+        />
       </div>
 
       <div style={styles.content}>
@@ -848,78 +1008,77 @@ const AdminDashboard = () => {
 
 const styles = {
   container: {
-    padding: '2rem',
-    backgroundColor: '#f8f9fa',
-    minHeight: '100vh'
+    minHeight: '100vh',
+    backgroundColor: '#f9fafb',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
   },
   header: {
+    backgroundColor: 'white',
+    borderBottom: '1px solid #e5e7eb',
+    padding: '1.5rem 2rem',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-    backgroundColor: 'white',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    alignItems: 'center'
   },
   title: {
-    margin: 0,
-    color: '#333',
-    fontSize: '2rem'
+    fontSize: '1.875rem',
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: '0.25rem'
   },
   userInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    fontSize: '1.1rem'
+    gap: '0.75rem'
   },
   role: {
-    backgroundColor: '#007bff',
-    color: 'white',
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
     padding: '0.25rem 0.75rem',
-    borderRadius: '15px',
-    fontSize: '0.9rem'
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    fontWeight: '500'
   },
   logoutButton: {
-    backgroundColor: '#dc3545',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-    marginLeft: '1rem'
-  },
-  tabContainer: {
-    display: 'flex',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '0.5rem',
-    marginBottom: '2rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    gap: '0.5rem'
-  },
-  tabButton: {
-    background: 'none',
-    border: 'none',
-    padding: '1rem 1.5rem',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '1rem',
+    fontSize: '0.875rem',
     fontWeight: '500',
-    color: '#666',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s'
+  },
+  tabContainer: {
+    backgroundColor: 'white',
+    borderBottom: '1px solid #e5e7eb',
+    display: 'flex',
+    padding: '0 2rem',
+    gap: '1rem'
+  },
+  tabButton: {
+    padding: '1rem 1.5rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: '#6b7280',
+    transition: 'all 0.2s'
   },
   activeTab: {
-    backgroundColor: '#007bff',
-    color: 'white'
+    color: '#3b82f6',
+    borderBottomColor: '#3b82f6'
   },
   content: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
     padding: '2rem',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    minHeight: '500px'
+    maxWidth: '1400px',
+    margin: '0 auto'
   },
   dashboardContent: {
     display: 'flex',
@@ -931,76 +1090,88 @@ const styles = {
     marginBottom: '1rem'
   },
   errorMessage: {
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
-    padding: '1rem',
-    borderRadius: '6px',
-    border: '1px solid #f5c6cb',
+    backgroundColor: '#fef2f2',
+    borderLeft: '4px solid #ef4444',
+    color: '#991b1b',
+    padding: '1rem 2rem',
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '0.75rem',
+    borderRadius: '6px',
+    marginBottom: '1rem'
   },
   retryButton: {
-    backgroundColor: '#dc3545',
-    color: 'white',
+    marginLeft: 'auto',
+    backgroundColor: 'transparent',
     border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    color: 'inherit',
+    padding: '0.25rem',
+    fontWeight: '600'
   },
   successMessage: {
-    backgroundColor: '#d4edda',
-    color: '#155724',
-    padding: '1rem',
-    borderRadius: '6px',
-    border: '1px solid #c3e6cb',
+    backgroundColor: '#f0fdf4',
+    borderLeft: '4px solid #10b981',
+    color: '#065f46',
+    padding: '1rem 2rem',
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '0.75rem',
+    borderRadius: '6px',
     marginBottom: '1rem'
   },
   dismissButton: {
-    backgroundColor: 'transparent',
-    color: '#155724',
+    marginLeft: 'auto',
+    background: 'none',
     border: 'none',
-    fontSize: '1.2rem',
     cursor: 'pointer',
+    color: 'inherit',
     padding: '0.25rem',
-    borderRadius: '4px',
+    fontSize: '1.2rem',
     fontWeight: 'bold'
   },
   statsGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1.5rem',
-    marginBottom: '2rem'
+    gap: '1.5rem'
   },
   statCard: {
     backgroundColor: 'white',
     padding: '1.5rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    transition: 'transform 0.2s ease'
+    borderRadius: '12px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    transition: 'transform 0.2s, box-shadow 0.2s'
   },
   statHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '1rem'
+    gap: '1rem',
+    flex: 1
   },
   statIcon: {
-    fontSize: '1.5rem'
+    width: '48px',
+    height: '48px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.5rem',
+    backgroundColor: '#dbeafe',
+    flexShrink: 0
   },
   statTitle: {
-    margin: 0,
-    fontSize: '1rem',
-    color: '#666',
-    fontWeight: '500'
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    marginTop: '0.25rem',
+    margin: 0
   },
   statValue: {
-    fontSize: '2.5rem',
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: '2rem',
+    fontWeight: '700',
+    color: '#111827',
     margin: 0
   },
   quickActions: {
@@ -1014,92 +1185,111 @@ const styles = {
     marginTop: '1rem'
   },
   actionButton: {
-    padding: '0.75rem 1.5rem',
+    padding: '0.625rem 1rem',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '1rem',
+    fontSize: '0.875rem',
     fontWeight: '500',
     color: 'white',
-    transition: 'opacity 0.2s ease'
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem'
   },
   managementContainer: {
-    padding: '1rem'
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem'
   },
   managementHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '2rem'
+    marginBottom: '1rem'
   },
   addButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.625rem 1rem',
     color: 'white',
     border: 'none',
-    padding: '0.75rem 1.5rem',
     borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500'
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s'
   },
   tableContainer: {
     backgroundColor: 'white',
-    borderRadius: '8px',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse'
   },
   tableHeader: {
-    backgroundColor: '#f8f9fa'
+    backgroundColor: '#f9fafb'
   },
   th: {
-    padding: '1rem',
+    padding: '1rem 1.25rem',
     textAlign: 'left',
     fontWeight: '600',
-    borderBottom: '2px solid #dee2e6',
-    color: '#495057'
+    borderBottom: '1px solid #e5e7eb',
+    color: '#6b7280',
+    fontSize: '0.875rem'
   },
   tableRow: {
-    transition: 'background-color 0.2s ease'
+    transition: 'background-color 0.2s ease',
+    borderBottom: '1px solid #f0f0f0'
   },
   td: {
-    padding: '1rem',
-    borderBottom: '1px solid #dee2e6'
+    padding: '1rem 1.25rem',
+    borderBottom: '1px solid #f0f0f0',
+    color: '#374151',
+    fontSize: '0.875rem'
   },
   noData: {
     textAlign: 'center',
-    padding: '2rem',
-    color: '#666',
-    fontSize: '1.1rem'
+    color: '#9ca3af',
+    fontSize: '0.875rem',
+    padding: '2rem'
   },
   editButton: {
-    backgroundColor: '#17a2b8',
+    padding: '0.5rem 1rem',
+    backgroundColor: '#3b82f6',
     color: 'white',
     border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
     marginRight: '0.5rem',
-    fontSize: '0.9rem'
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s'
   },
   deleteButton: {
-    backgroundColor: '#dc3545',
+    padding: '0.5rem 1rem',
+    backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '0.9rem'
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s'
   },
   roleBadge: {
-    backgroundColor: '#007bff',
-    color: 'white',
     padding: '0.25rem 0.75rem',
-    borderRadius: '15px',
-    fontSize: '0.85rem',
-    fontWeight: '500'
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    display: 'inline-block'
   },
   modalOverlay: {
     position: 'fixed',
@@ -1107,42 +1297,47 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    padding: '1rem'
   },
   modal: {
     backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '2rem',
-    width: '90%',
-    maxWidth: '500px',
+    borderRadius: '12px',
+    width: '100%',
+    maxWidth: '600px',
     maxHeight: '90vh',
     overflowY: 'auto',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
   },
   modalHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1.5rem',
-    paddingBottom: '1rem',
-    borderBottom: '1px solid #dee2e6'
+    padding: '1.5rem',
+    borderBottom: '1px solid #e5e7eb'
   },
   closeButton: {
     background: 'none',
     border: 'none',
-    fontSize: '1.5rem',
     cursor: 'pointer',
-    color: '#666',
-    padding: '0.25rem'
+    color: '#6b7280',
+    padding: '0.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '6px',
+    transition: 'all 0.2s',
+    fontSize: '1.5rem'
   },
   form: {
+    padding: '1.5rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem'
+    gap: '1.25rem'
   },
   formGroup: {
     display: 'flex',
@@ -1150,54 +1345,70 @@ const styles = {
     gap: '0.5rem'
   },
   formRow: {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
     gap: '1rem'
   },
   label: {
+    display: 'block',
+    fontSize: '0.875rem',
     fontWeight: '500',
-    color: '#495057',
-    marginBottom: '0.25rem'
+    color: '#374151',
+    marginBottom: '0.5rem'
   },
   input: {
-    padding: '0.75rem',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    transition: 'border-color 0.2s ease'
+    width: '100%',
+    padding: '0.625rem 0.875rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '0.875rem',
+    color: '#111827',
+    transition: 'all 0.2s',
+    outline: 'none'
   },
   select: {
-    padding: '0.75rem',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    backgroundColor: 'white'
+    width: '100%',
+    padding: '0.625rem 0.875rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '0.875rem',
+    color: '#111827',
+    backgroundColor: 'white',
+    transition: 'all 0.2s',
+    outline: 'none'
   },
   formActions: {
     display: 'flex',
-    gap: '1rem',
     justifyContent: 'flex-end',
-    marginTop: '1.5rem',
+    gap: '0.75rem',
     paddingTop: '1rem',
-    borderTop: '1px solid #dee2e6'
+    borderTop: '1px solid #e5e7eb',
+    marginTop: '0.5rem'
   },
   cancelButton: {
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    padding: '0.75rem 1.5rem',
-    borderRadius: '4px',
+    padding: '0.625rem 1.25rem',
+    backgroundColor: 'transparent',
+    color: '#6b7280',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '1rem'
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s'
   },
   submitButton: {
-    backgroundColor: '#007bff',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.625rem 1.25rem',
+    backgroundColor: '#3b82f6',
     color: 'white',
     border: 'none',
-    padding: '0.75rem 1.5rem',
-    borderRadius: '4px',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '1rem',
-    fontWeight: '500'
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s'
   }
 };
 
