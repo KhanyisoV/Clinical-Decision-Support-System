@@ -42,6 +42,7 @@ const DoctorDashboard = () => {
   const [patientHistory, setPatientHistory] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [dueAppointment, setDueAppointment] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
@@ -49,6 +50,25 @@ const DoctorDashboard = () => {
   useEffect(() => {
     initializeDashboard();
   }, []);
+  useEffect(() => {
+    if (appointments.length > 0) {
+      checkAndUpdatePastAppointments();
+      
+      // Check every 5 minutes
+      const interval = setInterval(checkAndUpdatePastAppointments, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [appointments]);
+
+  useEffect(() => {
+    if (appointments.length > 0) {
+      checkDueAppointments();
+      
+      // Check every minute
+      const interval = setInterval(checkDueAppointments, 60 * 1000);
+      return () => clearInterval(interval);
+    }
+  }, [appointments]);
 
   const initializeDashboard = async () => {
     try {
@@ -417,7 +437,84 @@ const DoctorDashboard = () => {
       console.error('Error fetching appointments:', err);
     }
   };
+  const checkAndUpdatePastAppointments = async () => {
+    const now = new Date();
+    
+    for (const apt of appointments) {
+      const aptDate = new Date(apt.appointmentDate || apt.AppointmentDate);
+      const [hours, minutes] = (apt.endTime || apt.EndTime || '00:00').split(':');
+      aptDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      // If appointment end time has passed and status is still Scheduled/Confirmed
+      const status = apt.status || apt.Status;
+      if (aptDate < now && (status === 'Scheduled' || status === 'Confirmed')) {
+        try {
+          const aptId = apt.id || apt.Id;
+          await appointmentService.updateAppointment(aptId, {
+            ...apt,
+            Status: 'Cancelled',
+            Notes: (apt.notes || apt.Notes || '') + '\n[Auto-cancelled: Time passed]'
+          });
+          console.log(`Auto-cancelled appointment ${aptId}`);
+        } catch (err) {
+          console.error('Error auto-cancelling appointment:', err);
+        }
+      }
+    }
+    
+    // Refresh appointments after updates
+    const doctorId = user?.id || user?.Id;
+    if (doctorId) {
+      await fetchAppointments(doctorId);
+    }
+  };
+  const checkDueAppointments = () => {
+    const now = new Date();
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+    
+    for (const apt of appointments) {
+      const aptDate = new Date(apt.appointmentDate || apt.AppointmentDate);
+      const [hours, minutes] = (apt.startTime || apt.StartTime || '00:00').split(':');
+      aptDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      const status = apt.status || apt.Status;
+      
+      // Check if appointment is within 5 minutes and still scheduled
+      if (aptDate <= fiveMinutesFromNow && aptDate >= now && 
+          (status === 'Scheduled' || status === 'Confirmed')) {
+        setDueAppointment(apt);
+        break;
+      }
+    }
+  };
   
+  const handleAppointmentCompletion = async (attended) => {
+    if (!dueAppointment) return;
+    
+    const aptId = dueAppointment.id || dueAppointment.Id;
+    const newStatus = attended ? 'Completed' : 'Cancelled';
+    const notes = (dueAppointment.notes || dueAppointment.Notes || '') + 
+                  `\n[${attended ? 'Patient attended' : 'Patient did not attend'}]`;
+    
+    try {
+      await appointmentService.updateAppointment(aptId, {
+        ...dueAppointment,
+        Status: newStatus,
+        Notes: notes
+      });
+      
+      setSuccess(`Appointment marked as ${newStatus.toLowerCase()}`);
+      setDueAppointment(null);
+      
+      const doctorId = user?.id || user?.Id;
+      if (doctorId) {
+        await fetchAppointments(doctorId);
+      }
+    } catch (err) {
+      setError('Failed to update appointment status');
+      console.error(err);
+    }
+  };
 
   const handleCreateAppointment = (patient) => {
     setSelectedPatient(patient);
@@ -438,6 +535,17 @@ const DoctorDashboard = () => {
     // Set default date to tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
+    // Set minimum date to 5 minutes from now
+    const minDateTime = new Date();
+    minDateTime.setMinutes(minDateTime.getMinutes() + 5);
+    
+    const defaultDate = new Date(minDateTime);
+    defaultDate.setHours(9, 0, 0, 0); // Default to 9 AM
+    
+    // If 9 AM is in the past, use the minimum time instead
+    if (defaultDate < minDateTime) {
+      defaultDate.setTime(minDateTime.getTime());
+    }
     
     setFormData({
       Title: '',
@@ -459,6 +567,8 @@ const DoctorDashboard = () => {
     
     const aptDate = new Date(appointment.appointmentDate || appointment.AppointmentDate);
     const dateStr = aptDate.toISOString().split('T')[0];
+
+    
     
     // Convert TimeSpan to HH:MM format
     const formatTime = (timeSpan) => {
@@ -467,6 +577,18 @@ const DoctorDashboard = () => {
       }
       return timeSpan;
     };
+
+    // Set minimum date to 5 minutes from now
+    const minDateTime = new Date();
+    minDateTime.setMinutes(minDateTime.getMinutes() + 5);
+    
+    const defaultDate = new Date(minDateTime);
+    defaultDate.setHours(9, 0, 0, 0); // Default to 9 AM
+    
+    // If 9 AM is in the past, use the minimum time instead
+    if (defaultDate < minDateTime) {
+      defaultDate.setTime(minDateTime.getTime());
+    }
     
     setFormData({
       Title: appointment.title || appointment.Title || '',
@@ -496,8 +618,18 @@ const DoctorDashboard = () => {
     setLoading(true);
     setError(null);
     
+    // Validate appointment is at least 5 minutes in the future
+    const appointmentDateTime = new Date(formData.AppointmentDate + 'T' + formData.StartTime);
+    const minDateTime = new Date();
+    minDateTime.setMinutes(minDateTime.getMinutes() + 5);
+    
+    if (appointmentDateTime < minDateTime) {
+      setError('Appointment must be at least 5 minutes in the future');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      // Convert HH:MM to TimeSpan format (HH:MM:SS)
       const appointmentData = {
         ...formData,
         StartTime: formData.StartTime + ':00',
@@ -4294,6 +4426,7 @@ const DoctorDashboard = () => {
                   <input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     value={formData.AppointmentDate || ''}
                     onChange={(e) => setFormData({...formData, AppointmentDate: e.target.value})}
                   />
@@ -4599,6 +4732,74 @@ const DoctorDashboard = () => {
           </div>
         </div>
       )}
+      {/* Due Appointment Notification */}
+{dueAppointment && (
+  <div className="modal-overlay" style={{backgroundColor: 'rgba(0, 0, 0, 0.7)'}}>
+    <div className="modal" style={{maxWidth: '500px'}} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-header" style={{backgroundColor: '#fef3c7', borderBottom: '2px solid #f59e0b'}}>
+        <h2 style={{color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+          <AlertCircle size={24} />
+          Appointment Due Now
+        </h2>
+      </div>
+      <div className="modal-body">
+        <div style={{padding: '1rem', backgroundColor: '#fffbeb', borderRadius: '8px', marginBottom: '1rem'}}>
+          <div style={{fontWeight: '600', fontSize: '1.125rem', marginBottom: '0.5rem'}}>
+            {dueAppointment.title || dueAppointment.Title}
+          </div>
+          <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+            Patient: {dueAppointment.client?.firstName} {dueAppointment.client?.lastName}
+          </div>
+          <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+            Time: {dueAppointment.startTime || dueAppointment.StartTime}
+          </div>
+          {(dueAppointment.location || dueAppointment.Location) && (
+            <div style={{fontSize: '0.875rem', color: '#6b7280'}}>
+              Location: {dueAppointment.location || dueAppointment.Location}
+            </div>
+          )}
+        </div>
+        
+        <div style={{fontSize: '1rem', fontWeight: '500', marginBottom: '1.5rem', textAlign: 'center'}}>
+          Did the patient attend this appointment?
+        </div>
+        
+        <div style={{display: 'flex', gap: '1rem'}}>
+          <button 
+            onClick={() => handleAppointmentCompletion(true)}
+            className="primary-btn"
+            style={{flex: 1, backgroundColor: '#10b981', padding: '0.875rem'}}
+          >
+            Yes, Patient Attended
+          </button>
+          <button 
+            onClick={() => handleAppointmentCompletion(false)}
+            className="delete-btn"
+            style={{flex: 1, padding: '0.875rem'}}
+          >
+            No, Did Not Attend
+          </button>
+        </div>
+        
+        <button 
+          onClick={() => setDueAppointment(null)}
+          style={{
+            width: '100%',
+            marginTop: '0.75rem',
+            padding: '0.625rem',
+            backgroundColor: 'transparent',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '0.875rem'
+          }}
+        >
+          Remind Me Later
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Edit Prescription Modal */}
       {showModal === 'editPrescription' && selectedPrescription && (
