@@ -301,5 +301,30 @@ namespace FinalYearProject.Controllers
                 });
             }
         }
+
+//allow a client to fetch their own profile by username
+        [HttpGet("by-username/{username}")]
+[Authorize(Roles = "Client,Doctor,Admin")]
+public IActionResult GetClientByUsername(string username)
+{
+    var client = _clientRepo.GetByUserName(username);
+    if (client == null)
+    {
+        return NotFound(new ApiResponseDto
+        {
+            Success = false,
+            Message = $"Client {username} not found."
+        });
+    }
+
+    var clientDto = _mappingService.ToClientDto(client);
+    return Ok(new ApiResponseDto<ClientDto>
+    {
+        Success = true,
+        Message = "Client retrieved successfully.",
+        Data = clientDto
+    });
+}
+
     }
 }

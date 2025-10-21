@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { FaHeartbeat, FaTemperatureHigh, FaLungs, FaTint, FaUserMd } from 'react-icons/fa';
+import {
+  FaHeartbeat,
+  FaTint,
+  FaUserMd,
+  FaRulerVertical,
+  FaWeight,
+  FaBirthdayCake,
+  FaNotesMedical,
+  FaCalendarAlt
+} from "react-icons/fa";
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode'; // fixed import
+import { jwtDecode } from 'jwt-decode'; 
+
 
 const dummyAppointments = [
   {
@@ -20,10 +30,16 @@ const dummyAppointments = [
   },
 ];
 
+
 const ClientDashboard = () => {
-  const { user, logout } = useAuth();
+  const {logout } = useAuth();
   const navigate = useNavigate();
   const [symptoms, setSymptoms] = useState([]);
+  const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [profile, setProfile] = useState(null); 
+  const [clinicalObservations, setClinicalObservations] = useState([]);
+
+
 
   const handleLogout = async () => {
     await logout();
@@ -76,8 +92,133 @@ const ClientDashboard = () => {
       }
     };
 
+    const fetchProfile = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found");
+      return;
+    }
+
+    // Decode token
+    const decodedToken = jwtDecode(token);
+    console.log("Decoded token: ", decodedToken);
+
+    // Extract username from the name claim
+    const username =
+      decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ||
+      decodedToken.sub; // fallback in case name claim not found
+
+    if (!username) {
+      console.error("Username not found in token");
+      return;
+    }
+
+    console.log("Fetching client profile for username:", username);
+
+  
+    const response = await axios.get(
+      `http://localhost:5011/api/Client/by-username/${username}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    console.log("Fetched profile data:", response.data);
+    setProfile(response.data.data); 
+  } catch (error) {
+    console.error("Error fetching client profile:", error);
+  }
+};
+
+const fetchClinicalObservations = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found");
+      return;
+    }
+
+    // Hardcoded client ID for testing
+    const clientId = 1; // <-- change this to whichever client you want to test
+
+    console.log("Using hardcoded client ID:", clientId);
+
+    // Fetch latest clinical observation
+    const observationResponse = await axios.get(
+      `http://localhost:5011/api/ClinicalObservation/client/${clientId}/latest`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    console.log(
+      "Fetched latest clinical observation:",
+      observationResponse.data
+    );
+
+    // Update your state
+    setClinicalObservations(
+      observationResponse.data?.data
+        ? [observationResponse.data.data] // wrap single item into an array if needed
+        : []
+    );
+  } catch (error) {
+    console.error(
+      "Error fetching clinical observations:",
+      error.response?.data || error.message
+    );
+  }
+};
+
+
+    fetchClinicalObservations();
     fetchSymptoms();
+    fetchProfile();
   }, []);
+
+
+    const ProfilePage = () => (
+    <div
+    style={{
+    padding: '1rem',
+    backgroundColor: '#fff',
+    borderRadius: '8px',
+    maxWidth: '600px',
+    margin: '2rem auto',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  }}
+>
+  {/* Header with icon and name */}
+  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+    <FaUserMd
+      size={60}
+      style={{
+        borderRadius: '50%',
+        backgroundColor: '#e0e0e0',
+        padding: '10px',
+        marginRight: '1rem',
+      }}
+    />
+    <h2>
+      {profile?.firstName} {profile?.lastName}
+    </h2>
+  </div>
+
+  {/* Profile information */}
+  {profile && (
+    <div style={{ lineHeight: '1.5rem' }}>
+      <p><strong>Username:</strong> {profile.userName}</p>
+      <p><strong>Email:</strong> {profile.email}</p>
+      <p><strong>Age:</strong> {new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear()}</p>
+      <p><strong>Date of Birth:</strong> {new Date(profile.dateOfBirth).toLocaleDateString()}</p>
+      <p><strong>Phone:</strong> {profile.phone || 'N/A'}</p>
+      <p><strong>Address:</strong> {profile.address || 'N/A'}</p>
+      <p><strong>Account Created:</strong> {new Date(profile.createdAt).toLocaleString()}</p>
+      <p><strong>Last Updated:</strong> {profile.updatedAt ? new Date(profile.updatedAt).toLocaleString() : 'Never'}</p>
+    </div>
+  )}
+</div>
+
+  );
 
 
   return (
@@ -87,99 +228,126 @@ const ClientDashboard = () => {
       <div style={styles.logoSection}>
         <img src="/Ithemba logo.png" alt="Logo" style={styles.logo} />
         <nav style={styles.nav}>
-          <button style={{ ...styles.navButton, ...styles.activeNav }}>Dashboard</button>
-          <button style={styles.navButton}>Statistics</button>
-          <button style={styles.navButton}>Profile</button>
-        </nav>
+            <button
+              style={{ ...styles.navButton, ...(activeTab === 'dashboard' ? styles.activeNav : {}) }}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button
+              style={{ ...styles.navButton, ...(activeTab === 'statistics' ? styles.activeNav : {}) }}
+              onClick={() => setActiveTab('statistics')}
+            >
+              Statistics
+            </button>
+            <button
+              style={{ ...styles.navButton, ...(activeTab === 'profile' ? styles.activeNav : {}) }}
+              onClick={() => setActiveTab('profile')}
+            >
+              Profile
+            </button>
+          </nav>
       </div>
       <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
     </header>
 
     {/* MAIN CONTENT */}
     <main style={styles.main}>
+  {activeTab === 'dashboard' && (
+    <>
       <h2 style={styles.greeting}>
-    Hello, {user?.firstName && user?.lastName 
-      ? `${user.firstName} ${user.lastName}` 
-      : jwtDecode(localStorage.getItem('token'))?.sub}!
-  </h2>
-  <p style={styles.subGreeting}>Welcome to your Patient Dashboard</p>
+  Hello, {profile?.firstName && profile?.lastName
+    ? `${profile.firstName} ${profile.lastName}`
+    : 'Patient'}!
+</h2>
+<p style={styles.subGreeting}>Welcome to your Patient Dashboard</p>
 
-      {/* HEALTH CARDS */}
-      <section style={styles.healthSummary}>
-        {/* Heart Rate */}
-        <div style={styles.healthCard}>
-          <div style={styles.healthTop}>
+
+     {/* CLINICAL OBSERVATION CARDS */}
+<section style={styles.healthSummary}>
+  {/* Section Title */}
+  <h2 style={styles.sectionTitle}>Clinical Examinations</h2>
+
+  {clinicalObservations?.length > 0 ? (
+    <div style={styles.cardGrid}>
+      {clinicalObservations.map((exam, index) => (
+        <React.Fragment key={index}>
+          {/* Heart Rate */}
+          <div style={styles.healthCard}>
+            <FaHeartbeat style={{ ...styles.icon, color: "#e74c3c" }} />
             <h4 style={styles.healthTitle}>Heart Rate</h4>
-            <FaHeartbeat size={18} color="#7b6cf6" />
+            <p style={styles.healthValue}>
+              {exam.heartRate || "-"} <span style={styles.healthUnit}>BPM</span>
+            </p>
           </div>
-          <div style={styles.healthChart}></div>
-          <div style={styles.healthBottom}>
-            <p style={styles.healthValue}>120</p>
-            <span style={styles.healthUnit}>BPM</span>
-          </div>
-          <p style={styles.normalRange}>Normal: 60–100 BPM</p>
-        </div>
 
-        {/* Temperature */}
-        <div style={styles.healthCard}>
-          <div style={styles.healthTop}>
-            <h4 style={styles.healthTitle}>Temperature</h4>
-            <FaTemperatureHigh size={18} color="#ff7f50" />
+          {/* Blood Pressure */}
+          <div style={styles.healthCard}>
+            <FaTint style={{ ...styles.icon, color: "#3498db" }} />
+            <h4 style={styles.healthTitle}>Blood Pressure</h4>
+            <p style={styles.healthValue}>
+              {exam.bloodPressure || "-"} <span style={styles.healthUnit}>mmHg</span>
+            </p>
           </div>
-          <div style={styles.healthChartOrange}></div>
-          <div style={styles.healthBottom}>
-            <p style={styles.healthValue}>36.8</p>
-            <span style={styles.healthUnit}>°C</span>
-          </div>
-          <p style={styles.normalRange}>Normal: 36.1–37.2 °C</p>
-        </div>
 
-        {/* Respiratory Rate */}
-        <div style={styles.healthCard}>
-          <div style={styles.healthTop}>
-            <h4 style={styles.healthTitle}>Respiratory Rate</h4>
-            <FaLungs size={18} color="#4dabf7" />
+          {/* Gender */}
+          <div style={styles.healthCard}>
+            <FaUserMd style={{ ...styles.icon, color: "#8e44ad" }} />
+            <h4 style={styles.healthTitle}>Gender</h4>
+            <p style={styles.healthValue}>{exam.gender || "-"}</p>
           </div>
-          <div style={styles.healthChartBlue}></div>
-          <div style={styles.healthBottom}>
-            <p style={styles.healthValue}>18</p>
-            <span style={styles.healthUnit}>bpm</span>
-          </div>
-          <p style={styles.normalRange}>Normal: 12–20 bpm</p>
-        </div>
 
-        {/* Water */}
-        <div style={styles.healthCard}>
-          <div style={styles.healthTop}>
-            <h4 style={styles.healthTitle}>Water</h4>
-            <FaTint size={18} color="#3cb7ff" />
+          {/* Height */}
+          <div style={styles.healthCard}>
+            <FaRulerVertical style={{ ...styles.icon, color: "#16a085" }} />
+            <h4 style={styles.healthTitle}>Height</h4>
+            <p style={styles.healthValue}>
+              {exam.height || "-"} <span style={styles.healthUnit}>cm</span>
+            </p>
           </div>
-          <div style={styles.waterBarOuter}>
-            <div style={styles.waterBarInner}></div>
-          </div>
-          <div style={styles.healthBottom}>
-            <p style={styles.healthValue}>89%</p>
-            <span style={styles.healthUnit}>1.7/2 litres</span>
-          </div>
-          <p style={styles.normalRange}>Normal: 1.5–2 litres/day</p>
-        </div>
 
-        {/* Oxygen Saturation */}
-        <div style={styles.healthCard}>
-          <div style={styles.healthTop}>
-            <h4 style={styles.healthTitle}>Oxygen Saturation</h4>
-            <FaTint size={18} color="#76c7c0" />
+          {/* Weight */}
+          <div style={styles.healthCard}>
+            <FaWeight style={{ ...styles.icon, color: "#f39c12" }} />
+            <h4 style={styles.healthTitle}>Weight</h4>
+            <p style={styles.healthValue}>
+              {exam.weight || "-"} <span style={styles.healthUnit}>kg</span>
+            </p>
           </div>
-          <div style={styles.healthChartBlue}></div>
-          <div style={styles.healthBottom}>
-            <p style={styles.healthValue}>97%</p>
-            <span style={styles.healthUnit}>SpO₂</span>
-          </div>
-          <p style={styles.normalRange}>Normal: 95–100%</p>
-        </div>
-      </section>
 
-      <button style={styles.viewAllBtn}>View All</button>
+          {/* Age */}
+          <div style={styles.healthCard}>
+            <FaBirthdayCake style={{ ...styles.icon, color: "#2ecc71" }} />
+            <h4 style={styles.healthTitle}>Age</h4>
+            <p style={styles.healthValue}>
+              {exam.age || "-"} <span style={styles.healthUnit}>years</span>
+            </p>
+          </div>
+
+          {/* Notes */}
+          <div style={styles.healthCard}>
+            <FaNotesMedical style={{ ...styles.icon, color: "#2980b9" }} />
+            <h4 style={styles.healthTitle}>Notes</h4>
+            <p style={styles.healthValue}>{exam.notes || "No notes recorded."}</p>
+          </div>
+
+          {/* Date */}
+          <div style={styles.healthCard}>
+            <FaCalendarAlt style={{ ...styles.icon, color: "#7f8c8d" }} />
+            <h4 style={styles.healthTitle}>Date</h4>
+            <p style={styles.healthValue}>
+              {new Date(exam.observationDate).toLocaleDateString()}
+            </p>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  ) : (
+    <p style={{ textAlign: "center", color: "#666" }}>No clinical observations found.</p>
+  )}
+</section>
+
+
 
       {/* APPOINTMENTS + SYMPTOMS + ACTIONS */}
       <section style={styles.appointmentsSection}>
@@ -217,7 +385,7 @@ const ClientDashboard = () => {
             </div>
           </div>
 
-          {/* ✅ Symptoms Identified (Fixed, safe & dynamic) */}
+          {/* Symptoms Identified */}
           <div style={styles.symptomsSection}>
             <h3 style={styles.sectionTitle}>Symptoms Identified</h3>
             <div style={styles.symptomListContainer}>
@@ -240,9 +408,7 @@ const ClientDashboard = () => {
                         </div>
                       ) : null}
 
-                      {s.notes || s.Notes ? (
-                        <div>Notes: {s.notes || s.Notes}</div>
-                      ) : null}
+                      {s.notes || s.Notes ? <div>Notes: {s.notes || s.Notes}</div> : null}
                     </li>
                   ))}
                 </ul>
@@ -271,7 +437,19 @@ const ClientDashboard = () => {
           ))}
         </div>
       </section>
-    </main>
+    </>
+  )}
+
+  {activeTab === 'statistics' && (
+    <div>
+      <h2>Statistics</h2>
+      <p>Statistics content goes here...</p>
+    </div>
+  )}
+
+  {activeTab === 'profile' && <ProfilePage />}
+</main>
+
   </div>
 );
 };
@@ -328,73 +506,61 @@ const styles = {
 
   main: { padding: '2rem', marginTop: '40px', overflowY: 'auto' },
   greeting: { fontSize: '1.9rem', fontWeight: '600', color: '#4d3333ff', marginBottom: '0.2rem' },
-  subGreeting: { fontSize: '0.9rem', fontWeight: '400', color: '#2b2b2b', marginBottom: '1.5rem' },
+  subGreeting: { fontSize: '1.1rem', fontWeight: '400', color: '#2b2b2b', marginBottom: '1.5rem' },
 
-  // Health summary cards
-  healthSummary: { display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' },
-  healthCard: {
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    padding: '0.8rem 1rem',
-    width: '180px',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-  healthTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  healthTitle: { fontSize: '0.85rem', fontWeight: 600, color: '#4b4b4b', margin: 0 },
-  healthChart: {
-    background: 'linear-gradient(90deg, rgba(123,108,246,0.2), rgba(123,108,246,0.05))',
-    height: '35px',
-    borderRadius: '8px',
-    margin: '0.4rem 0',
-  },
-  healthChartOrange: {
-    background: 'linear-gradient(90deg, rgba(255,127,80,0.25), rgba(255,127,80,0.05))',
-    height: '35px',
-    borderRadius: '8px',
-    margin: '0.4rem 0',
-  },
-  healthChartBlue: {
-    background: 'linear-gradient(90deg, rgba(77,171,247,0.25), rgba(77,171,247,0.05))',
-    height: '35px',
-    borderRadius: '8px',
-    margin: '0.4rem 0',
-  },
-  waterBarOuter: {
-    backgroundColor: '#e9f3ff',
-    borderRadius: '8px',
-    height: '8px',
-    margin: '0.5rem 0',
-    overflow: 'hidden',
-  },
-  waterBarInner: {
-    backgroundColor: '#4dabf7',
-    width: '89%',
-    height: '100%',
-    borderRadius: '8px',
-  },
-  healthBottom: { display: 'flex', alignItems: 'center', gap: '0.3rem' },
-  healthValue: { fontSize: '1.2rem', fontWeight: 700, margin: 0 },
-  healthUnit: { fontSize: '0.75rem', color: '#777' },
-  normalRange: {
-    fontSize: '0.65rem',
-    color: '#3de413ff',
-    marginTop: '0.3rem',
-    textAlign: 'center',
-  },
+  healthSummary: {
+  marginTop: '2rem',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'left',
+},
 
-  viewAllBtn: {
-    backgroundColor: '#994040ff',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '0.5rem 0.8rem',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    marginBottom: '1.5rem',
-  },
+cardGrid: {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '1.6rem',
+  width: '100%',
+  maxWidth: '1000px',
+},
+
+healthCard: {
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+  padding: '1.2rem',
+  textAlign: 'center',
+  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+},
+healthCardHover: {
+  transform: 'translateY(-4px)',
+  boxShadow: '0 6px 15px rgba(0, 0, 0, 0.1)',
+},
+
+icon: {
+  fontSize: '1.8rem',
+  marginBottom: '0.5rem',
+},
+
+healthTitle: {
+  fontSize: '0.95rem',
+  fontWeight: 600,
+  color: '#333',
+  marginBottom: '0.3rem',
+},
+
+healthValue: {
+  fontSize: '1.1rem',
+  fontWeight: 700,
+  color: '#111',
+  margin: 0,
+},
+
+healthUnit: {
+  fontSize: '0.8rem',
+  color: '#777',
+  marginLeft: '4px',
+},
+
 
   // --- Main Section Layout ---
   appointmentsSection: {
@@ -427,7 +593,6 @@ const styles = {
   },
 
   appointmentActionsFull: {
-    width: '100%',
     backgroundColor: '#fff',
     padding: '1rem',
     borderRadius: '8px',
