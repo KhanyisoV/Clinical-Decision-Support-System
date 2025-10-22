@@ -17,6 +17,8 @@ const DoctorDashboard = () => {
   const [patients, setPatients] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [snoozeTimer, setSnoozeTimer] = useState(null);
+  const [snoozedAppointments, setSnoozedAppointments] = useState(new Set());
   const [showModal, setShowModal] = useState(null);
   const [allergies, setAllergies] = useState([]);
   const [treatments, setTreatments] = useState([]);
@@ -59,6 +61,14 @@ const DoctorDashboard = () => {
       return () => clearInterval(interval);
     }
   }, [appointments]);
+
+  useEffect(() => {
+    return () => {
+      if (snoozeTimer) {
+        clearTimeout(snoozeTimer);
+      }
+    };
+  }, [snoozeTimer]);
 
   useEffect(() => {
     if (appointments.length > 0) {
@@ -468,19 +478,27 @@ const DoctorDashboard = () => {
       await fetchAppointments(doctorId);
     }
   };
+  
   const checkDueAppointments = () => {
     const now = new Date();
-    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+    const oneMinuteFromNow = new Date(now.getTime() + 1 * 60 * 1000);
     
     for (const apt of appointments) {
+      const aptId = apt.id || apt.Id;
+      
+      // Skip if this appointment is snoozed
+      if (snoozedAppointments.has(aptId)) {
+        continue;
+      }
+      
       const aptDate = new Date(apt.appointmentDate || apt.AppointmentDate);
       const [hours, minutes] = (apt.startTime || apt.StartTime || '00:00').split(':');
       aptDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
       
       const status = apt.status || apt.Status;
       
-      // Check if appointment is within 5 minutes and still scheduled
-      if (aptDate <= fiveMinutesFromNow && aptDate >= now && 
+      // Only show if appointment is within the next minute
+      if (aptDate >= now && aptDate <= oneMinuteFromNow && 
           (status === 'Scheduled' || status === 'Confirmed')) {
         setDueAppointment(apt);
         break;
@@ -494,7 +512,7 @@ const DoctorDashboard = () => {
     const aptId = dueAppointment.id || dueAppointment.Id;
     const newStatus = attended ? 'Completed' : 'Cancelled';
     const notes = (dueAppointment.notes || dueAppointment.Notes || '') + 
-                  `\n[${attended ? 'Patient attended' : 'Patient did not attend'}]`;
+                  `\n[${attended ? 'Patient attended' : 'Patient did not attend'} - ${new Date().toLocaleString()}]`;
     
     try {
       await appointmentService.updateAppointment(aptId, {
@@ -504,6 +522,14 @@ const DoctorDashboard = () => {
       });
       
       setSuccess(`Appointment marked as ${newStatus.toLowerCase()}`);
+      
+      // Remove from snoozed appointments if it was there
+      setSnoozedAppointments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(aptId);
+        return newSet;
+      });
+      
       setDueAppointment(null);
       
       const doctorId = user?.id || user?.Id;
@@ -516,6 +542,35 @@ const DoctorDashboard = () => {
     }
   };
 
+  const handleSnoozeAppointment = () => {
+    // Clear any existing snooze timer first
+    if (snoozeTimer) {
+      clearTimeout(snoozeTimer);
+    }
+    
+    const currentAppointment = dueAppointment;
+    const aptId = currentAppointment.id || currentAppointment.Id;
+    
+    // Add to snoozed appointments
+    setSnoozedAppointments(prev => new Set([...prev, aptId]));
+    
+    // Hide the modal immediately
+    setDueAppointment(null);
+    
+    // Set new snooze timer for 5 minutes
+    const timer = setTimeout(() => {
+      // Remove from snoozed appointments
+      setSnoozedAppointments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(aptId);
+        return newSet;
+      });
+      // Show the appointment again
+      setDueAppointment(currentAppointment);
+    }, 5 * 60 * 1000);
+    
+    setSnoozeTimer(timer);
+  };
   const handleCreateAppointment = (patient) => {
     setSelectedPatient(patient);
     
@@ -532,32 +587,35 @@ const DoctorDashboard = () => {
       return;
     }
     
-    // Set default date to tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    // Set minimum date to 5 minutes from now
+    // Set minimum date/time to 5 minutes from now
     const minDateTime = new Date();
     minDateTime.setMinutes(minDateTime.getMinutes() + 5);
     
-    const defaultDate = new Date(minDateTime);
-    defaultDate.setHours(9, 0, 0, 0); // Default to 9 AM
+    const minDate = minDateTime.toISOString().split('T')[0];
+    const minTime = minDateTime.toTimeString().slice(0, 5);
     
-    // If 9 AM is in the past, use the minimum time instead
-    if (defaultDate < minDateTime) {
-      defaultDate.setTime(minDateTime.getTime());
-    }
+    // Default to tomorrow at 9 AM OR 5 minutes from now if that's later
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    
+    const defaultDateTime = tomorrow > minDateTime ? tomorrow : minDateTime;
+    const defaultDate = defaultDateTime.toISOString().split('T')[0];
+    const defaultTime = defaultDateTime.toTimeString().slice(0, 5);
     
     setFormData({
       Title: '',
       Description: '',
-      AppointmentDate: tomorrow.toISOString().split('T')[0],
-      StartTime: '09:00',
-      EndTime: '10:00',
+      AppointmentDate: defaultDate,
+      StartTime: defaultTime,
+      EndTime: new Date(defaultDateTime.getTime() + 60*60*1000).toTimeString().slice(0, 5), // +1 hour
       Status: 'Scheduled',
       Location: '',
       Notes: '',
       ClientId: clientId,
-      DoctorId: doctorId
+      DoctorId: doctorId,
+      _minDate: minDate,
+      _minTime: minTime
     });
     setShowModal('createAppointment');
   };
@@ -567,28 +625,21 @@ const DoctorDashboard = () => {
     
     const aptDate = new Date(appointment.appointmentDate || appointment.AppointmentDate);
     const dateStr = aptDate.toISOString().split('T')[0];
-
     
+    // Set minimum date/time to 5 minutes from now
+    const minDateTime = new Date();
+    minDateTime.setMinutes(minDateTime.getMinutes() + 5);
+    
+    const minDate = minDateTime.toISOString().split('T')[0];
+    const minTime = minDateTime.toTimeString().slice(0, 5);
     
     // Convert TimeSpan to HH:MM format
     const formatTime = (timeSpan) => {
       if (typeof timeSpan === 'string' && timeSpan.includes(':')) {
-        return timeSpan.substring(0, 5); // Get HH:MM from HH:MM:SS
+        return timeSpan.substring(0, 5);
       }
       return timeSpan;
     };
-
-    // Set minimum date to 5 minutes from now
-    const minDateTime = new Date();
-    minDateTime.setMinutes(minDateTime.getMinutes() + 5);
-    
-    const defaultDate = new Date(minDateTime);
-    defaultDate.setHours(9, 0, 0, 0); // Default to 9 AM
-    
-    // If 9 AM is in the past, use the minimum time instead
-    if (defaultDate < minDateTime) {
-      defaultDate.setTime(minDateTime.getTime());
-    }
     
     setFormData({
       Title: appointment.title || appointment.Title || '',
@@ -600,7 +651,9 @@ const DoctorDashboard = () => {
       Location: appointment.location || appointment.Location || '',
       Notes: appointment.notes || appointment.Notes || '',
       ClientId: appointment.clientId || appointment.ClientId,
-      DoctorId: appointment.doctorId || appointment.DoctorId
+      DoctorId: appointment.doctorId || appointment.DoctorId,
+      _minDate: minDate,
+      _minTime: minTime
     });
     setShowModal('editAppointment');
   };
@@ -625,6 +678,14 @@ const DoctorDashboard = () => {
     
     if (appointmentDateTime < minDateTime) {
       setError('Appointment must be at least 5 minutes in the future');
+      setLoading(false);
+      return;
+    }
+    
+    // Validate end time is after start time
+    const endDateTime = new Date(formData.AppointmentDate + 'T' + formData.EndTime);
+    if (endDateTime <= appointmentDateTime) {
+      setError('End time must be after start time');
       setLoading(false);
       return;
     }
@@ -656,6 +717,7 @@ const DoctorDashboard = () => {
       setLoading(false);
     }
   };
+
   const handleCreatePrescription = (patient) => {
     setSelectedPatient(patient);
     
@@ -1224,10 +1286,28 @@ const DoctorDashboard = () => {
     setLoading(true);
     setError(null);
     
+    // Validate appointment is at least 5 minutes in the future
+    const appointmentDateTime = new Date(formData.AppointmentDate + 'T' + formData.StartTime);
+    const minDateTime = new Date();
+    minDateTime.setMinutes(minDateTime.getMinutes() + 5);
+    
+    if (appointmentDateTime < minDateTime) {
+      setError('Appointment must be at least 5 minutes in the future');
+      setLoading(false);
+      return;
+    }
+    
+    // Validate end time is after start time
+    const endDateTime = new Date(formData.AppointmentDate + 'T' + formData.EndTime);
+    if (endDateTime <= appointmentDateTime) {
+      setError('End time must be after start time');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const appointmentId = selectedAppointment.id || selectedAppointment.Id;
       
-      // Convert HH:MM to TimeSpan format (HH:MM:SS)
       const appointmentData = {
         ...formData,
         StartTime: formData.StartTime + ':00',
@@ -4421,12 +4501,12 @@ const DoctorDashboard = () => {
               </div>
 
               <div className="form-row">
-                <div className="form-group">
+                  <div className="form-group">
                   <label>Date *</label>
                   <input
                     type="date"
                     required
-                    min={new Date().toISOString().split('T')[0]}
+                    min={formData._minDate}
                     value={formData.AppointmentDate || ''}
                     onChange={(e) => setFormData({...formData, AppointmentDate: e.target.value})}
                   />
@@ -4454,9 +4534,15 @@ const DoctorDashboard = () => {
                   <input
                     type="time"
                     required
+                    min={formData.AppointmentDate === formData._minDate ? formData._minTime : undefined}
                     value={formData.StartTime || ''}
                     onChange={(e) => setFormData({...formData, StartTime: e.target.value})}
                   />
+                  {formData.AppointmentDate === formData._minDate && (
+                    <small style={{color: '#6b7280', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block'}}>
+                      Appointments must be at least 5 minutes in the future
+                    </small>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -4763,7 +4849,6 @@ const DoctorDashboard = () => {
         <div style={{fontSize: '1rem', fontWeight: '500', marginBottom: '1.5rem', textAlign: 'center'}}>
           Did the patient attend this appointment?
         </div>
-        
         <div style={{display: 'flex', gap: '1rem'}}>
           <button 
             onClick={() => handleAppointmentCompletion(true)}
@@ -4780,22 +4865,26 @@ const DoctorDashboard = () => {
             No, Did Not Attend
           </button>
         </div>
-        
+
         <button 
-          onClick={() => setDueAppointment(null)}
+          onClick={handleSnoozeAppointment}
           style={{
             width: '100%',
             marginTop: '0.75rem',
             padding: '0.625rem',
-            backgroundColor: 'transparent',
-            border: '1px solid #d1d5db',
+            backgroundColor: '#fef3c7',
+            border: '1px solid #f59e0b',
             borderRadius: '6px',
             cursor: 'pointer',
-            fontSize: '0.875rem'
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            color: '#92400e'
           }}
         >
-          Remind Me Later
+          Remind Me in 5 Minutes
         </button>
+        
+        
       </div>
     </div>
   </div>

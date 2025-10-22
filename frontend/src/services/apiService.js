@@ -197,7 +197,19 @@ export const adminService = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to create admin');
     }
+  },
+
+  // Appointment Management (ADD THIS)
+  getAllAppointments: async () => {
+    try {
+      const response = await API.get('/admin/appointments');
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch appointments');
+    }
   }
+
+
 };
 
 // Client Service
