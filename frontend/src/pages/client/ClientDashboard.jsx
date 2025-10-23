@@ -1,51 +1,94 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import {
-  FaHeartbeat,
-  FaTint,
-  FaUserMd,
-  FaRulerVertical,
-  FaWeight,
-  FaBirthdayCake,
-  FaNotesMedical,
-  FaCalendarAlt
-} from "react-icons/fa";
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode'; 
-
-
-const dummyAppointments = [
-  {
-    id: 1,
-    doctorName: 'Dr. Emily Smith',
-    specialization: 'Oncologist',
-    date: '2025-10-21',
-  },
-  {
-    id: 2,
-    doctorName: 'Dr. Michael Johnson',
-    specialization: 'Cardiologist',
-    date: '2025-10-25',
-  },
-];
-
+import { jwtDecode } from 'jwt-decode';
+import { FaUserMd, FaCalendarAlt, FaClock, FaMapMarkerAlt, FaStickyNote } from "react-icons/fa";
 
 const ClientDashboard = () => {
-  const {logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [symptoms, setSymptoms] = useState([]);
-  const [activeTab, setActiveTab] = useState('dashboard'); 
-  const [profile, setProfile] = useState(null); 
-  const [clinicalObservations, setClinicalObservations] = useState([]);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [profile, setProfile] = useState(null);
+  const [appointments, setAppointments] = useState([]); 
 
-
-
+  // Handle logout
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
+  const fetchAppointments = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const response = await axios.get("http://localhost:5011/api/Appointment", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (response.data?.data && Array.isArray(response.data.data)) {
+      // ✅ Keep all appointments, don't filter here
+      setAppointments(response.data.data);
+    } else {
+      setAppointments([]);
+    }
+  } catch (error) {
+    console.error("Error fetching appointments:", error);
+    setAppointments([]);
+  }
+};
+
+  const handleAccept = async (id) => {
+  try {
+    const token = localStorage.getItem("token"); // ✅ get the token
+
+    await axios.patch(
+      `http://localhost:5011/api/Appointment/${id}/accept`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setAppointments(prev =>
+      prev.map(a => a.id === id ? { ...a, status: "Accepted" } : a)
+    );
+
+    alert("Appointment accepted!");
+  } catch (error) {
+    console.error("Error accepting appointment:", error);
+    alert("Failed to accept appointment.");
+  }
+};
+
+const handleDecline = async (id) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    await axios.patch(
+      `http://localhost:5011/api/Appointment/${id}/decline`,
+      JSON.stringify("decline"), // ✅ send as raw string
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    setAppointments(prev =>
+      prev.map(a => a.id === id ? { ...a, status: "Declined" } : a)
+    );
+
+    alert("Appointment declined!");
+  } catch (error) {
+    console.error("Error declining appointment:", error);
+    alert("Failed to decline appointment.");
+  }
+};
+
+
+  // Fetch Symptoms + Profile + Appointments on mount
   useEffect(() => {
     const fetchSymptoms = async () => {
       try {
@@ -55,12 +98,11 @@ const ClientDashboard = () => {
           return;
         }
 
-        // Decode token to get client username
         const decoded = jwtDecode(token);
         console.log('Decoded token: ', decoded);
 
-        // Use the correct claim for username
-        const clientUsername = decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'];
+        const clientUsername =
+          decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'];
         if (!clientUsername) {
           console.error('Client username not found in token.');
           return;
@@ -68,7 +110,6 @@ const ClientDashboard = () => {
 
         console.log('Fetching symptoms for client username:', clientUsername);
 
-        // Update endpoint to match Swagger
         const response = await axios.get(
           `http://localhost:5011/api/Symptoms/client/username/${clientUsername}`,
           {
@@ -81,7 +122,6 @@ const ClientDashboard = () => {
 
         console.log('Fetched symptoms:', response.data);
 
-        // Swagger response has "data" property
         if (response.data?.data && Array.isArray(response.data.data)) {
           setSymptoms(response.data.data);
         } else {
@@ -93,132 +133,159 @@ const ClientDashboard = () => {
     };
 
     const fetchProfile = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("No token found");
-      return;
-    }
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("No token found");
+          return;
+        }
 
-    // Decode token
-    const decodedToken = jwtDecode(token);
-    console.log("Decoded token: ", decodedToken);
+        const decodedToken = jwtDecode(token);
+        console.log("Decoded token: ", decodedToken);
 
-    // Extract username from the name claim
-    const username =
-      decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ||
-      decodedToken.sub; // fallback in case name claim not found
+        const username =
+          decodedToken["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] ||
+          decodedToken.sub;
 
-    if (!username) {
-      console.error("Username not found in token");
-      return;
-    }
+        if (!username) {
+          console.error("Username not found in token");
+          return;
+        }
 
-    console.log("Fetching client profile for username:", username);
+        console.log("Fetching client profile for username:", username);
 
-  
-    const response = await axios.get(
-      `http://localhost:5011/api/Client/by-username/${username}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
+        const response = await axios.get(
+          `http://localhost:5011/api/Client/by-username/${username}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        console.log("Fetched profile data:", response.data);
+        setProfile(response.data.data);
+      } catch (error) {
+        console.error("Error fetching client profile:", error);
       }
-    );
-
-    console.log("Fetched profile data:", response.data);
-    setProfile(response.data.data); 
-  } catch (error) {
-    console.error("Error fetching client profile:", error);
-  }
-};
-
-const fetchClinicalObservations = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.error("No token found");
-      return;
-    }
-
-    // Hardcoded client ID for testing
-    const clientId = 1; // <-- change this to whichever client you want to test
-
-    console.log("Using hardcoded client ID:", clientId);
-
-    // Fetch latest clinical observation
-    const observationResponse = await axios.get(
-      `http://localhost:5011/api/ClinicalObservation/client/${clientId}/latest`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    console.log(
-      "Fetched latest clinical observation:",
-      observationResponse.data
-    );
-
-    // Update your state
-    setClinicalObservations(
-      observationResponse.data?.data
-        ? [observationResponse.data.data] // wrap single item into an array if needed
-        : []
-    );
-  } catch (error) {
-    console.error(
-      "Error fetching clinical observations:",
-      error.response?.data || error.message
-    );
-  }
-};
+    };
 
 
-    fetchClinicalObservations();
+
+    fetchAppointments();
     fetchSymptoms();
     fetchProfile();
   }, []);
 
-
-    const ProfilePage = () => (
-    <div
+  // Profile Page
+  // Profile Page
+const ProfilePage = () => (
+  <div
     style={{
-    padding: '1rem',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    maxWidth: '600px',
-    margin: '2rem auto',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-  }}
->
-  {/* Header with icon and name */}
-  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-    <FaUserMd
-      size={60}
+      maxWidth: '650px',
+      margin: '3rem auto',
+      padding: '2rem',
+      backgroundColor: '#f9f9f9',
+      borderRadius: '12px',
+      boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+      fontFamily: 'Segoe UI, sans-serif',
+      color: '#2b2b2b',
+    }}
+  >
+    {/* Header with Avatar */}
+    <div
       style={{
-        borderRadius: '50%',
-        backgroundColor: '#e0e0e0',
-        padding: '10px',
-        marginRight: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '2rem',
       }}
-    />
-    <h2>
-      {profile?.firstName} {profile?.lastName}
-    </h2>
-  </div>
-
-  {/* Profile information */}
-  {profile && (
-    <div style={{ lineHeight: '1.5rem' }}>
-      <p><strong>Username:</strong> {profile.userName}</p>
-      <p><strong>Email:</strong> {profile.email}</p>
-      <p><strong>Age:</strong> {new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear()}</p>
-      <p><strong>Date of Birth:</strong> {new Date(profile.dateOfBirth).toLocaleDateString()}</p>
-      <p><strong>Phone:</strong> {profile.phone || 'N/A'}</p>
-      <p><strong>Address:</strong> {profile.address || 'N/A'}</p>
-      <p><strong>Account Created:</strong> {new Date(profile.createdAt).toLocaleString()}</p>
-      <p><strong>Last Updated:</strong> {profile.updatedAt ? new Date(profile.updatedAt).toLocaleString() : 'Never'}</p>
+    >
+      <FaUserMd
+        size={70}
+        style={{
+          borderRadius: '50%',
+          backgroundColor: '#d0e8f2',
+          padding: '12px',
+          marginRight: '1.5rem',
+          color: '#4b6158',
+        }}
+      />
+      <div>
+        <h2 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '600', color: '#333' }}>
+          {profile?.firstName} {profile?.lastName}
+        </h2>
+        <p style={{ margin: '0.2rem 0 0', color: '#777', fontSize: '0.95rem' }}>
+          Patient Profile
+        </p>
+      </div>
     </div>
-  )}
-</div>
 
-  );
+    {/* Profile Details */}
+    {profile && (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.8rem',
+          lineHeight: '1.5rem',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Username:</strong></span>
+          <span>{profile.userName}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Email:</strong></span>
+          <span>{profile.email}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Age:</strong></span>
+          <span>{new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear()}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Date of Birth:</strong></span>
+          <span>{new Date(profile.dateOfBirth).toLocaleDateString()}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Phone:</strong></span>
+          <span>{profile.phone || 'N/A'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Address:</strong></span>
+          <span>{profile.address || 'N/A'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Account Created:</strong></span>
+          <span>{new Date(profile.createdAt).toLocaleString()}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span><strong>Last Updated:</strong></span>
+          <span>{profile.updatedAt ? new Date(profile.updatedAt).toLocaleString() : 'Never'}</span>
+        </div>
+      </div>
+    )}
+
+    {/* Edit Profile Button */}
+    <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+      <button
+        style={{
+          backgroundColor: '#30bd82',
+          color: '#fff',
+          border: 'none',
+          padding: '0.8rem 1.8rem',
+          borderRadius: '8px',
+          fontSize: '1rem',
+          fontWeight: '600',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#28a76b')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#30bd82')}
+        onClick={() => alert('Edit Profile Clicked!')} // Replace with your edit function
+      >
+        Edit Profile
+      </button>
+    </div>
+  </div>
+);
 
 
   return (
@@ -228,167 +295,106 @@ const fetchClinicalObservations = async () => {
       <div style={styles.logoSection}>
         <img src="/Ithemba logo.png" alt="Logo" style={styles.logo} />
         <nav style={styles.nav}>
-            <button
-              style={{ ...styles.navButton, ...(activeTab === 'dashboard' ? styles.activeNav : {}) }}
-              onClick={() => setActiveTab('dashboard')}
-            >
-              Dashboard
-            </button>
-            <button
-              style={{ ...styles.navButton, ...(activeTab === 'statistics' ? styles.activeNav : {}) }}
-              onClick={() => setActiveTab('statistics')}
-            >
-              Statistics
-            </button>
-            <button
-              style={{ ...styles.navButton, ...(activeTab === 'profile' ? styles.activeNav : {}) }}
-              onClick={() => setActiveTab('profile')}
-            >
-              Profile
-            </button>
-          </nav>
+          <button
+            style={{ ...styles.navButton, ...(activeTab === 'dashboard' ? styles.activeNav : {}) }}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            Dashboard
+          </button>
+          <button
+            style={{ ...styles.navButton, ...(activeTab === 'profile' ? styles.activeNav : {}) }}
+            onClick={() => setActiveTab('profile')}
+          >
+            Profile
+          </button>
+        </nav>
       </div>
       <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
     </header>
 
     {/* MAIN CONTENT */}
     <main style={styles.main}>
-  {activeTab === 'dashboard' && (
-    <>
-      <h2 style={styles.greeting}>
-  Hello, {profile?.firstName && profile?.lastName
-    ? `${profile.firstName} ${profile.lastName}`
-    : 'Patient'}!
-</h2>
-<p style={styles.subGreeting}>Welcome to your Patient Dashboard</p>
+      {activeTab === 'dashboard' && (
+        <>
+          <h2 style={styles.greeting}>
+            Hello, {profile?.firstName && profile?.lastName
+              ? `${profile.firstName} ${profile.lastName}`
+              : 'Patient'}!
+          </h2>
+          <p style={styles.subGreeting}>Welcome to your Patient Dashboard</p>
 
+          {/* === Upcoming Appointments === */}
+          <section style={styles.fullWidthSection}>
+            <h3 style={styles.sectionTitle}>Upcoming Appointments</h3>
+            <div style={styles.horizontalScrollContainer}>
+              {appointments.filter(a => a.status === "Accepted").length > 0 ? (
+                appointments
+                  .filter(a => a.status === "Accepted")
+                  .map((appt) => (
+                    <div key={appt.id} style={styles.appointmentCardHorizontal}>
+                      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <FaUserMd size={34} color="#4b6158" style={{ marginRight: '0.6rem', flexShrink: 0 }} />
+                        <div>
+                          <h4 style={styles.doctorName}>
+                            Dr. {appt.doctor?.firstName} {appt.doctor?.lastName}
+                          </h4>
+                          <p style={styles.specialization}>{appt.doctor?.specialization}</p>
+                        </div>
+                      </div>
 
-     {/* CLINICAL OBSERVATION CARDS */}
-<section style={styles.healthSummary}>
-  {/* Section Title */}
-  <h2 style={styles.sectionTitle}>Clinical Examinations</h2>
+                      <div style={styles.infoRow}>
+                        <FaCalendarAlt style={styles.icon} />
+                        <span>{new Date(appt.appointmentDate).toLocaleDateString()}</span>
+                      </div>
 
-  {clinicalObservations?.length > 0 ? (
-    <div style={styles.cardGrid}>
-      {clinicalObservations.map((exam, index) => (
-        <React.Fragment key={index}>
-          {/* Heart Rate */}
-          <div style={styles.healthCard}>
-            <FaHeartbeat style={{ ...styles.icon, color: "#e74c3c" }} />
-            <h4 style={styles.healthTitle}>Heart Rate</h4>
-            <p style={styles.healthValue}>
-              {exam.heartRate || "-"} <span style={styles.healthUnit}>BPM</span>
-            </p>
-          </div>
+                      <div style={styles.infoRow}>
+                        <FaClock style={styles.icon} />
+                        <span>{appt.startTime} - {appt.endTime}</span>
+                      </div>
 
-          {/* Blood Pressure */}
-          <div style={styles.healthCard}>
-            <FaTint style={{ ...styles.icon, color: "#3498db" }} />
-            <h4 style={styles.healthTitle}>Blood Pressure</h4>
-            <p style={styles.healthValue}>
-              {exam.bloodPressure || "-"} <span style={styles.healthUnit}>mmHg</span>
-            </p>
-          </div>
+                      <div style={styles.infoRow}>
+                        <FaMapMarkerAlt style={styles.icon} />
+                        <span>{appt.location}</span>
+                      </div>
 
-          {/* Gender */}
-          <div style={styles.healthCard}>
-            <FaUserMd style={{ ...styles.icon, color: "#8e44ad" }} />
-            <h4 style={styles.healthTitle}>Gender</h4>
-            <p style={styles.healthValue}>{exam.gender || "-"}</p>
-          </div>
+                      {appt.notes && (
+                        <div style={styles.infoRow}>
+                          <FaStickyNote style={styles.icon} />
+                          <span style={{ fontStyle: 'italic' }}>{appt.notes}</span>
+                        </div>
+                      )}
 
-          {/* Height */}
-          <div style={styles.healthCard}>
-            <FaRulerVertical style={{ ...styles.icon, color: "#16a085" }} />
-            <h4 style={styles.healthTitle}>Height</h4>
-            <p style={styles.healthValue}>
-              {exam.height || "-"} <span style={styles.healthUnit}>cm</span>
-            </p>
-          </div>
-
-          {/* Weight */}
-          <div style={styles.healthCard}>
-            <FaWeight style={{ ...styles.icon, color: "#f39c12" }} />
-            <h4 style={styles.healthTitle}>Weight</h4>
-            <p style={styles.healthValue}>
-              {exam.weight || "-"} <span style={styles.healthUnit}>kg</span>
-            </p>
-          </div>
-
-          {/* Age */}
-          <div style={styles.healthCard}>
-            <FaBirthdayCake style={{ ...styles.icon, color: "#2ecc71" }} />
-            <h4 style={styles.healthTitle}>Age</h4>
-            <p style={styles.healthValue}>
-              {exam.age || "-"} <span style={styles.healthUnit}>years</span>
-            </p>
-          </div>
-
-          {/* Notes */}
-          <div style={styles.healthCard}>
-            <FaNotesMedical style={{ ...styles.icon, color: "#2980b9" }} />
-            <h4 style={styles.healthTitle}>Notes</h4>
-            <p style={styles.healthValue}>{exam.notes || "No notes recorded."}</p>
-          </div>
-
-          {/* Date */}
-          <div style={styles.healthCard}>
-            <FaCalendarAlt style={{ ...styles.icon, color: "#7f8c8d" }} />
-            <h4 style={styles.healthTitle}>Date</h4>
-            <p style={styles.healthValue}>
-              {new Date(exam.observationDate).toLocaleDateString()}
-            </p>
-          </div>
-        </React.Fragment>
-      ))}
-    </div>
-  ) : (
-    <p style={{ textAlign: "center", color: "#666" }}>No clinical observations found.</p>
-  )}
-</section>
-
-
-
-      {/* APPOINTMENTS + SYMPTOMS + ACTIONS */}
-      <section style={styles.appointmentsSection}>
-        <div style={styles.topRow}>
-          {/* Latest Appointments */}
-          <div style={styles.appointmentsLeft}>
-            <h3 style={styles.sectionTitle}>Latest Appointments</h3>
-            <div style={styles.appointmentsContainer}>
-              <div style={styles.appointmentList}>
-                {dummyAppointments.map((appt) => (
-                  <div key={appt.id} style={styles.appointmentCard}>
-                    <FaUserMd
-                      size={40}
-                      color="#4b6158"
-                      style={{
-                        width: '40px',
-                        height: '40px',
-                        borderRadius: '50%',
-                        backgroundColor: '#e0e0e0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '5px',
-                        marginRight: '0.75rem',
-                      }}
-                    />
-                    <div style={styles.appointmentDetails}>
-                      <h4 style={styles.doctorName}>{appt.doctorName}</h4>
-                      <p style={styles.specialization}>{appt.specialization}</p>
-                      <p style={styles.date}>{appt.date}</p>
+                      <div
+                        style={{
+                          ...styles.statusTag,
+                          backgroundColor:
+                            appt.status === "Accepted"
+                              ? "#c8e6c9"
+                              : appt.status === "Declined"
+                              ? "#ffcdd2"
+                              : "#fff9c4",
+                          color:
+                            appt.status === "Accepted"
+                              ? "#2e7d32"
+                              : appt.status === "Declined"
+                              ? "#c62828"
+                              : "#f9a825",
+                        }}
+                      >
+                        {appt.status}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))
+              ) : (
+                <p>No upcoming appointments.</p>
+              )}
             </div>
-          </div>
+          </section>
 
-          {/* Symptoms Identified */}
-          <div style={styles.symptomsSection}>
+          {/* === Symptoms Identified === */}
+          <section style={styles.fullWidthSection}>
             <h3 style={styles.sectionTitle}>Symptoms Identified</h3>
-            <div style={styles.symptomListContainer}>
+            <div style={styles.fullContentBox}>
               {symptoms && symptoms.length > 0 ? (
                 <ul style={styles.symptomList}>
                   {symptoms.map((s) => (
@@ -418,38 +424,57 @@ const fetchClinicalObservations = async () => {
                 </p>
               )}
             </div>
-          </div>
-        </div>
+          </section>
 
-        {/* Bottom Row - Appointment Requests */}
-        <div style={styles.appointmentActionsFull}>
-          <h3 style={styles.sectionTitle}>Appointment Requests</h3>
-          {dummyAppointments.map((appt) => (
-            <div key={appt.id} style={styles.appointmentRequestCard}>
-              <p>
-                <strong>{appt.doctorName}</strong> - {appt.date}
-              </p>
-              <div style={styles.actionsBtnGroup}>
-                <button style={styles.acceptBtn}>Accept</button>
-                <button style={styles.declineBtn}>Decline</button>
-              </div>
+          {/* === Appointment Requests === */}
+          <section style={styles.fullWidthSection}>
+            <h3 style={styles.sectionTitle}>Appointment Requests</h3>
+            <div style={styles.fullContentBox}>
+              {appointments.filter(a => a.status === "Scheduled").length === 0 ? (
+                <p>No appointment requests available.</p>
+              ) : (
+                appointments
+                  .filter(a => a.status === "Scheduled")
+                  .map((appt) => (
+                    <div key={appt.id} style={styles.appointmentRequestCard}>
+                      <p>
+                        <strong>
+                          {appt.doctor?.firstName} {appt.doctor?.lastName}
+                        </strong>{" "}
+                        - {new Date(appt.appointmentDate).toLocaleDateString()}
+                      </p>
+
+                      <p>
+                        <strong>Location:</strong> {appt.location || "Not specified"}
+                      </p>
+                      <p>
+                        <strong>Status:</strong> {appt.status}
+                      </p>
+
+                      {/* Show Accept/Decline buttons only for scheduled appointments */}
+                      <div style={styles.actionsBtnGroup}>
+                        <button
+                          style={styles.acceptBtn}
+                          onClick={() => handleAccept(appt.id)}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          style={styles.declineBtn}
+                          onClick={() => handleDecline(appt.id)}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))
+              )}
             </div>
-          ))}
-        </div>
-      </section>
-    </>
-  )}
-
-  {activeTab === 'statistics' && (
-    <div>
-      <h2>Statistics</h2>
-      <p>Statistics content goes here...</p>
-    </div>
-  )}
-
-  {activeTab === 'profile' && <ProfilePage />}
-</main>
-
+          </section>
+        </>
+      )}
+      {activeTab === 'profile' && <ProfilePage />}
+    </main>
   </div>
 );
 };
@@ -463,6 +488,7 @@ const styles = {
     overflowX: 'hidden',
   },
 
+  // --- HEADER ---
   header: {
     position: 'fixed',
     top: 0,
@@ -504,65 +530,28 @@ const styles = {
     fontSize: '0.85rem',
   },
 
-  main: { padding: '2rem', marginTop: '40px', overflowY: 'auto' },
-  greeting: { fontSize: '1.9rem', fontWeight: '600', color: '#4d3333ff', marginBottom: '0.2rem' },
-  subGreeting: { fontSize: '1.1rem', fontWeight: '400', color: '#2b2b2b', marginBottom: '1.5rem' },
+  // --- MAIN CONTENT ---
+  main: {
+    padding: '2rem',
+    marginTop: '70px',
+    overflowY: 'auto',
+  },
 
-  healthSummary: {
-  marginTop: '2rem',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'left',
-},
+  greeting: {
+    fontSize: '1.9rem',
+    fontWeight: '600',
+    color: '#4d3333ff',
+    marginBottom: '0.2rem',
+  },
 
-cardGrid: {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '1.6rem',
-  width: '100%',
-  maxWidth: '1000px',
-},
+  subGreeting: {
+    fontSize: '1.1rem',
+    fontWeight: '400',
+    color: '#2b2b2b',
+    marginBottom: '1.5rem',
+  },
 
-healthCard: {
-  backgroundColor: '#ffffff',
-  borderRadius: '12px',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-  padding: '1.2rem',
-  textAlign: 'center',
-  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-},
-healthCardHover: {
-  transform: 'translateY(-4px)',
-  boxShadow: '0 6px 15px rgba(0, 0, 0, 0.1)',
-},
-
-icon: {
-  fontSize: '1.8rem',
-  marginBottom: '0.5rem',
-},
-
-healthTitle: {
-  fontSize: '0.95rem',
-  fontWeight: 600,
-  color: '#333',
-  marginBottom: '0.3rem',
-},
-
-healthValue: {
-  fontSize: '1.1rem',
-  fontWeight: 700,
-  color: '#111',
-  margin: 0,
-},
-
-healthUnit: {
-  fontSize: '0.8rem',
-  color: '#777',
-  marginLeft: '4px',
-},
-
-
-  // --- Main Section Layout ---
+  // --- APPOINTMENTS SECTION ---
   appointmentsSection: {
     display: 'flex',
     flexDirection: 'column',
@@ -577,57 +566,110 @@ healthUnit: {
   },
 
   appointmentsLeft: {
-    flex: '1 1 50%',
-    backgroundColor: '#fff',
+    flex: 1,
+    maxWidth: '100%',
     padding: '1rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+    border: '1px solid #ddd',
+    borderRadius: '6px',
+    backgroundColor: '#f9f9f9',
+    overflow: 'hidden',
   },
 
-  symptomsSection: {
-    flex: '1 1 50%',
-    backgroundColor: '#fff',
-    padding: '1rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-  },
-
-  appointmentActionsFull: {
-    backgroundColor: '#fff',
-    padding: '1rem',
-    borderRadius: '8px',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-  },
-
-  sectionTitle: { color: '#2b2b2b', fontSize: '1.2rem', marginBottom: '0.8rem' },
-
-  appointmentsContainer: {
-    backgroundColor: '#f0f4f8',
-    padding: '0.8rem',
-    borderRadius: '12px',
-    boxShadow: '0 3px 8px rgba(0,0,0,0.05)',
-  },
-
-  appointmentList: { display: 'flex', flexDirection: 'column', gap: '0.8rem' },
-
-  appointmentCard: {
+  // --- Horizontal Scroll Container ---
+  horizontalScrollContainer: {
     display: 'flex',
-    alignItems: 'center',
+    overflowX: 'auto',
+    gap: '1rem',
+    paddingBottom: '0.5rem',
+    scrollBehavior: 'smooth',
+    whiteSpace: 'nowrap',
+  },
+
+  // --- Individual Appointment Card ---
+  appointmentCardHorizontal: {
+    flex: '0 0 auto',
+    width: '260px',
     backgroundColor: '#fff',
-    borderRadius: '8px',
-    padding: '0.5rem 0.8rem',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-    gap: '0.5rem',
+    border: '1px solid #ddd',
+    borderRadius: '10px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+    padding: '1rem',
+    whiteSpace: 'normal',
+    transition: 'transform 0.25s ease, box-shadow 0.25s ease',
     cursor: 'pointer',
   },
 
-  appointmentDetails: { display: 'flex', flexDirection: 'column', justifyContent: 'center' },
-  doctorName: { fontWeight: '700', fontSize: '0.95rem', color: '#2b2b2b', margin: 0 },
-  specialization: { fontWeight: '500', fontSize: '0.8rem', color: '#6c757d', margin: '1px 0 0 0' },
-  date: { fontSize: '0.75rem', color: '#4b6158', marginTop: '1px' },
+  appointmentCardHorizontalHover: {
+    transform: 'translateY(-3px)',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+  },
 
+  infoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '0.9rem',
+    color: '#444',
+    marginBottom: '4px',
+  },
+
+  icon: {
+    color: '#4b6158',
+    minWidth: '18px',
+  },
+
+  doctorName: {
+    margin: 0,
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    color: '#222',
+  },
+
+  specialization: {
+    margin: 0,
+    fontSize: '0.85rem',
+    color: '#555',
+  },
+
+  statusTag: {
+    display: 'inline-block',
+    marginTop: '6px',
+    padding: '3px 8px',
+    borderRadius: '4px',
+    fontWeight: '600',
+    fontSize: '0.8rem',
+    textAlign: 'center',
+    alignSelf: 'flex-start',
+  },
+
+  // --- Full Width Section Wrapper ---
+  fullWidthSection: {
+    width: '100%',
+    marginBottom: '2rem',
+  },
+
+  sectionTitle: {
+    fontSize: '1.3rem',
+    fontWeight: '600',
+    marginBottom: '1rem',
+    color: '#2e4038',
+  },
+
+  fullContentBox: {
+    width: '100%',
+    backgroundColor: '#f9f9f9',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    padding: '1rem',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+  },
+
+  // --- SYMPTOMS SECTION ---
   symptomList: { listStyleType: 'none', padding: 0, margin: 0 },
+
   symptomItem: {
+    display: 'flex',
+    flexDirection: 'column',
     backgroundColor: '#f2f2f2',
     padding: '0.5rem 1rem',
     borderRadius: '5px',
@@ -636,16 +678,18 @@ healthUnit: {
     fontSize: '0.9rem',
   },
 
+  // --- APPOINTMENT REQUEST SECTION ---
   appointmentRequestCard: {
     backgroundColor: '#f9f9f9',
     padding: '0.6rem 0.8rem',
     borderRadius: '6px',
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: '0.3rem',
   },
 
   actionsBtnGroup: { display: 'flex', gap: '0.5rem' },
+
   acceptBtn: {
     backgroundColor: '#30bd82',
     color: '#fff',
@@ -654,6 +698,7 @@ healthUnit: {
     borderRadius: '5px',
     cursor: 'pointer',
   },
+
   declineBtn: {
     backgroundColor: '#c94f4f',
     color: '#fff',
@@ -662,6 +707,18 @@ healthUnit: {
     borderRadius: '5px',
     cursor: 'pointer',
   },
+ // eslint-disable-next-line
+ horizontalScrollContainer: {
+  display: 'flex',
+  overflowX: 'auto',
+  gap: '1rem',
+  paddingBottom: '0.5rem',
+  scrollBehavior: 'smooth',
+  whiteSpace: 'nowrap',
+  // Firefox scrollbar
+  scrollbarWidth: 'thin',
+  scrollbarColor: '#30bd82 #f0f0f0',
+},
 };
 
 export default ClientDashboard;
