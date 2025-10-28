@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { adminService } from '../services/apiService';
+import Messages from '../components/Messages';
+import { adminService, messageService } from '../services/apiService';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -13,6 +14,14 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [messageForm, setMessageForm] = useState({
+  recipientUsername: '',
+  recipientRole: '',
+  content: ''
+});
+const [allUsers, setAllUsers] = useState([]);
 
   // Data states
   const [appointments, setAppointments] = useState([]);
@@ -111,6 +120,17 @@ const AdminDashboard = () => {
       loadAdmins();
     }
   }, [activeTab]);
+
+
+  useEffect(() => {
+    if (selectedRecipient) {
+      setMessageForm(prev => ({
+        ...prev,
+        recipientUsername: selectedRecipient.username,
+        recipientRole: selectedRecipient.role
+      }));
+    }
+  }, [selectedRecipient]);
 
   // const loadDashboardStats = async () => {
   //   try {
@@ -295,6 +315,71 @@ const AdminDashboard = () => {
       setError(err.message || 'An error occurred');
     }
   };
+  const loadAllUsers = async () => {
+    try {
+      const [clientsRes, doctorsRes, adminsRes] = await Promise.all([
+        adminService.getAllClients(),
+        adminService.getAllDoctors(),
+        adminService.getAllAdmins()
+      ]);
+  
+      const users = [
+        ...(clientsRes.success ? clientsRes.data.map(c => ({
+          username: c.userName,
+          name: `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.userName,
+          role: 'Client'
+        })) : []),
+        ...(doctorsRes.success ? doctorsRes.data.map(d => ({
+          username: d.userName,
+          name: `${d.firstName || ''} ${d.lastName || ''}`.trim() || d.userName,
+          role: 'Doctor'
+        })) : []),
+        ...(adminsRes.success ? adminsRes.data.map(a => ({
+          username: a.userName,
+          name: `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.userName,
+          role: 'Admin'
+        })) : [])
+      ];
+  
+      setAllUsers(users);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
+  
+  const handleComposeMessage = () => {
+    loadAllUsers();
+    setShowComposeModal(true);
+  };
+  
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if (!messageForm.recipientUsername || !messageForm.recipientRole || !messageForm.content) {
+      setError('Please fill in all fields');
+      return;
+    }
+  
+    try {
+      setError(null);
+      const response = await messageService.sendMessage(
+        messageForm.recipientUsername,
+        messageForm.recipientRole,
+        messageForm.content
+      );
+  
+      if (response.success) {
+        setSuccessMessage('Message sent successfully!');
+        setShowComposeModal(false);
+        setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+        setSelectedRecipient(null);
+      } else {
+        setError(response.message || 'Failed to send message');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to send message');
+    }
+  };
 
   const TabButton = ({ tabKey, label, isActive, onClick }) => (
     <button
@@ -328,6 +413,8 @@ const AdminDashboard = () => {
   switch (activeTab) {
     case 'clients':
       return renderClientManagement();
+    case 'messages':
+      return renderMessagesTab();
     case 'doctors':
       return renderDoctorManagement();
     case 'admins':
@@ -425,6 +512,7 @@ const AdminDashboard = () => {
           >
             Manage Clients
           </button>
+          
           <button
             onClick={() => setActiveTab('doctors')}
             style={{...styles.actionButton, backgroundColor: '#17a2b8'}}
@@ -484,6 +572,7 @@ const AdminDashboard = () => {
           </button>
         </div>
       )}
+   
 
       <div style={styles.tableContainer}>
         <table style={styles.table}>
@@ -499,37 +588,50 @@ const AdminDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {clients.map((client) => (
-              <tr key={client.userName} style={styles.tableRow}>
-                <td style={styles.td}>{client.userName}</td>
-                <td style={styles.td}>{`${client.firstName || ''} ${client.lastName || ''}`.trim() || '-'}</td>
-                <td style={styles.td}>{client.email || '-'}</td>
-                <td style={styles.td}>
-                  {client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString() : '-'}
-                </td>
-                <td style={styles.td}>
-                  {client.assignedDoctor 
-                    ? `${client.assignedDoctor.firstName || ''} ${client.assignedDoctor.lastName || ''}`.trim()
-                    : 'Not assigned'
-                  }
-                </td>
-                <td style={styles.td}>{new Date(client.createdAt).toLocaleDateString()}</td>
-                <td style={styles.td}>
-                  <button
-                    onClick={() => handleEdit('client', client)}
-                    style={styles.editButton}
+          {clients.map((client) => (
+            <tr key={client.userName} style={styles.tableRow}>
+              <td style={styles.td}>{client.userName}</td>
+              <td style={styles.td}>{`${client.firstName || ''} ${client.lastName || ''}`.trim() || '-'}</td>
+              <td style={styles.td}>{client.email || '-'}</td>
+              <td style={styles.td}>
+                {client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString() : '-'}
+              </td>
+              <td style={styles.td}>
+                {client.assignedDoctor 
+                  ? `${client.assignedDoctor.firstName || ''} ${client.assignedDoctor.lastName || ''}`.trim()
+                  : 'Not assigned'
+                }
+              </td>
+              <td style={styles.td}>{new Date(client.createdAt).toLocaleDateString()}</td>
+              <td style={styles.td}>
+                <button
+                  onClick={() => handleEdit('client', client)}
+                  style={styles.editButton}
+                >
+                  Edit
+                </button>
+                <button
+                    onClick={() => {
+                      setSelectedRecipient({
+                        username: client.userName,
+                        role: 'Client',
+                        fullName: `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.userName
+                      });
+                      setActiveTab('messages');
+                    }}
+                    style={{...styles.editButton, backgroundColor: '#10b981', marginRight: '0.5rem'}}
                   >
-                    Edit
+                    Message
                   </button>
-                  <button
-                    onClick={() => handleDelete('client', client.userName)}
-                    style={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+                <button
+                  onClick={() => handleDelete('client', client.userName)}
+                  style={styles.deleteButton}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
           </tbody>
         </table>
         {clients.length === 0 && (
@@ -568,6 +670,7 @@ const AdminDashboard = () => {
           </button>
         </div>
       )}
+      
 
       <div style={styles.tableContainer}>
         <table style={styles.table}>
@@ -583,32 +686,47 @@ const AdminDashboard = () => {
             </tr>
           </thead>
           <tbody>
-            {doctors.map((doctor) => (
-              <tr key={doctor.userName} style={styles.tableRow}>
-                <td style={styles.td}>{doctor.userName}</td>
-                <td style={styles.td}>
-                  {`${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || '-'}
-                </td>
-                <td style={styles.td}>{doctor.email || '-'}</td>
-                <td style={styles.td}>{doctor.specialization || '-'}</td>
-                <td style={styles.td}>{doctor.licenseNumber || '-'}</td>
-                <td style={styles.td}>{new Date(doctor.createdAt).toLocaleDateString()}</td>
-                <td style={styles.td}>
-                  <button
-                    onClick={() => handleEdit('doctor', doctor)}
-                    style={styles.editButton}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete('doctor', doctor.userName)}
-                    style={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+          {doctors.map((doctor) => (
+            <tr key={doctor.userName} style={styles.tableRow}>
+              <td style={styles.td}>{doctor.userName}</td>
+              <td style={styles.td}>
+                {`${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || '-'}
+              </td>
+              <td style={styles.td}>{doctor.email || '-'}</td>
+              <td style={styles.td}>{doctor.specialization || '-'}</td>
+              <td style={styles.td}>{doctor.licenseNumber || '-'}</td>
+              <td style={styles.td}>{new Date(doctor.createdAt).toLocaleDateString()}</td>
+              <td style={styles.td}>
+                <button
+                  onClick={() => handleEdit('doctor', doctor)}
+                  style={styles.editButton}
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSelectedRecipient({
+                      username: doctor.userName,
+                      role: 'Doctor',
+                      fullName: `${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || doctor.userName
+                    });
+                    setActiveTab('messages');
+                  }}
+                  style={{...styles.editButton, backgroundColor: '#10b981', marginRight: '0.5rem'}}
+                >
+                  Message
+                </button>
+                
+                <button
+                  onClick={() => handleDelete('doctor', doctor.userName)}
+                  style={styles.deleteButton}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
           </tbody>
         </table>
         {doctors.length === 0 && (
@@ -698,6 +816,7 @@ const AdminDashboard = () => {
       default: return '#6c757d';
     }
   };
+
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -789,6 +908,102 @@ const AdminDashboard = () => {
     </div>
   );
 };
+const renderMessagesTab = () => (
+  <div style={styles.managementContainer}>
+    <div style={styles.managementHeader}>
+      <h2>Messages</h2>
+      <button
+        onClick={handleComposeMessage}
+        style={{...styles.addButton, backgroundColor: '#10b981'}}
+      >
+        ✉️ Compose New Message
+      </button>
+    </div>
+
+    {showComposeModal && (
+      <div style={styles.modalOverlay}>
+        <div style={styles.modal}>
+          <div style={styles.modalHeader}>
+            <h3>Compose Message</h3>
+            <button 
+              onClick={() => {
+                setShowComposeModal(false);
+                setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+                setSelectedRecipient(null);
+              }}
+              style={styles.closeButton}
+            >
+              ×
+            </button>
+          </div>
+
+          <form onSubmit={handleSendMessage} style={styles.form}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>To (Recipient)*</label>
+              <select
+                value={messageForm.recipientUsername}
+                onChange={(e) => {
+                  const selectedUser = allUsers.find(u => u.username === e.target.value);
+                  setMessageForm({
+                    ...messageForm, 
+                    recipientUsername: e.target.value,
+                    recipientRole: selectedUser?.role || ''
+                  });
+                }}
+                required
+                style={styles.select}
+                disabled={!!selectedRecipient}
+              >
+                <option value="">Select a recipient</option>
+                {allUsers.map((user) => (
+                  <option key={user.username} value={user.username}>
+                    {user.name} ({user.role}) - @{user.username}
+                  </option>
+                ))}
+              </select>
+              {selectedRecipient && (
+                <small style={{color: '#666', fontSize: '0.85rem', marginTop: '0.25rem'}}>
+                  Sending to: {selectedRecipient.fullName} ({selectedRecipient.role})
+                </small>
+              )}
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Message*</label>
+              <textarea
+                value={messageForm.content}
+                onChange={(e) => setMessageForm({...messageForm, content: e.target.value})}
+                required
+                placeholder="Type your message here..."
+                rows={8}
+                style={{...styles.input, resize: 'vertical', fontFamily: 'inherit'}}
+              />
+            </div>
+
+            <div style={styles.formActions}>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowComposeModal(false);
+                  setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+                  setSelectedRecipient(null);
+                }}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </button>
+              <button type="submit" style={{...styles.submitButton, backgroundColor: '#10b981'}}>
+                Send Message
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    <Messages selectedRecipient={selectedRecipient} />
+  </div>
+);
 
   const renderModal = () => {
     if (!showModal) return null;
@@ -995,6 +1210,12 @@ const AdminDashboard = () => {
           isActive={activeTab === 'appointments'}
           onClick={setActiveTab}
         />
+        <TabButton
+            tabKey="messages"
+            label="Messages"
+            isActive={activeTab === 'messages'}
+            onClick={setActiveTab}
+          />
       </div>
 
       <div style={styles.content}>

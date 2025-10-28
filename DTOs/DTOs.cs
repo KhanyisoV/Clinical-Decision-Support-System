@@ -108,6 +108,41 @@ namespace FinalYearProject.DTOs
         public string? LastName { get; set; }
     }
 
+    //message DTO
+     public class MessageCreateDto
+    {
+        public string ReceiverUsername { get; set; } = string.Empty;
+        public string ReceiverRole { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+    }
+
+    public class MessageDto
+    {
+        public int Id { get; set; }
+        public string SenderUsername { get; set; } = string.Empty;
+        public string SenderRole { get; set; } = string.Empty;
+        public string SenderFullName { get; set; } = string.Empty;
+        public string ReceiverUsername { get; set; } = string.Empty;
+        public string ReceiverRole { get; set; } = string.Empty;
+        public string ReceiverFullName { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public bool IsRead { get; set; }
+        public DateTime SentAt { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public string ConversationId { get; set; } = string.Empty;
+    }
+
+    public class ConversationDto
+    {
+        public string ConversationId { get; set; } = string.Empty;
+        public string OtherUserUsername { get; set; } = string.Empty;
+        public string OtherUserFullName { get; set; } = string.Empty;
+        public string OtherUserRole { get; set; } = string.Empty;
+        public string LastMessage { get; set; } = string.Empty;
+        public DateTime LastMessageTime { get; set; }
+        public int UnreadCount { get; set; }
+    }
+
     // Doctor DTOs
     public class DoctorDto
     {

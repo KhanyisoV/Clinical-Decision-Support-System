@@ -23,6 +23,7 @@ namespace FinalYearProject.Data
         public DbSet<Allergy> Allergies { get; set; }
         public DbSet<MLPrediction> MLPredictions { get; set; }
         public DbSet<PredictionHistory> PredictionHistories { get; set; }
+        public DbSet<Message> Messages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -207,6 +208,22 @@ namespace FinalYearProject.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             base.OnModelCreating(modelBuilder);
+
+            // Configure Message indexes for better query performance
+            modelBuilder.Entity<Message>()
+                .HasIndex(m => m.SenderUsername);
+
+            modelBuilder.Entity<Message>()
+                .HasIndex(m => m.ReceiverUsername);
+
+            modelBuilder.Entity<Message>()
+                .HasIndex(m => m.ConversationId);
+
+            modelBuilder.Entity<Message>()
+                .HasIndex(m => m.IsRead);
+
+            modelBuilder.Entity<Message>()
+                .HasIndex(m => m.SentAt);
         }
     }
 }

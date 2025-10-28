@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, User, FileText, Activity, AlertCircle, Pill, FileBarChart, Heart, LogOut, Menu, X } from 'lucide-react';
+import Messages from '../components/Messages';
+
 
 // API Service - Direct implementation
 const API_BASE_URL = 'http://localhost:5011/api';
@@ -57,7 +59,15 @@ const apiService = {
   getAllergies: () => apiCall('/allergy'),
   getPrescriptions: () => apiCall('/prescription'),
   getLabResults: () => apiCall('/labresult'),
-  getTreatments: () => apiCall('/treatment')
+  getTreatments: () => apiCall('/treatment'),
+  
+  sendMessage: (recipientUsername, recipientRole, content) => 
+    apiCall('/message/send', {
+      method: 'POST',
+      body: JSON.stringify({ recipientUsername, recipientRole, content })
+    }),
+  getMyDoctor: (username) => apiCall(`/client/profile/${username}`)
+
 };
 
 const styles = {
@@ -450,6 +460,16 @@ const ClientDashboardApp = () => {
   const [labResults, setLabResults] = useState([]);
   const [treatments, setTreatments] = useState([]);
 
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [messageForm, setMessageForm] = useState({
+  recipientUsername: '',
+  recipientRole: '',
+  content: ''
+  });
+
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+
   useEffect(() => {
     initializeDashboard();
   }, []);
@@ -577,6 +597,62 @@ const ClientDashboardApp = () => {
     localStorage.removeItem('user');
     window.location.href = '/login';
   };
+  const loadAllUsers = async () => {
+    try {
+      // Get assigned doctor from profile
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const profileRes = await apiService.getProfile(userData.userName);
+      
+      const users = [];
+      
+      if (profileRes.success && profileRes.data?.assignedDoctor) {
+        const doc = profileRes.data.assignedDoctor;
+        users.push({
+          username: doc.userName,
+          name: `Dr. ${doc.firstName || ''} ${doc.lastName || ''}`.trim() || doc.userName,
+          role: 'Doctor'
+        });
+      }
+  
+      setAllUsers(users);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
+  
+  const handleComposeMessage = () => {
+    loadAllUsers();
+    setShowComposeModal(true);
+  };
+  
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if (!messageForm.recipientUsername || !messageForm.recipientRole || !messageForm.content) {
+      setError('Please fill in all fields');
+      return;
+    }
+  
+    try {
+      setError(null);
+      const response = await apiService.sendMessage(
+        messageForm.recipientUsername,
+        messageForm.recipientRole,
+        messageForm.content
+      );
+  
+      if (response.success) {
+        setSuccess('Message sent successfully!');
+        setShowComposeModal(false);
+        setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+        setSelectedRecipient(null);
+      } else {
+        setError(response.message || 'Failed to send message');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to send message');
+    }
+  };
 
   const renderPage = () => {
     switch(currentPage) {
@@ -584,6 +660,8 @@ const ClientDashboardApp = () => {
         return <Dashboard user={user} setCurrentPage={setCurrentPage} symptoms={symptoms} diagnoses={diagnoses} appointments={appointments} prescriptions={prescriptions} labResults={labResults} />;
       case 'profile':
         return <ProfilePage profile={profile} setProfile={setProfile} setSuccess={setSuccess} setError={setError} />;
+      case 'messages':
+        return <MessagesPage handleComposeMessage={handleComposeMessage} showComposeModal={showComposeModal} setShowComposeModal={setShowComposeModal} messageForm={messageForm} setMessageForm={setMessageForm} handleSendMessage={handleSendMessage} allUsers={allUsers} selectedRecipient={selectedRecipient} setSelectedRecipient={setSelectedRecipient} />;
       case 'symptoms':
         return <SymptomsPage symptoms={symptoms} />;
       case 'diagnoses':
@@ -602,6 +680,7 @@ const ClientDashboardApp = () => {
         return <TreatmentsPage treatments={treatments} />;
       default:
         return <Dashboard user={user} setCurrentPage={setCurrentPage} />;
+        
     }
   };
 
@@ -629,6 +708,7 @@ const ClientDashboardApp = () => {
           </div>
           
           <nav style={styles.nav}>
+            <NavItem icon={<FileText size={20} />} text="Messages" active={currentPage === 'messages'} onClick={() => setCurrentPage('messages')} />
             <NavItem icon={<Activity size={20} />} text="Dashboard" active={currentPage === 'dashboard'} onClick={() => setCurrentPage('dashboard')} />
             <NavItem icon={<User size={20} />} text="My Profile" active={currentPage === 'profile'} onClick={() => setCurrentPage('profile')} />
             <NavItem icon={<Heart size={20} />} text="Symptoms" active={currentPage === 'symptoms'} onClick={() => setCurrentPage('symptoms')} />
@@ -1222,6 +1302,147 @@ const TreatmentsPage = ({ treatments }) => (
         <div style={{...styles.diagnosisCard, textAlign: 'center', color: '#6b7280'}}>No treatments recorded</div>
       )}
     </div>
+  </div>
+);
+// Messages Page
+const MessagesPage = ({ 
+  handleComposeMessage, 
+  showComposeModal, 
+  setShowComposeModal,
+  messageForm,
+  setMessageForm,
+  handleSendMessage,
+  allUsers,
+  selectedRecipient,
+  setSelectedRecipient
+}) => (
+  <div>
+    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+      <h2 style={styles.profileTitle}>Messages</h2>
+      <button
+        onClick={handleComposeMessage}
+        style={{...styles.editButton, backgroundColor: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem'}}
+      >
+        ✉️ Compose New Message
+      </button>
+    </div>
+
+    {showComposeModal && (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          width: '90%',
+          maxWidth: '600px',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '1.5rem',
+            borderBottom: '1px solid #e5e7eb'
+          }}>
+            <h3>Compose Message</h3>
+            <button 
+              onClick={() => {
+                setShowComposeModal(false);
+                setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+                setSelectedRecipient(null);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                color: '#6b7280'
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          <form onSubmit={handleSendMessage} style={{padding: '1.5rem'}}>
+            <div style={styles.formGroup}>
+              <label style={styles.formLabel}>To (Recipient)*</label>
+              <select
+                value={messageForm.recipientUsername}
+                onChange={(e) => {
+                  const selectedUser = allUsers.find(u => u.username === e.target.value);
+                  setMessageForm({
+                    ...messageForm, 
+                    recipientUsername: e.target.value,
+                    recipientRole: selectedUser?.role || ''
+                  });
+                }}
+                required
+                style={styles.formInput}
+                disabled={!!selectedRecipient}
+              >
+                <option value="">Select a recipient</option>
+                {allUsers.map((user) => (
+                  <option key={user.username} value={user.username}>
+                    {user.name} ({user.role}) - @{user.username}
+                  </option>
+                ))}
+              </select>
+              {selectedRecipient && (
+                <small style={{color: '#666', fontSize: '0.85rem', marginTop: '0.25rem'}}>
+                  Sending to: {selectedRecipient.fullName} ({selectedRecipient.role})
+                </small>
+              )}
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.formLabel}>Message*</label>
+              <textarea
+                value={messageForm.content}
+                onChange={(e) => setMessageForm({...messageForm, content: e.target.value})}
+                required
+                placeholder="Type your message here..."
+                rows={8}
+                style={{...styles.formInput, resize: 'vertical', fontFamily: 'inherit'}}
+              />
+            </div>
+
+            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem'}}>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowComposeModal(false);
+                  setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+                  setSelectedRecipient(null);
+                }}
+                style={{...styles.button, backgroundColor: '#f3f4f6', color: '#374151'}}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                style={{...styles.button, backgroundColor: '#10b981', color: 'white'}}
+              >
+                Send Message
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    <Messages selectedRecipient={selectedRecipient} />
   </div>
 );
 

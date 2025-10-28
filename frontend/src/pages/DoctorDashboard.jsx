@@ -6,9 +6,10 @@ import {
 } from 'lucide-react';
 import ReactCalendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import Messages from '../components/Messages';
 
 
-import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService, allergyService, treatmentService } from '../services/apiService';
+import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService, allergyService, treatmentService, messageService, adminService } from '../services/apiService';
 
 const DoctorDashboard = () => {
   const [user, setUser] = useState(null);
@@ -48,6 +49,14 @@ const DoctorDashboard = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+const [messageForm, setMessageForm] = useState({
+  recipientUsername: '',
+  recipientRole: '',
+  content: ''
+});
+const [allUsers, setAllUsers] = useState([]);
+const [selectedRecipient, setSelectedRecipient] = useState(null);
 
   useEffect(() => {
     initializeDashboard();
@@ -1613,6 +1622,65 @@ const DoctorDashboard = () => {
       setLoading(false);
     }
   };
+  const loadAllUsers = async () => {
+    try {
+      const [clientsRes, adminsRes] = await Promise.all([
+        doctorService.getAssignedClients(user.userName),
+        adminService.getAllAdmins()
+      ]);
+  
+      const users = [
+        ...(clientsRes.success ? clientsRes.data.map(c => ({
+          username: c.userName,
+          name: `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.userName,
+          role: 'Client'
+        })) : []),
+        ...(adminsRes.success ? adminsRes.data.map(a => ({
+          username: a.userName,
+          name: `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.userName,
+          role: 'Admin'
+        })) : [])
+      ];
+  
+      setAllUsers(users);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
+  
+  const handleComposeMessage = () => {
+    loadAllUsers();
+    setShowComposeModal(true);
+  };
+  
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if (!messageForm.recipientUsername || !messageForm.recipientRole || !messageForm.content) {
+      setError('Please fill in all fields');
+      return;
+    }
+  
+    try {
+      setError(null);
+      const response = await messageService.sendMessage(
+        messageForm.recipientUsername,
+        messageForm.recipientRole,
+        messageForm.content
+      );
+  
+      if (response.success) {
+        setSuccess('Message sent successfully!');
+        setShowComposeModal(false);
+        setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+        setSelectedRecipient(null);
+      } else {
+        setError(response.message || 'Failed to send message');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to send message');
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -1765,6 +1833,12 @@ const DoctorDashboard = () => {
           Symptoms ({symptoms.length})
         </button>
 
+        <button
+          className={activeTab === 'messages' ? 'tab tab-active' : 'tab'}
+          onClick={() => setActiveTab('messages')}
+        >
+          Messages
+        </button>
 
         
       </div>
@@ -1960,6 +2034,22 @@ const DoctorDashboard = () => {
                       >
                         <FileText size={16} />
                       </button>
+
+                      <button 
+                        className="action-btn-small"
+                        onClick={() => {
+                          setSelectedRecipient({
+                            username: patient.userName,
+                            role: 'Client',
+                            fullName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || patient.userName
+                          });
+                          setActiveTab('messages');
+                        }}
+                        title="Send Message"
+                        style={{backgroundColor: '#10b981'}}
+                      >
+                        <FileText size={16} />
+                      </button>
                       
                     </div>
                   </div>
@@ -1975,6 +2065,102 @@ const DoctorDashboard = () => {
             </div>
           </div>
         )}
+        {activeTab === 'messages' && (
+            <div className="messages-view">
+              <div className="section-header" style={{marginBottom: '1.5rem'}}>
+                <h2 className="section-title">Messages</h2>
+                <button
+                  onClick={handleComposeMessage}
+                  className="primary-btn"
+                  style={{backgroundColor: '#10b981'}}
+                >
+                  <Plus size={16} />
+                  Compose New Message
+                </button>
+              </div>
+
+              {showComposeModal && (
+                <div className="modal-overlay" onClick={() => setShowComposeModal(false)}>
+                  <div className="modal" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h2>Compose Message</h2>
+                      <button onClick={() => {
+                        setShowComposeModal(false);
+                        setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+                        setSelectedRecipient(null);
+                      }} className="close-btn">
+                        <X size={24} />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSendMessage} className="modal-body">
+                      <div className="form-group">
+                        <label>To (Recipient)*</label>
+                        <select
+                          value={messageForm.recipientUsername}
+                          onChange={(e) => {
+                            const selectedUser = allUsers.find(u => u.username === e.target.value);
+                            setMessageForm({
+                              ...messageForm, 
+                              recipientUsername: e.target.value,
+                              recipientRole: selectedUser?.role || ''
+                            });
+                          }}
+                          required
+                          style={{width: '100%', padding: '0.625rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '6px'}}
+                          disabled={!!selectedRecipient}
+                        >
+                          <option value="">Select a recipient</option>
+                          {allUsers.map((user) => (
+                            <option key={user.username} value={user.username}>
+                              {user.name} ({user.role}) - @{user.username}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedRecipient && (
+                          <small style={{color: '#666', fontSize: '0.85rem', marginTop: '0.25rem'}}>
+                            Sending to: {selectedRecipient.fullName} ({selectedRecipient.role})
+                          </small>
+                        )}
+                      </div>
+
+                      <div className="form-group">
+                        <label>Message*</label>
+                        <textarea
+                          value={messageForm.content}
+                          onChange={(e) => setMessageForm({...messageForm, content: e.target.value})}
+                          required
+                          placeholder="Type your message here..."
+                          rows={8}
+                          style={{width: '100%', padding: '0.625rem 0.875rem', border: '1px solid #d1d5db', borderRadius: '6px', resize: 'vertical', fontFamily: 'inherit'}}
+                        />
+                      </div>
+
+                      <div className="modal-footer">
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setShowComposeModal(false);
+                            setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
+                            setSelectedRecipient(null);
+                          }}
+                          className="cancel-btn"
+                        >
+                          Cancel
+                        </button>
+                        <button type="submit" className="submit-btn" style={{backgroundColor: '#10b981'}}>
+                          <Save size={18} />
+                          Send Message
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              <Messages selectedRecipient={selectedRecipient} />
+            </div>
+          )}
 
         {activeTab === 'patients' && (
           <div className="patients-view">
