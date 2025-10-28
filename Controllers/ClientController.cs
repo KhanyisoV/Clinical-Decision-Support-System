@@ -29,6 +29,106 @@ namespace FinalYearProject.Controllers
             _mappingService = mappingService;
         }
 
+        // Get client profile by username
+[HttpGet("profile/{username}")]
+[Authorize(Roles = "Client,Doctor,Admin")]
+public IActionResult GetClientProfileByUsername(string username)
+{
+    try
+    {
+        var client = _clientRepo.GetByUserName(username);
+        if (client == null)
+        {
+            return NotFound(new ApiResponseDto
+            {
+                Success = false,
+                Message = $"Client with username {username} not found."
+            });
+        }
+
+        var clientDto = _mappingService.ToClientDto(client);
+
+        return Ok(new ApiResponseDto<ClientDto>
+        {
+            Success = true,
+            Message = "Client profile retrieved successfully.",
+            Data = clientDto
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new ApiResponseDto
+        {
+            Success = false,
+            Message = "An error occurred while retrieving client profile.",
+            Errors = new List<string> { ex.Message }
+        });
+    }
+}
+
+// Update client profile by username
+[HttpPut("profile/{username}")]
+[Authorize(Roles = "Client,Admin")]
+public IActionResult UpdateClientProfileByUsername(string username, [FromBody] ClientUpdateDto request)
+{
+    try
+    {
+        var client = _clientRepo.GetByUserName(username);
+        if (client == null)
+        {
+            return NotFound(new ApiResponseDto
+            {
+                Success = false,
+                Message = $"Client with username {username} not found."
+            });
+        }
+
+        // Check if username is being changed and if it already exists
+        if (!string.IsNullOrEmpty(request.UserName) && request.UserName != client.UserName)
+        {
+            var existingClient = _clientRepo.GetByUserName(request.UserName);
+            if (existingClient != null && existingClient.Id != client.Id)
+            {
+                return BadRequest(new ApiResponseDto
+                {
+                    Success = false,
+                    Message = "Username already exists.",
+                    Errors = new List<string> { "Username is already taken." }
+                });
+            }
+        }
+
+        // Update password if provided
+        if (!string.IsNullOrEmpty(request.Password))
+        {
+            client.PasswordHash = _passwordHasher.HashPassword(client, request.Password);
+        }
+
+        _mappingService.UpdateClient(client, request);
+
+        _clientRepo.Update(client);
+        _clientRepo.Save();
+
+        var clientDto = _mappingService.ToClientDto(client);
+
+        return Ok(new ApiResponseDto<ClientDto>
+        {
+            Success = true,
+            Message = "Client profile updated successfully.",
+            Data = clientDto
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new ApiResponseDto
+        {
+            Success = false,
+            Message = "An error occurred during profile update.",
+            Errors = new List<string> { ex.Message }
+        });
+    }
+}
+
         // Register API for patient/client
         [HttpPost("register")]
         public IActionResult Register([FromBody] ClientCreateDto request)
