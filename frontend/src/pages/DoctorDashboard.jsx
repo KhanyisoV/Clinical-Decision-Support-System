@@ -1624,35 +1624,47 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
   };
   const loadAllUsers = async () => {
     try {
-      const [clientsRes, adminsRes] = await Promise.all([
-        doctorService.getAssignedClients(user.userName),
-        adminService.getAllAdmins()
-      ]);
-  
-      const users = [
-        ...(clientsRes.success ? clientsRes.data.map(c => ({
-          username: c.userName,
-          name: `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.userName,
+      const users = [];
+      
+      // Use already loaded patients from state
+      if (patients && patients.length > 0) {
+        users.push(...patients.map(p => ({
+          username: p.userName || p.UserName,
+          name: `${p.firstName || p.FirstName || ''} ${p.lastName || p.LastName || ''}`.trim() || p.userName || p.UserName,
           role: 'Client'
-        })) : []),
-        ...(adminsRes.success ? adminsRes.data.map(a => ({
-          username: a.userName,
-          name: `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.userName,
-          role: 'Admin'
-        })) : [])
-      ];
-  
+        })));
+      }
+      
+      // Fetch admins
+      try {
+        const adminsRes = await adminService.getAllAdmins();
+        if (adminsRes.success || adminsRes.Success) {
+          const adminsList = adminsRes.data || adminsRes.Data || [];
+          users.push(...adminsList.map(a => ({
+            username: a.userName || a.UserName,
+            name: `${a.firstName || a.FirstName || ''} ${a.lastName || a.LastName || ''}`.trim() || a.userName || a.UserName,
+            role: 'Admin'
+          })));
+        }
+      } catch (adminErr) {
+        console.error('Error loading admins:', adminErr);
+        // Continue without admins if the fetch fails
+      }
+      
+      console.log('Loaded users for messaging:', users);
       setAllUsers(users);
     } catch (err) {
       console.error('Error loading users:', err);
+      setError('Failed to load users for messaging');
     }
   };
+  
   
   const handleComposeMessage = () => {
     loadAllUsers();
     setShowComposeModal(true);
   };
-  
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
@@ -1669,18 +1681,22 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
         messageForm.content
       );
   
-      if (response.success) {
+      if (response.success || response.Success) {
         setSuccess('Message sent successfully!');
         setShowComposeModal(false);
         setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
         setSelectedRecipient(null);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(response.message || 'Failed to send message');
+        setError(response.message || response.Message || 'Failed to send message');
       }
     } catch (err) {
+      console.error('Send message error:', err);
       setError(err.message || 'Failed to send message');
     }
   };
+  
+ 
 
   const handleLogout = () => {
     localStorage.removeItem('token');

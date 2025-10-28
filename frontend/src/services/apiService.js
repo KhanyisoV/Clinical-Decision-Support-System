@@ -97,19 +97,19 @@ export const authService = {
 
 // Messages 
 export const messageService = {
-  // Send a message
-  sendMessage: async (receiverUsername, receiverRole, content) => {
-    try {
-      const response = await API.post('/message/send', {
-        receiverUsername,
-        receiverRole,
-        content
-      });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: error.message };
-    }
-  },
+  // Message Service
+sendMessage: async (receiverUsername, receiverRole, content) => {
+  try {
+    const response = await API.post('/message/send', {
+      ReceiverUsername: receiverUsername,  // Note: Capital R
+      ReceiverRole: receiverRole,          // Note: Capital R
+      Content: content                      // Note: Capital C
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { success: false, message: error.message };
+  }
+},
 
   // Get all conversations
   getConversations: async () => {

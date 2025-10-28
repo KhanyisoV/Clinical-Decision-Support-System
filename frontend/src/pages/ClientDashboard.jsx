@@ -668,8 +668,8 @@ const ClientDashboardApp = () => {
         return <DiagnosesPage diagnoses={diagnoses} />;
       case 'appointments':
         return <AppointmentsPage appointments={appointments} />;
-      case 'doctor':
-        return <DoctorPage />;
+        case 'doctor':
+        return <DoctorPage profile={profile} />;
       case 'allergies':
         return <AllergiesPage allergies={allergies} />;
       case 'prescriptions':
@@ -1114,36 +1114,66 @@ const AppointmentsPage = ({ appointments }) => (
 );
 
 // Doctor Page
-const DoctorPage = () => (
-  <div style={styles.profileContainer}>
-    <h2 style={styles.profileTitle}>My Doctor</h2>
-    <div style={{...styles.diagnosisCard, marginTop: '1.5rem'}}>
-      <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem'}}>
-        <div style={{width: '5rem', height: '5rem', backgroundColor: '#2563eb', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 'bold'}}>
-          DS
-        </div>
-        <div>
-          <h3 style={styles.diagnosisTitle}>Dr. Sarah Smith</h3>
-          <p style={styles.diagnosisText}>Internal Medicine</p>
+// Doctor Page
+const DoctorPage = ({ profile }) => {
+  const assignedDoctor = profile?.assignedDoctor;
+  
+  if (!assignedDoctor) {
+    return (
+      <div style={styles.profileContainer}>
+        <h2 style={styles.profileTitle}>My Doctor</h2>
+        <div style={{...styles.diagnosisCard, marginTop: '1.5rem', textAlign: 'center', color: '#6b7280'}}>
+          <p>No doctor has been assigned to your account yet.</p>
+          <p style={{fontSize: '0.875rem', marginTop: '0.5rem'}}>Please contact your healthcare provider for assistance.</p>
         </div>
       </div>
-      <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-        <div>
-          <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Phone</span>
-          <p style={{color: '#1f2937', margin: 0}}>(555) 123-4567</p>
+    );
+  }
+
+  const doctorInitials = `${assignedDoctor.firstName?.charAt(0) || ''}${assignedDoctor.lastName?.charAt(0) || ''}`.toUpperCase();
+  const doctorFullName = `Dr. ${assignedDoctor.firstName || ''} ${assignedDoctor.lastName || ''}`.trim();
+
+  return (
+    <div style={styles.profileContainer}>
+      <h2 style={styles.profileTitle}>My Doctor</h2>
+      <div style={{...styles.diagnosisCard, marginTop: '1.5rem'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem'}}>
+          <div style={{width: '5rem', height: '5rem', backgroundColor: '#2563eb', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.5rem', fontWeight: 'bold'}}>
+            {doctorInitials}
+          </div>
+          <div>
+            <h3 style={styles.diagnosisTitle}>{doctorFullName}</h3>
+            <p style={styles.diagnosisText}>{assignedDoctor.specialty || assignedDoctor.Specialty || 'General Practice'}</p>
+          </div>
         </div>
-        <div>
-          <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Email</span>
-          <p style={{color: '#1f2937', margin: 0}}>dr.smith@hospital.com</p>
-        </div>
-        <div>
-          <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Office Location</span>
-          <p style={{color: '#1f2937', margin: 0}}>Medical Center Building, Floor 3, Room 305</p>
+        <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+          {assignedDoctor.phone && (
+            <div>
+              <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Phone</span>
+              <p style={{color: '#1f2937', margin: 0}}>{assignedDoctor.phone}</p>
+            </div>
+          )}
+          {assignedDoctor.email && (
+            <div>
+              <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Email</span>
+              <p style={{color: '#1f2937', margin: 0}}>{assignedDoctor.email}</p>
+            </div>
+          )}
+          {assignedDoctor.officeLocation && (
+            <div>
+              <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Office Location</span>
+              <p style={{color: '#1f2937', margin: 0}}>{assignedDoctor.officeLocation}</p>
+            </div>
+          )}
+          <div>
+            <span style={{fontSize: '0.875rem', color: '#6b7280'}}>Username</span>
+            <p style={{color: '#1f2937', margin: 0}}>@{assignedDoctor.userName || assignedDoctor.UserName}</p>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Allergies Page
 const AllergiesPage = ({ allergies }) => (
