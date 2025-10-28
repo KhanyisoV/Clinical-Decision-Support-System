@@ -111,6 +111,15 @@ sendMessage: async (receiverUsername, receiverRole, content) => {
   }
 },
 
+getUnreadCount: async () => {
+  try {
+    const response = await API.get('/message/unread-count');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { success: false, message: error.message };
+  }
+},
+
   // Get all conversations
   getConversations: async () => {
     try {

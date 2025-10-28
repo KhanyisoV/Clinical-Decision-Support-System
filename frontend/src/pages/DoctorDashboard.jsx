@@ -33,6 +33,8 @@ const DoctorDashboard = () => {
     scheduledAppointments: 0,
     activeTreatments: 0
   });
+
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [observations, setObservations] = useState([]);
   const [selectedObservation, setSelectedObservation] = useState(null);
   const [labResults, setLabResults] = useState([]);
@@ -78,6 +80,18 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
       }
     };
   }, [snoozeTimer]);
+  
+  useEffect(() => {
+    if (user) {
+      // Initial fetch
+      fetchUnreadCount();
+      
+      // Poll every 30 seconds for new messages
+      const interval = setInterval(fetchUnreadCount, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (appointments.length > 0) {
@@ -211,7 +225,16 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
       console.error('Error fetching symptoms:', err);
     }
   };
-  
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await messageService.getUnreadCount();
+      if (response.success || response.Success) {
+        setUnreadMessageCount(response.data || response.Data || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching unread count:', err);
+    }
+  };
   const fetchPrescriptions = async () => {
     try {
       const response = await prescriptionService.getAllPrescriptions();
@@ -1686,6 +1709,7 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
         setShowComposeModal(false);
         setMessageForm({ recipientUsername: '', recipientRole: '', content: '' });
         setSelectedRecipient(null);
+        fetchUnreadCount();
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(response.message || response.Message || 'Failed to send message');
@@ -1851,9 +1875,31 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
 
         <button
           className={activeTab === 'messages' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('messages')}
+          onClick={() => {
+            setActiveTab('messages');
+            setUnreadMessageCount(0); // Reset count when opening messages
+          }}
+          style={{position: 'relative'}}
         >
           Messages
+          {unreadMessageCount > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '50%',
+              right: '8px',
+              transform: 'translateY(-50%)',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              borderRadius: '12px',
+              padding: '2px 8px',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              minWidth: '20px',
+              textAlign: 'center'
+            }}>
+              {unreadMessageCount}
+            </span>
+          )}
         </button>
 
         
