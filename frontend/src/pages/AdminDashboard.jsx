@@ -1,4 +1,5 @@
-// Updated AdminDashboard.jsx with fixes for client creation
+// Updated AdminDashboard component with new layout and styling
+// This creates a two-column layout with sidebar navigation
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -17,11 +18,11 @@ const AdminDashboard = () => {
   const [selectedRecipient, setSelectedRecipient] = useState(null);
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [messageForm, setMessageForm] = useState({
-  recipientUsername: '',
-  recipientRole: '',
-  content: ''
-});
-const [allUsers, setAllUsers] = useState([]);
+    recipientUsername: '',
+    recipientRole: '',
+    content: ''
+  });
+  const [allUsers, setAllUsers] = useState([]);
 
   // Data states
   const [appointments, setAppointments] = useState([]);
@@ -112,17 +113,6 @@ const [allUsers, setAllUsers] = useState([]);
   }, [error]);
 
   useEffect(() => {
-    if (activeTab === 'clients' && clients.length === 0) {
-      loadClients();
-    } else if (activeTab === 'doctors' && doctors.length === 0) {
-      loadDoctors();
-    } else if (activeTab === 'admins' && admins.length === 0) {
-      loadAdmins();
-    }
-  }, [activeTab]);
-
-
-  useEffect(() => {
     if (selectedRecipient) {
       setMessageForm(prev => ({
         ...prev,
@@ -132,40 +122,14 @@ const [allUsers, setAllUsers] = useState([]);
     }
   }, [selectedRecipient]);
 
-  // const loadDashboardStats = async () => {
-  //   try {
-  //     setLoading(true);
-  //     setError(null);
-  //     const response = await adminService.getDashboardStats();
-  //     if (response.success) {
-  //       setStats(response.data);
-  //     } else {
-  //       setError(response.message);
-  //     }
-  //   } catch (err) {
-  //     setError(err.message);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Fetching dashboard stats...');
       const response = await adminService.getDashboardStats();
-      console.log('✅ Response received:', response);
-      console.log('📊 Response data:', response.data);
       
       if (response.success) {
-        console.log('Setting stats to:', response.data);
         setStats(response.data);
-        
-        // Log stats after setting
-        setTimeout(() => {
-          console.log('Stats state after update:', stats);
-        }, 100);
       } else {
         setError(response.message);
       }
@@ -315,6 +279,7 @@ const [allUsers, setAllUsers] = useState([]);
       setError(err.message || 'An error occurred');
     }
   };
+
   const loadAllUsers = async () => {
     try {
       const [clientsRes, doctorsRes, adminsRes] = await Promise.all([
@@ -381,56 +346,58 @@ const [allUsers, setAllUsers] = useState([]);
     }
   };
 
-  const TabButton = ({ tabKey, label, isActive, onClick }) => (
+  const SidebarNavItem = ({ icon, label, isActive, onClick }) => (
     <button
-      onClick={() => onClick(tabKey)}
+      onClick={onClick}
       style={{
-        ...styles.tabButton,
-        ...(isActive ? styles.activeTab : {})
+        ...styles.sidebarItem,
+        ...(isActive ? styles.sidebarItemActive : {})
       }}
     >
-      {label}
+      <span style={styles.sidebarIcon}>{icon}</span>
+      <span>{label}</span>
     </button>
   );
 
   const StatCard = ({ title, value, icon, color = '#007bff' }) => {
     const displayValue = loading ? '...' : (value ?? 0);
-    console.log(`📊 StatCard - ${title}: value=${value}, display=${displayValue}`);
     
     return (
-      <div style={{...styles.statCard, borderLeft: `4px solid ${color}`}}>
-        <div style={styles.statHeader}>
+      <div style={{...styles.statCard, borderLeftColor: color}}>
+        <div style={styles.statIconContainer}>
           <span style={styles.statIcon}>{icon}</span>
-          <h3 style={styles.statTitle}>{title}</h3>
         </div>
-        <div style={styles.statValue}>
-          {displayValue}
+        <div style={styles.statContent}>
+          <h3 style={styles.statTitle}>{title}</h3>
+          <div style={styles.statValue}>
+            {displayValue}
+          </div>
         </div>
       </div>
     );
   };
+
   const renderContent = () => {
-  switch (activeTab) {
-    case 'clients':
-      return renderClientManagement();
-    case 'messages':
-      return renderMessagesTab();
-    case 'doctors':
-      return renderDoctorManagement();
-    case 'admins':
-      return renderAdminManagement();
-    case 'appointments':
-      return renderAppointmentManagement();
-    default:
-      return renderDashboard();
-  }
-};
+    switch (activeTab) {
+      case 'clients':
+        return renderClientManagement();
+      case 'messages':
+        return renderMessagesTab();
+      case 'doctors':
+        return renderDoctorManagement();
+      case 'admins':
+        return renderAdminManagement();
+      case 'appointments':
+        return renderAppointmentManagement();
+      default:
+        return renderDashboard();
+    }
+  };
 
   const renderDashboard = () => (
     <div style={styles.dashboardContent}>
-      <div style={styles.welcomeSection}>
-        <h2>Welcome back, {user?.firstName || user?.userName}!</h2>
-        <p>Here's an overview of your system</p>
+      <div style={styles.pageHeader}>
+        <h2>Dashboard</h2>
       </div>
 
       {error && (
@@ -452,93 +419,54 @@ const [allUsers, setAllUsers] = useState([]);
       )}
 
       <div style={styles.statsGrid}>
-      <StatCard
-        title="Total Clients"
-        value={stats?.totalClients}
-        icon="👥"
-        color="#28a745"
-      />
-      <StatCard
-        title="Total Doctors"
-        value={stats?.totalDoctors}
-        icon="👨‍⚕️"
-        color="#17a2b8"
-      />
-      <StatCard
-        title="Total Admins"
-        value={stats?.totalAdmins}
-        icon="👔"
-        color="#ffc107"
-      />
-      <StatCard
-        title="Active Diagnoses"
-        value={stats?.activeDiagnoses}
-        icon="📋"
-        color="#dc3545"
-      />
-      <StatCard
-        title="Recent Registrations"
-        value={stats?.recentRegistrations}
-        icon="🆕"
-        color="#6f42c1"
-      />
-
-      <StatCard
-        title="Total Appointments"
-        value={stats?.totalAppointments}
-        icon="📅"
-        color="#007bff"
-      />
-      <StatCard
-        title="Today's Appointments"
-        value={stats?.todaysAppointments}
-        icon="📆"
-        color="#28a745"
-      />
-      <StatCard
-        title="Upcoming Appointments"
-        value={stats?.upcomingAppointments}
-        icon="⏰"
-        color="#17a2b8"
-      />
-      </div>
-
-      <div style={styles.quickActions}>
-        <h3>Quick Actions</h3>
-        <div style={styles.actionButtons}>
-          <button
-            onClick={() => setActiveTab('clients')}
-            style={{...styles.actionButton, backgroundColor: '#28a745'}}
-          >
-            Manage Clients
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('doctors')}
-            style={{...styles.actionButton, backgroundColor: '#17a2b8'}}
-          >
-            Manage Doctors
-          </button>
-          <button
-            onClick={() => setActiveTab('admins')}
-            style={{...styles.actionButton, backgroundColor: '#ffc107', color: '#000'}}
-          >
-            Manage Admins
-          </button>
-          <button
-            onClick={loadDashboardStats}
-            style={{...styles.actionButton, backgroundColor: '#6c757d'}}
-          >
-            Refresh Data
-          </button>
-
-          <button
-            onClick={() => setActiveTab('appointments')}
-            style={{...styles.actionButton, backgroundColor: '#007bff'}}
-          >
-            View Appointments
-          </button>
-        </div>
+        <StatCard
+          title="Department"
+          value={stats?.totalClients}
+          icon="📚"
+          color="#28a745"
+        />
+        <StatCard
+          title="Doctor"
+          value={stats?.totalDoctors}
+          icon="👨‍⚕️"
+          color="#17a2b8"
+        />
+        <StatCard
+          title="Patient"
+          value={stats?.totalAdmins}
+          icon="👤"
+          color="#007bff"
+        />
+        <StatCard
+          title="Patient Appointment"
+          value={stats?.totalAppointments}
+          icon="📅"
+          color="#ffc107"
+        />
+        <StatCard
+          title="Patient Messages"
+          value={stats?.activeDiagnoses}
+          icon="📋"
+          color="#ffc107"
+        />
+        <StatCard
+          title="Invoice"
+          value={stats?.recentRegistrations}
+          icon="💳"
+          color="#007bff"
+        />
+        <StatCard
+          title="Prescription"
+          value={stats?.todaysAppointments}
+          icon="💊"
+          color="#28a745"
+        />
+        <StatCard
+          title="Payment"
+          value={stats?.upcomingAppointments}
+          icon="💰"
+          color="#007bff"
+        />
       </div>
     </div>
   );
@@ -817,7 +745,6 @@ const [allUsers, setAllUsers] = useState([]);
     }
   };
 
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -827,7 +754,7 @@ const [allUsers, setAllUsers] = useState([]);
   };
 
   const formatTime = (timeString) => {
-    return timeString.substring(0, 5); // HH:MM format
+    return timeString.substring(0, 5);
   };
 
   return (
@@ -891,7 +818,8 @@ const [allUsers, setAllUsers] = useState([]);
                 <td style={styles.td}>
                   <span style={{
                     ...styles.roleBadge,
-                    backgroundColor: getStatusBadgeColor(appointment.status)
+                    backgroundColor: getStatusBadgeColor(appointment.status),
+                    color: 'white'
                   }}>
                     {appointment.status}
                   </span>
@@ -908,6 +836,7 @@ const [allUsers, setAllUsers] = useState([]);
     </div>
   );
 };
+
 const renderMessagesTab = () => (
   <div style={styles.managementContainer}>
     <div style={styles.managementHeader}>
@@ -1166,60 +1095,71 @@ const renderMessagesTab = () => (
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Admin Dashboard</h1>
-        <div style={styles.userInfo}>
-          <span>Welcome, {user?.firstName || user?.userName}</span>
-          <span style={styles.role}>({user?.role})</span>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            Logout
-          </button>
+    <div style={styles.mainContainer}>
+      <div style={styles.sidebar}>
+        <div style={styles.sidebarHeader}>
+          <h3>Ithemba CDSS</h3>
         </div>
-      </div>
-
-      <div style={styles.tabContainer}>
-        <TabButton
-          tabKey="dashboard"
-          label="Dashboard"
-          isActive={activeTab === 'dashboard'}
-          onClick={setActiveTab}
-        />
-        <TabButton
-          tabKey="clients"
-          label="Clients"
-          isActive={activeTab === 'clients'}
-          onClick={setActiveTab}
-        />
-        <TabButton
-          tabKey="doctors"
-          label="Doctors"
-          isActive={activeTab === 'doctors'}
-          onClick={setActiveTab}
-        />
-        <TabButton
-          tabKey="admins"
-          label="Admins"
-          isActive={activeTab === 'admins'}
-          onClick={setActiveTab}
-        />
-
-        <TabButton
-          tabKey="appointments"
-          label="Appointments"
-          isActive={activeTab === 'appointments'}
-          onClick={setActiveTab}
-        />
-        <TabButton
-            tabKey="messages"
-            label="Messages"
-            isActive={activeTab === 'messages'}
-            onClick={setActiveTab}
+        
+        <div style={styles.sidebarNav}>
+          <SidebarNavItem
+            icon="📊"
+            label="Dashboard"
+            isActive={activeTab === 'dashboard'}
+            onClick={() => setActiveTab('dashboard')}
           />
+          <SidebarNavItem
+            icon="👥"
+            label="Client"
+            isActive={activeTab === 'clients'}
+            onClick={() => setActiveTab('clients')}
+          />
+          <SidebarNavItem
+            icon="👨‍⚕️"
+            label="Doctor"
+            isActive={activeTab === 'doctors'}
+            onClick={() => setActiveTab('doctors')}
+          />
+          <SidebarNavItem
+            icon="👔"
+            label="Admin"
+            isActive={activeTab === 'admins'}
+            onClick={() => setActiveTab('admins')}
+          />
+          <SidebarNavItem
+            icon="📅"
+            label="Patient Appointment"
+            isActive={activeTab === 'appointments'}
+            onClick={() => setActiveTab('appointments')}
+          />
+          <SidebarNavItem
+            icon="📋"
+            label="Patient Messages"
+            isActive={activeTab === 'messages'}
+            onClick={() => setActiveTab('messages')}
+          />
+        </div>
+
+        <button onClick={handleLogout} style={styles.logoutBtn}>
+          🚪 Logout
+        </button>
       </div>
 
-      <div style={styles.content}>
-        {renderContent()}
+      <div style={styles.mainContent}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>Admin Dashboard</h1>
+          <div style={styles.userInfo}>
+            <span>Welcome, {user?.firstName || user?.userName}</span>
+            <span style={styles.role}>({user?.role})</span>
+            <button onClick={handleLogout} style={styles.logoutButton}>
+              Logout
+            </button>
+          </div>
+        </div>
+
+        <div style={styles.content}>
+          {renderContent()}
+        </div>
       </div>
 
       {renderModal()}
@@ -1228,93 +1168,152 @@ const renderMessagesTab = () => (
 };
 
 const styles = {
-  container: {
+  mainContainer: {
+    display: 'flex',
     minHeight: '100vh',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f5f7fa',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
   },
+  sidebar: {
+    width: '220px',
+    backgroundColor: '#1e3a5f',
+    color: 'white',
+    padding: '1.5rem 0',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
+    position: 'fixed',
+    height: '100vh',
+    overflowY: 'auto'
+  },
+  sidebarHeader: {
+    padding: '0 1rem 2rem',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+    marginBottom: '1.5rem'
+  },
+  'sidebarHeader h3': {
+    margin: 0,
+    fontSize: '1.1rem',
+    fontWeight: '700',
+    letterSpacing: '0.5px'
+  },
+  sidebarNav: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    paddingRight: '0'
+  },
+  sidebarItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.875rem 1rem',
+    backgroundColor: 'transparent',
+    color: '#b0bfc7',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    textAlign: 'left'
+  },
+  sidebarItemActive: {
+    backgroundColor: '#28a745',
+    color: 'white',
+    borderLeft: '4px solid #10b981'
+  },
+  sidebarIcon: {
+    fontSize: '1.2rem',
+    width: '24px'
+  },
+  logoutBtn: {
+    margin: '1rem',
+    padding: '0.75rem 1rem',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  },
+  mainContent: {
+    flex: 1,
+    marginLeft: '220px',
+    display: 'flex',
+    flexDirection: 'column'
+  },
   header: {
-    backgroundColor: 'white',
+    backgroundColor: '#ffffff',
     borderBottom: '1px solid #e5e7eb',
     padding: '1.5rem 2rem',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
   },
   title: {
     fontSize: '1.875rem',
     fontWeight: '700',
     color: '#111827',
-    marginBottom: '0.25rem'
+    marginBottom: 0,
+    letterSpacing: '-0.5px'
   },
   userInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem'
+    gap: '0.75rem',
+    fontSize: '0.95rem'
   },
   role: {
     backgroundColor: '#dbeafe',
     color: '#1e40af',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '12px',
+    padding: '0.35rem 0.75rem',
+    borderRadius: '6px',
     fontSize: '0.75rem',
-    fontWeight: '500'
+    fontWeight: '600'
   },
   logoutButton: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-    padding: '0.5rem 1rem',
+    padding: '0.6rem 1.2rem',
     backgroundColor: '#ef4444',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '0.875rem',
-    fontWeight: '500',
-    transition: 'all 0.2s'
-  },
-  tabContainer: {
-    backgroundColor: 'white',
-    borderBottom: '1px solid #e5e7eb',
-    display: 'flex',
-    padding: '0 2rem',
-    gap: '1rem'
-  },
-  tabButton: {
-    padding: '1rem 1.5rem',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: '#6b7280',
-    transition: 'all 0.2s'
-  },
-  activeTab: {
-    color: '#3b82f6',
-    borderBottomColor: '#3b82f6'
+    fontWeight: '600',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)'
   },
   content: {
     padding: '2rem',
-    maxWidth: '1400px',
-    margin: '0 auto'
+    flex: 1,
+    overflow: 'auto'
   },
   dashboardContent: {
     display: 'flex',
     flexDirection: 'column',
     gap: '2rem'
   },
-  welcomeSection: {
-    textAlign: 'center',
-    marginBottom: '1rem'
+  pageHeader: {
+    marginBottom: '1.5rem'
+  },
+  'pageHeader h2': {
+    fontSize: '1.75rem',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
   },
   errorMessage: {
     backgroundColor: '#fef2f2',
     borderLeft: '4px solid #ef4444',
     color: '#991b1b',
-    padding: '1rem 2rem',
+    padding: '1rem 1.5rem',
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
@@ -1334,7 +1333,7 @@ const styles = {
     backgroundColor: '#f0fdf4',
     borderLeft: '4px solid #10b981',
     color: '#065f46',
-    padding: '1rem 2rem',
+    padding: '1rem 1.5rem',
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
@@ -1353,71 +1352,51 @@ const styles = {
   },
   statsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '1.5rem'
   },
   statCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#ffffff',
     padding: '1.5rem',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    borderRadius: '10px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     display: 'flex',
     alignItems: 'center',
     gap: '1rem',
-    transition: 'transform 0.2s, box-shadow 0.2s'
+    transition: 'all 0.2s',
+    border: '1px solid #f0f0f0',
+    borderLeft: '4px solid #007bff'
   },
-  statHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    flex: 1
-  },
-  statIcon: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
+  statIconContainer: {
+    width: '50px',
+    height: '50px',
+    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '1.5rem',
     backgroundColor: '#dbeafe',
     flexShrink: 0
   },
+  statIcon: {
+    fontSize: '1.75rem'
+  },
+  statContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.3rem'
+  },
   statTitle: {
-    fontSize: '0.875rem',
+    fontSize: '0.85rem',
     color: '#6b7280',
-    marginTop: '0.25rem',
+    fontWeight: '500',
     margin: 0
   },
   statValue: {
-    fontSize: '2rem',
+    fontSize: '1.875rem',
     fontWeight: '700',
     color: '#111827',
     margin: 0
-  },
-  quickActions: {
-    textAlign: 'center'
-  },
-  actionButtons: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '1rem',
-    flexWrap: 'wrap',
-    marginTop: '1rem'
-  },
-  actionButton: {
-    padding: '0.625rem 1rem',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    color: 'white',
-    transition: 'all 0.2s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem'
   },
   managementContainer: {
     display: 'flex',
@@ -1430,6 +1409,12 @@ const styles = {
     alignItems: 'center',
     marginBottom: '1rem'
   },
+  'managementHeader h2': {
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
+  },
   addButton: {
     display: 'flex',
     alignItems: 'center',
@@ -1441,13 +1426,15 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.875rem',
     fontWeight: '500',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
   },
   tableContainer: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    backgroundColor: '#ffffff',
+    borderRadius: '10px',
     overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #f0f0f0'
   },
   table: {
     width: '100%',
@@ -1526,8 +1513,8 @@ const styles = {
     padding: '1rem'
   },
   modal: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    backgroundColor: '#ffffff',
+    borderRadius: '10px',
     width: '100%',
     maxWidth: '600px',
     maxHeight: '90vh',
@@ -1540,6 +1527,12 @@ const styles = {
     alignItems: 'center',
     padding: '1.5rem',
     borderBottom: '1px solid #e5e7eb'
+  },
+  'modalHeader h3': {
+    fontSize: '1.25rem',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
   },
   closeButton: {
     background: 'none',
@@ -1594,7 +1587,7 @@ const styles = {
     borderRadius: '6px',
     fontSize: '0.875rem',
     color: '#111827',
-    backgroundColor: 'white',
+    backgroundColor: '#ffffff',
     transition: 'all 0.2s',
     outline: 'none'
   },

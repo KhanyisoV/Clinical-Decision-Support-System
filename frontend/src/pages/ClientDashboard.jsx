@@ -701,7 +701,7 @@ const ClientDashboardApp = () => {
       <div style={{...styles.sidebar, ...(sidebarOpen ? {} : styles.sidebarHidden)}}>
         <div style={styles.sidebarContent}>
           <div style={styles.sidebarHeader}>
-            <h2 style={styles.sidebarTitle}>HealthPortal</h2>
+            <h2 style={styles.sidebarTitle}>Ithemba CDSS</h2>
             <button onClick={() => setSidebarOpen(false)} style={styles.iconButton}>
               <X size={24} />
             </button>
@@ -734,7 +734,7 @@ const ClientDashboardApp = () => {
                   <Menu size={24} />
                 </button>
               )}
-              <h1 style={styles.headerTitle}>Patient Portal</h1>
+              <h1 style={styles.headerTitle}>Patient Dashboard</h1>
             </div>
             <div style={styles.headerRight}>
               <span style={styles.welcomeText}>Welcome, {user?.firstName} {user?.lastName}</span>
