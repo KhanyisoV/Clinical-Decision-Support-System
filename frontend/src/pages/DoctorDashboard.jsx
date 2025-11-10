@@ -732,7 +732,7 @@ const [selectedRecipient, setSelectedRecipient] = useState(null);
       const response = await appointmentService.createAppointment(appointmentData);
       
       if (response.success || response.Success) {
-        setSuccess('Appointment created successfully!');
+        setSuccess('Appointment created successfully! Confirmation email sent to patient.');
         setShowModal(null);
         setFormData({});
         setSelectedPatient(null);

@@ -4,6 +4,7 @@ using FinalYearProject.Repositories;
 using FinalYearProject.Models;
 using FinalYearProject.DTOs;
 using System.Security.Claims;
+using FinalYearProject.Services;
 
 namespace FinalYearProject.Controllers
 {
@@ -15,17 +16,20 @@ namespace FinalYearProject.Controllers
         private readonly IAppointmentHistoryRepository _historyRepo;
         private readonly IClientRepository _clientRepo;
         private readonly IDoctorRepository _doctorRepo;
+        private readonly IEmailService _emailService;
 
         public AppointmentController(
             IAppointmentRepository appointmentRepo,
             IAppointmentHistoryRepository historyRepo,
             IClientRepository clientRepo,
-            IDoctorRepository doctorRepo)
+            IDoctorRepository doctorRepo,
+            IEmailService emailService)
         {
             _appointmentRepo = appointmentRepo;
             _historyRepo = historyRepo;
             _clientRepo = clientRepo;
             _doctorRepo = doctorRepo;
+            _emailService = emailService;
         }
 
         // GET: api/appointment
@@ -96,7 +100,7 @@ namespace FinalYearProject.Controllers
         // POST: api/appointment
         [HttpPost]
         [Authorize(Roles = "Admin,Doctor")]
-        public IActionResult CreateAppointment([FromBody] AppointmentCreateDto request)
+        public async Task<IActionResult> CreateAppointment([FromBody] AppointmentCreateDto request)
         {
             try
             {
@@ -184,14 +188,46 @@ namespace FinalYearProject.Controllers
                 _historyRepo.Add(history);
                 _historyRepo.Save();
 
+                // Reload to get navigation properties
                 appointment = _appointmentRepo.GetById(appointment.Id);
+
+                // Send email notification
+                bool emailSent = false;
+                try
+                {
+                    if (!string.IsNullOrEmpty(client.Email))
+                    {
+                        var patientName = $"{client.FirstName} {client.LastName}".Trim();
+                        var doctorName = $"Dr. {doctor.FirstName} {doctor.LastName}".Trim();
+                        
+                        await _emailService.SendAppointmentConfirmationAsync(
+                            client.Email,
+                            patientName,
+                            appointment.Title,
+                            appointment.AppointmentDate,
+                            appointment.StartTime.ToString(@"hh\:mm"),
+                            appointment.Location ?? "To be confirmed",
+                            doctorName
+                        );
+                        
+                        emailSent = true;
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    // Log email error but don't fail the appointment creation
+                    Console.WriteLine($"Failed to send email: {emailEx.Message}");
+                }
+
                 var appointmentDto = MapToDto(appointment!);
 
                 return Ok(new ApiResponseDto<AppointmentDto>
                 {
                     Success = true,
                     Data = appointmentDto,
-                    Message = "Appointment created successfully"
+                    Message = emailSent 
+                        ? "Appointment created successfully. Confirmation email sent to patient." 
+                        : "Appointment created successfully."
                 });
             }
             catch (Exception ex)
@@ -208,7 +244,7 @@ namespace FinalYearProject.Controllers
         // PUT: api/appointment/{id}
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Doctor")]
-        public IActionResult UpdateAppointment(int id, [FromBody] AppointmentUpdateDto request)
+        public async Task<IActionResult> UpdateAppointment(int id, [FromBody] AppointmentUpdateDto request)
         {
             try
             {
@@ -223,6 +259,9 @@ namespace FinalYearProject.Controllers
                 }
 
                 var oldStatus = appointment.Status;
+                var oldDate = appointment.AppointmentDate;
+                var oldTime = appointment.StartTime;
+                var oldLocation = appointment.Location;
 
                 if (request.Title != null) appointment.Title = request.Title;
                 if (request.Description != null) appointment.Description = request.Description;
@@ -305,10 +344,43 @@ namespace FinalYearProject.Controllers
                     _historyRepo.Save();
                 }
 
+                // Send email if date, time, or location changed
+                bool emailSent = false;
+                try
+                {
+                    bool dateChanged = oldDate != appointment.AppointmentDate;
+                    bool timeChanged = oldTime != appointment.StartTime;
+                    bool locationChanged = oldLocation != appointment.Location;
+
+                    if ((dateChanged || timeChanged || locationChanged) && !string.IsNullOrEmpty(appointment.Client.Email))
+                    {
+                        var patientName = $"{appointment.Client.FirstName} {appointment.Client.LastName}".Trim();
+                        var doctorName = $"Dr. {appointment.Doctor.FirstName} {appointment.Doctor.LastName}".Trim();
+                        
+                        await _emailService.SendAppointmentConfirmationAsync(
+                            appointment.Client.Email,
+                            patientName,
+                            appointment.Title,
+                            appointment.AppointmentDate,
+                            appointment.StartTime.ToString(@"hh\:mm"),
+                            appointment.Location ?? "To be confirmed",
+                            doctorName
+                        );
+                        
+                        emailSent = true;
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    Console.WriteLine($"Failed to send email: {emailEx.Message}");
+                }
+
                 return Ok(new ApiResponseDto
                 {
                     Success = true,
-                    Message = "Appointment updated successfully"
+                    Message = emailSent 
+                        ? "Appointment updated successfully. Confirmation email sent to patient." 
+                        : "Appointment updated successfully."
                 });
             }
             catch (Exception ex)
