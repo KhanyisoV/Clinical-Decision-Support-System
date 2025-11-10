@@ -202,21 +202,3 @@
     font-size: 20px;
   }
 }
-.horizontalScrollContainer::-webkit-scrollbar {
-  height: 8px;
-}
-
-.horizontalScrollContainer::-webkit-scrollbar-track {
-  background: #f0f0f0;
-  border-radius: 4px;
-}
-
-.horizontalScrollContainer::-webkit-scrollbar-thumb {
-  background-color: #30bd82;
-  border-radius: 4px;
-  border: 2px solid #f0f0f0;
-}
-
-.horizontalScrollContainer::-webkit-scrollbar-thumb:hover {
-  background-color: #28a76b;
-}
