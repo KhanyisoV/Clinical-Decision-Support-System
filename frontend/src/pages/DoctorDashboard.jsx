@@ -9,8 +9,6 @@ import 'react-calendar/dist/Calendar.css';
 import Messages from '../components/Messages';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
-
 
 
 
@@ -72,63 +70,30 @@ const saveDiagnosis = async () => {
     return;
   }
 
-  // ✅ Correct: use 'user' instead of 'doctor' since that’s what’s stored in localStorage
-  const token = localStorage.getItem('token');
-  const storedUser = JSON.parse(localStorage.getItem('user'));
-
-  if (!storedUser || storedUser.role !== 'Doctor' || !token) {
-    alert('Doctor information or authentication token missing. Please log in again.');
-    return;
-  }
-
-  const doctor = storedUser; // for clarity
-
-  const payload = {
-    title: diagnosisTitle || "Untitled Diagnosis",
-    description: diagnosisDescription || "No description provided.",
-    diagnosisCode: "12W",
-    severity: 5,
-    status: diagnosisStatus || "Pending",
-    treatmentPlan: "Not specified",
-    notes: "Not specified",
-    clientId: selectedPatient.id,
-    clientUsername: selectedPatient.username,
-    doctorId: doctor.id,
-    diagnosedByDoctorId: doctor.id,
-    doctorUsername: doctor.userName, // ✅ fixed: consistent naming
-  };
-
   try {
-    console.log("Saving diagnosis with payload:", payload);
+    const payload = {
+      title: diagnosisTitle || "Cancer Diagnosis",
+      description: diagnosisDescription || "Diagnosis result from AI model",
+      diagnosisCode: "DX-" + Math.floor(Math.random() * 10000),
+      severity: 5,
+      status: diagnosisStatus || "Pending",
+      treatmentPlan: "To be determined",
+      notes: "Auto-generated diagnosis entry",
+      clientId: selectedPatient.id,
+      clientUsername: selectedPatient.username,
+      doctorId: doctor?.id || 0,
+      diagnosedByDoctorId: doctor?.id || 0,
+      doctorUsername: doctor?.username || "Doctor"
+    };
 
-    const response = await axios.post(
-      "http://localhost:5011/api/Diagnosis/add-to-client",
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    console.log("Diagnosis saved:", response.data);
-    alert("✅ Diagnosis saved successfully!");
-
-    // ✅ Reset state after success
-    setIsModalOpen(false);
-    setCurrentStep(1);
-    setSelectedPatient(null);
-    setSelectedSymptoms([]);
-    setSymptoms([]);
-    setPredictionResults(null);
+    const response = await diagnosisService.post('/api/Diagnosis/add-to-client', payload);
+    toast.success('Diagnosis saved successfully!');
+    console.log('Diagnosis saved:', response.data);
   } catch (error) {
-    console.error("Error saving diagnosis:", error);
-    alert("❌ Failed to save diagnosis. Please ensure you are logged in and try again.");
+    console.error('Error saving diagnosis:', error);
+    toast.error('Failed to save diagnosis.');
   }
 };
-
-
 
 
   // Symptom selection and prediction states
