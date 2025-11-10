@@ -61,13 +61,17 @@ const apiService = {
   getLabResults: () => apiCall('/labresult'),
   getTreatments: () => apiCall('/treatment'),
   
+  // FIXED: Changed parameter names to match backend expectations
   sendMessage: (recipientUsername, recipientRole, content) => 
     apiCall('/message/send', {
       method: 'POST',
-      body: JSON.stringify({ recipientUsername, recipientRole, content })
+      body: JSON.stringify({ 
+        ReceiverUsername: recipientUsername,  
+        ReceiverRole: recipientRole,          
+        Content: content                      
+      })
     }),
   getMyDoctor: (username) => apiCall(`/client/profile/${username}`)
-
 };
 
 const styles = {
