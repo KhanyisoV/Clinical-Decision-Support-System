@@ -16,20 +16,19 @@ namespace FinalYearProject.Controllers
         private readonly IAppointmentHistoryRepository _historyRepo;
         private readonly IClientRepository _clientRepo;
         private readonly IDoctorRepository _doctorRepo;
-        private readonly IEmailService _emailService;
+       
 
         public AppointmentController(
             IAppointmentRepository appointmentRepo,
             IAppointmentHistoryRepository historyRepo,
             IClientRepository clientRepo,
-            IDoctorRepository doctorRepo,
-            IEmailService emailService)
+            IDoctorRepository doctorRepo)
         {
             _appointmentRepo = appointmentRepo;
             _historyRepo = historyRepo;
             _clientRepo = clientRepo;
             _doctorRepo = doctorRepo;
-            _emailService = emailService;
+            
         }
 
         // GET: api/appointment
@@ -191,43 +190,13 @@ namespace FinalYearProject.Controllers
                 // Reload to get navigation properties
                 appointment = _appointmentRepo.GetById(appointment.Id);
 
-                // Send email notification
-                bool emailSent = false;
-                try
-                {
-                    if (!string.IsNullOrEmpty(client.Email))
-                    {
-                        var patientName = $"{client.FirstName} {client.LastName}".Trim();
-                        var doctorName = $"Dr. {doctor.FirstName} {doctor.LastName}".Trim();
-                        
-                        await _emailService.SendAppointmentConfirmationAsync(
-                            client.Email,
-                            patientName,
-                            appointment.Title,
-                            appointment.AppointmentDate,
-                            appointment.StartTime.ToString(@"hh\:mm"),
-                            appointment.Location ?? "To be confirmed",
-                            doctorName
-                        );
-                        
-                        emailSent = true;
-                    }
-                }
-                catch (Exception emailEx)
-                {
-                    // Log email error but don't fail the appointment creation
-                    Console.WriteLine($"Failed to send email: {emailEx.Message}");
-                }
-
                 var appointmentDto = MapToDto(appointment!);
 
                 return Ok(new ApiResponseDto<AppointmentDto>
                 {
                     Success = true,
                     Data = appointmentDto,
-                    Message = emailSent 
-                        ? "Appointment created successfully. Confirmation email sent to patient." 
-                        : "Appointment created successfully."
+                    Message = "Appointment updated successfully."
                 });
             }
             catch (Exception ex)
@@ -344,43 +313,11 @@ namespace FinalYearProject.Controllers
                     _historyRepo.Save();
                 }
 
-                // Send email if date, time, or location changed
-                bool emailSent = false;
-                try
-                {
-                    bool dateChanged = oldDate != appointment.AppointmentDate;
-                    bool timeChanged = oldTime != appointment.StartTime;
-                    bool locationChanged = oldLocation != appointment.Location;
-
-                    if ((dateChanged || timeChanged || locationChanged) && !string.IsNullOrEmpty(appointment.Client.Email))
-                    {
-                        var patientName = $"{appointment.Client.FirstName} {appointment.Client.LastName}".Trim();
-                        var doctorName = $"Dr. {appointment.Doctor.FirstName} {appointment.Doctor.LastName}".Trim();
-                        
-                        await _emailService.SendAppointmentConfirmationAsync(
-                            appointment.Client.Email,
-                            patientName,
-                            appointment.Title,
-                            appointment.AppointmentDate,
-                            appointment.StartTime.ToString(@"hh\:mm"),
-                            appointment.Location ?? "To be confirmed",
-                            doctorName
-                        );
-                        
-                        emailSent = true;
-                    }
-                }
-                catch (Exception emailEx)
-                {
-                    Console.WriteLine($"Failed to send email: {emailEx.Message}");
-                }
-
+            
                 return Ok(new ApiResponseDto
                 {
                     Success = true,
-                    Message = emailSent 
-                        ? "Appointment updated successfully. Confirmation email sent to patient." 
-                        : "Appointment updated successfully."
+                    Message = "Appointment updated successfully."
                 });
             }
             catch (Exception ex)
