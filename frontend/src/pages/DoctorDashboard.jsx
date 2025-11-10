@@ -7,6 +7,9 @@ import {
 import ReactCalendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import Messages from '../components/Messages';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 
 import { doctorService, symptomService, diagnosisService, appointmentService, prescriptionService, labResultService, clinicalObservationService, allergyService, treatmentService, messageService, adminService } from '../services/apiService';
@@ -24,7 +27,6 @@ const DoctorDashboard = () => {
   const [allergies, setAllergies] = useState([]);
   const [treatments, setTreatments] = useState([]);
   const [symptoms, setSymptoms] = useState([]);
-  const [selectedSymptom, setSelectedSymptom] = useState(null);
   const [selectedTreatment, setSelectedTreatment] = useState(null);
   const [selectedAllergy, setSelectedAllergy] = useState(null);
   const [stats, setStats] = useState({
@@ -51,6 +53,64 @@ const DoctorDashboard = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [prescriptions, setPrescriptions] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  
+// Diagnosis state variables
+const [diagnosisTitle, setDiagnosisTitle] = useState('');
+const [diagnosisDescription, setDiagnosisDescription] = useState('');
+const [diagnosisStatus, setDiagnosisStatus] = useState('Pending');
+
+// You may already have doctor info in context or local storage
+const doctor = JSON.parse(localStorage.getItem('user')); // example
+
+const saveDiagnosis = async () => {
+  if (!selectedPatient) {
+    alert('Please select a patient before saving the diagnosis.');
+    return;
+  }
+
+  try {
+    const payload = {
+      title: diagnosisTitle || "Cancer Diagnosis",
+      description: diagnosisDescription || "Diagnosis result from AI model",
+      diagnosisCode: "DX-" + Math.floor(Math.random() * 10000),
+      severity: 5,
+      status: diagnosisStatus || "Pending",
+      treatmentPlan: "To be determined",
+      notes: "Auto-generated diagnosis entry",
+      clientId: selectedPatient.id,
+      clientUsername: selectedPatient.username,
+      doctorId: doctor?.id || 0,
+      diagnosedByDoctorId: doctor?.id || 0,
+      doctorUsername: doctor?.username || "Doctor"
+    };
+
+    const response = await diagnosisService.post('/api/Diagnosis/add-to-client', payload);
+    toast.success('Diagnosis saved successfully!');
+    console.log('Diagnosis saved:', response.data);
+  } catch (error) {
+    console.error('Error saving diagnosis:', error);
+    toast.error('Failed to save diagnosis.');
+  }
+};
+
+
+  // Symptom selection and prediction states
+const [selectedSymptoms, setSelectedSymptoms] = useState([]);  // List of chosen symptoms
+const [currentStep, setCurrentStep] = useState(1);             // For multi-step symptom selection
+const [predictionResults, setPredictionResults] = useState(null); // Stores AI prediction output
+
+// Messaging feature states
+const [allUsers, setAllUsers] = useState([]);                   // List of all users for messaging
+const [showComposeModal, setShowComposeModal] = useState(false); // Controls the message compose modal
+const [messageForm, setMessageForm] = useState({                // Form for sending messages
+  recipient: "",
+  subject: "",
+  message: "",
+});
+const [selectedRecipient, setSelectedRecipient] = useState(null); // The person selected to receive the message
+
 
   useEffect(() => {
     initializeDashboard();
@@ -2272,9 +2332,9 @@ const toggleSymptom = (symptomId) => {
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         }}
       >
+        {/* Step 1: Select Patient */}
         {currentStep === 1 && (
           <>
-            {/* Step 1: Select Patient */}
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
               Start Diagnosis
             </h2>
@@ -2320,8 +2380,12 @@ const toggleSymptom = (symptomId) => {
                 <p>
                   <strong>Name:</strong> {selectedPatient.firstName} {selectedPatient.lastName}
                 </p>
-                <p><strong>Email:</strong> {selectedPatient.email}</p>
-                <p><strong>Address:</strong> {selectedPatient.address || 'N/A'}</p>
+                <p>
+                  <strong>Email:</strong> {selectedPatient.email}
+                </p>
+                <p>
+                  <strong>Address:</strong> {selectedPatient.address || 'N/A'}
+                </p>
               </div>
             )}
 
@@ -2339,7 +2403,6 @@ const toggleSymptom = (symptomId) => {
               >
                 Close
               </button>
-
               <button
                 style={{
                   padding: '0.5rem 1rem',
@@ -2351,7 +2414,7 @@ const toggleSymptom = (symptomId) => {
                   opacity: selectedPatient ? 1 : 0.6,
                 }}
                 disabled={!selectedPatient}
-                onClick={handleNextStep}
+                onClick={() => setCurrentStep(2)}
               >
                 Next
               </button>
@@ -2359,15 +2422,23 @@ const toggleSymptom = (symptomId) => {
           </>
         )}
 
+        {/* Step 2: Symptoms */}
         {currentStep === 2 && selectedPatient && (
           <>
-            {/* Step 2: Symptoms */}
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
               Symptoms for {selectedPatient.firstName} {selectedPatient.lastName}
             </h2>
-
             {symptoms.length > 0 ? (
-              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
                 {symptoms.map((symptom) => (
                   <div
                     key={symptom.id}
@@ -2375,14 +2446,16 @@ const toggleSymptom = (symptomId) => {
                       padding: '1rem',
                       backgroundColor: '#f9fafb',
                       borderRadius: '6px',
-                      border: selectedSymptoms.includes(symptom.id) ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                      border: selectedSymptoms.includes(symptom.id)
+                        ? '2px solid #3b82f6'
+                        : '1px solid #e5e7eb',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                     }}
                     onClick={() => {
                       if (selectedSymptoms.includes(symptom.id)) {
-                        setSelectedSymptoms(selectedSymptoms.filter(id => id !== symptom.id));
+                        setSelectedSymptoms(selectedSymptoms.filter((id) => id !== symptom.id));
                       } else {
                         setSelectedSymptoms([...selectedSymptoms, symptom.id]);
                       }
@@ -2395,8 +2468,12 @@ const toggleSymptom = (symptomId) => {
                       style={{ marginRight: '0.5rem' }}
                     />
                     <div>
-                      <p style={{ margin: 0, fontWeight: '600', color: '#111827' }}>{symptom.name}</p>
-                      <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>{symptom.description}</p>
+                      <p style={{ margin: 0, fontWeight: '600', color: '#111827' }}>
+                        {symptom.name}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+                        {symptom.description}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -2421,7 +2498,6 @@ const toggleSymptom = (symptomId) => {
               >
                 Back
               </button>
-
               <button
                 style={{
                   padding: '0.5rem 1rem',
@@ -2444,14 +2520,23 @@ const toggleSymptom = (symptomId) => {
           </>
         )}
 
+        {/* Step 3: Prediction + Save */}
         {currentStep === 3 && predictionResults && (
           <>
-            {/* Step 3: Prediction Results */}
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
               Diagnosis Prediction
             </h2>
 
-            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <div
+              style={{
+                maxHeight: '220px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                marginBottom: '1rem',
+              }}
+            >
               {Object.entries(predictionResults.predictions)
                 .sort((a, b) => b[1] - a[1])
                 .map(([cancer, probability], index) => (
@@ -2472,7 +2557,76 @@ const toggleSymptom = (symptomId) => {
                 ))}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            {/* Diagnosis Details Form */}
+            <div
+              style={{
+                backgroundColor: '#f9fafb',
+                padding: '1rem',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                marginBottom: '1rem',
+              }}
+            >
+              <h3 style={{ marginBottom: '0.5rem', fontSize: '1rem', fontWeight: '600' }}>
+                Diagnosis Details
+              </h3>
+              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>
+                Title
+              </label>
+              <input
+                type="text"
+                value={diagnosisTitle}
+                onChange={(e) => setDiagnosisTitle(e.target.value)}
+                placeholder="Enter diagnosis title"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  marginBottom: '0.75rem',
+                }}
+              />
+
+              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>
+                Description
+              </label>
+              <textarea
+                value={diagnosisDescription}
+                onChange={(e) => setDiagnosisDescription(e.target.value)}
+                placeholder="Enter diagnosis description"
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  marginBottom: '0.75rem',
+                  resize: 'none',
+                  height: '80px',
+                }}
+              />
+
+              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>
+                Status
+              </label>
+              <select
+                value={diagnosisStatus}
+                onChange={(e) => setDiagnosisStatus(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <button
                 style={{
                   padding: '0.5rem 1rem',
@@ -2492,6 +2646,21 @@ const toggleSymptom = (symptomId) => {
                 }}
               >
                 Close
+              </button>
+
+              <button
+                onClick={saveDiagnosis}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#16a34a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                }}
+              >
+                Save Diagnosis
               </button>
             </div>
           </>
