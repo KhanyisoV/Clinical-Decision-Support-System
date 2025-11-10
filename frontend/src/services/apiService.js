@@ -94,6 +94,64 @@ export const authService = {
   }
 };
 
+
+// Messages 
+export const messageService = {
+  // Message Service
+sendMessage: async (receiverUsername, receiverRole, content) => {
+  try {
+    const response = await API.post('/message/send', {
+      ReceiverUsername: receiverUsername,  // Note: Capital R
+      ReceiverRole: receiverRole,          // Note: Capital R
+      Content: content                      // Note: Capital C
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { success: false, message: error.message };
+  }
+},
+
+getUnreadCount: async () => {
+  try {
+    const response = await API.get('/message/unread-count');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { success: false, message: error.message };
+  }
+},
+
+  // Get all conversations
+  getConversations: async () => {
+    try {
+      const response = await API.get('/message/conversations');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: error.message };
+    }
+  },
+
+  // Get messages in a specific conversation
+  getConversationMessages: async (otherUsername, otherRole) => {
+    try {
+      const response = await API.get(`/message/conversation/${otherUsername}`, {
+        params: { otherRole }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: error.message };
+    }
+  },
+
+  // Get unread message count
+  getUnreadCount: async () => {
+    try {
+      const response = await API.get('/message/unread-count');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: error.message };
+    }
+  }
+};
 // Admin Service
 export const adminService = {
   // Dashboard statistics
