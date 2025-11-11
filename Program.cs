@@ -40,6 +40,7 @@ builder.Services.AddScoped<IAllergyRepository, AllergyRepository>();
 builder.Services.AddScoped<IMLPredictionRepository, MLPredictionRepository>();
 builder.Services.AddScoped<IPredictionHistoryRepository, PredictionHistoryRepository>();
 
+
 builder.Services.AddScoped<IClientHistoryService, ClientHistoryService>();
 
 

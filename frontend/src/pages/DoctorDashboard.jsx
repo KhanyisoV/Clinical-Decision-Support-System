@@ -949,7 +949,7 @@ const toggleSymptom = (symptomId) => {
       const response = await appointmentService.createAppointment(appointmentData);
       
       if (response.success || response.Success) {
-        setSuccess('Appointment created successfully! Confirmation email sent to patient.');
+        setSuccess('Appointment created successfully!');
         setShowModal(null);
         setFormData({});
         setSelectedPatient(null);
