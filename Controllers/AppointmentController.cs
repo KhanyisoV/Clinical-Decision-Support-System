@@ -4,7 +4,6 @@ using FinalYearProject.Repositories;
 using FinalYearProject.Models;
 using FinalYearProject.DTOs;
 using System.Security.Claims;
-using FinalYearProject.Services;
 
 namespace FinalYearProject.Controllers
 {
@@ -16,7 +15,6 @@ namespace FinalYearProject.Controllers
         private readonly IAppointmentHistoryRepository _historyRepo;
         private readonly IClientRepository _clientRepo;
         private readonly IDoctorRepository _doctorRepo;
-       
 
         public AppointmentController(
             IAppointmentRepository appointmentRepo,
@@ -28,7 +26,7 @@ namespace FinalYearProject.Controllers
             _historyRepo = historyRepo;
             _clientRepo = clientRepo;
             _doctorRepo = doctorRepo;
-            
+
         }
 
         // GET: api/appointment
@@ -99,7 +97,7 @@ namespace FinalYearProject.Controllers
         // POST: api/appointment
         [HttpPost]
         [Authorize(Roles = "Admin,Doctor")]
-        public async Task<IActionResult> CreateAppointment([FromBody] AppointmentCreateDto request)
+        public IActionResult CreateAppointment([FromBody] AppointmentCreateDto request)
         {
             try
             {
@@ -187,7 +185,6 @@ namespace FinalYearProject.Controllers
                 _historyRepo.Add(history);
                 _historyRepo.Save();
 
-                // Reload to get navigation properties
                 appointment = _appointmentRepo.GetById(appointment.Id);
 
                 var appointmentDto = MapToDto(appointment!);
@@ -197,6 +194,7 @@ namespace FinalYearProject.Controllers
                     Success = true,
                     Data = appointmentDto,
                     Message = "Appointment updated successfully."
+
                 });
             }
             catch (Exception ex)
@@ -213,7 +211,7 @@ namespace FinalYearProject.Controllers
         // PUT: api/appointment/{id}
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Doctor")]
-        public async Task<IActionResult> UpdateAppointment(int id, [FromBody] AppointmentUpdateDto request)
+        public IActionResult UpdateAppointment(int id, [FromBody] AppointmentUpdateDto request)
         {
             try
             {
@@ -228,9 +226,6 @@ namespace FinalYearProject.Controllers
                 }
 
                 var oldStatus = appointment.Status;
-                var oldDate = appointment.AppointmentDate;
-                var oldTime = appointment.StartTime;
-                var oldLocation = appointment.Location;
 
                 if (request.Title != null) appointment.Title = request.Title;
                 if (request.Description != null) appointment.Description = request.Description;
@@ -312,12 +307,12 @@ namespace FinalYearProject.Controllers
                     _historyRepo.Add(history);
                     _historyRepo.Save();
                 }
-
             
                 return Ok(new ApiResponseDto
                 {
                     Success = true,
                     Message = "Appointment updated successfully."
+
                 });
             }
             catch (Exception ex)

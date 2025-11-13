@@ -9,8 +9,6 @@ import 'react-calendar/dist/Calendar.css';
 import Messages from '../components/Messages';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
-
 
 
 
@@ -71,7 +69,6 @@ const saveDiagnosis = async () => {
     alert('Please select a patient before saving the diagnosis.');
     return;
   }
-
   const token = localStorage.getItem('token');
   const storedUser = JSON.parse(localStorage.getItem('user'));
 
@@ -136,6 +133,29 @@ const saveDiagnosis = async () => {
     setTimeout(() => setError(null), 5000);
   } finally {
     setLoading(false);
+
+  try {
+    const payload = {
+      title: diagnosisTitle || "Cancer Diagnosis",
+      description: diagnosisDescription || "Diagnosis result from AI model",
+      diagnosisCode: "DX-" + Math.floor(Math.random() * 10000),
+      severity: 5,
+      status: diagnosisStatus || "Pending",
+      treatmentPlan: "To be determined",
+      notes: "Auto-generated diagnosis entry",
+      clientId: selectedPatient.id,
+      clientUsername: selectedPatient.username,
+      doctorId: doctor?.id || 0,
+      diagnosedByDoctorId: doctor?.id || 0,
+      doctorUsername: doctor?.username || "Doctor"
+    };
+
+    const response = await diagnosisService.post('/api/Diagnosis/add-to-client', payload);
+    toast.success('Diagnosis saved successfully!');
+    console.log('Diagnosis saved:', response.data);
+  } catch (error) {
+    console.error('Error saving diagnosis:', error);
+    toast.error('Failed to save diagnosis.');
   }
 };
 
@@ -993,7 +1013,7 @@ const toggleSymptom = (symptomId) => {
       const response = await appointmentService.createAppointment(appointmentData);
       
       if (response.success || response.Success) {
-        setSuccess('Appointment created successfully! Confirmation email sent to patient.');
+        setSuccess('Appointment created successfully!');
         setShowModal(null);
         setFormData({});
         setSelectedPatient(null);
@@ -5939,6 +5959,8 @@ const toggleSymptom = (symptomId) => {
     </div> 
   );  
 };
+
+}
 
 const dashboardStyles = `
   * {
