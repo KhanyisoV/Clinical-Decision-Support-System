@@ -72,7 +72,6 @@ const saveDiagnosis = async () => {
     return;
   }
 
-  // ✅ Correct: use 'user' instead of 'doctor' since that’s what’s stored in localStorage
   const token = localStorage.getItem('token');
   const storedUser = JSON.parse(localStorage.getItem('user'));
 
@@ -81,54 +80,64 @@ const saveDiagnosis = async () => {
     return;
   }
 
-  const doctor = storedUser; // for clarity
+  const doctor = storedUser;
+  const clientId = selectedPatient.id || selectedPatient.Id;
+
+  if (!clientId) {
+    alert('Patient ID not found. Please refresh and try again.');
+    return;
+  }
 
   const payload = {
-    title: diagnosisTitle || "Untitled Diagnosis",
-    description: diagnosisDescription || "No description provided.",
-    diagnosisCode: "12W",
-    severity: 5,
-    status: diagnosisStatus || "Pending",
-    treatmentPlan: "Not specified",
-    notes: "Not specified",
-    clientId: selectedPatient.id,
-    clientUsername: selectedPatient.username,
-    doctorId: doctor.id,
-    diagnosedByDoctorId: doctor.id,
-    doctorUsername: doctor.userName, // ✅ fixed: consistent naming
+    Title: diagnosisTitle || "Untitled Diagnosis",
+    Description: diagnosisDescription || "No description provided.",
+    DiagnosisCode: formData.DiagnosisCode || "",
+    Severity: formData.Severity || 3,
+    Status: diagnosisStatus || "Active",
+    TreatmentPlan: formData.TreatmentPlan || "",
+    Notes: formData.Notes || "",
+    ClientId: clientId,
+    ClientUsername: selectedPatient.userName || selectedPatient.UserName,
+    DoctorId: doctor.id || doctor.Id,
+    DiagnosedByDoctorId: doctor.id || doctor.Id,
   };
 
   try {
+    setLoading(true);
     console.log("Saving diagnosis with payload:", payload);
 
-    const response = await axios.post(
-      "http://localhost:5011/api/Diagnosis/add-to-client",
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await diagnosisService.createDiagnosis(payload);
 
-    console.log("Diagnosis saved:", response.data);
-    alert("✅ Diagnosis saved successfully!");
-
-    // ✅ Reset state after success
-    setIsModalOpen(false);
-    setCurrentStep(1);
-    setSelectedPatient(null);
-    setSelectedSymptoms([]);
-    setSymptoms([]);
-    setPredictionResults(null);
+    console.log("Diagnosis saved:", response);
+    
+    if (response.success || response.Success) {
+      setSuccess("✅ Diagnosis saved successfully!");
+      
+      // Reset state
+      setIsModalOpen(false);
+      setCurrentStep(1);
+      setSelectedPatient(null);
+      setSelectedSymptoms([]);
+      setSymptoms([]);
+      setPredictionResults(null);
+      setDiagnosisTitle('');
+      setDiagnosisDescription('');
+      setDiagnosisStatus('Active');
+      setFormData({});
+      
+      setTimeout(() => setSuccess(null), 3000);
+    } else {
+      setError(response.message || response.Message || 'Failed to save diagnosis');
+      setTimeout(() => setError(null), 5000);
+    }
   } catch (error) {
     console.error("Error saving diagnosis:", error);
-    alert("❌ Failed to save diagnosis. Please ensure you are logged in and try again.");
+    setError("❌ Failed to save diagnosis. Please ensure you are logged in and try again.");
+    setTimeout(() => setError(null), 5000);
+  } finally {
+    setLoading(false);
   }
 };
-
-
 
 
   // Symptom selection and prediction states
@@ -1795,19 +1804,26 @@ const toggleSymptom = (symptomId) => {
   const handleCreateDiagnosis = (patient) => {
     setSelectedPatient(patient);
     
-    const clientId = patient.id || patient.Id;
+    console.log('Patient object:', patient); // Debug log
+    
+    // Try multiple possible ID field names
+    const clientId = patient.id || patient.Id || patient.clientId || patient.ClientId;
     const doctorId = user?.id || user?.Id;
     
     if (!clientId) {
-      setError('Cannot create diagnosis: Patient ID not found');
+      console.error('Patient object missing ID:', patient);
+      setError('Cannot create diagnosis: Patient ID not found. Please refresh the page and try again.');
       return;
     }
-
+  
     if (!doctorId) {
+      console.error('Doctor ID missing from user:', user);
       setError('Cannot create diagnosis: Doctor ID not found. Please refresh the page.');
       return;
     }
-
+  
+    console.log('Creating diagnosis with clientId:', clientId, 'doctorId:', doctorId);
+  
     setFormData({
       Title: '',
       Description: '',
@@ -1817,6 +1833,7 @@ const toggleSymptom = (symptomId) => {
       TreatmentPlan: '',
       Notes: '',
       ClientId: clientId,
+      ClientUsername: patient.userName || patient.UserName,
       DoctorId: doctorId,
       DiagnosedByDoctorId: doctorId
     });
@@ -1854,21 +1871,32 @@ const toggleSymptom = (symptomId) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     try {
+      console.log('Submitting diagnosis with formData:', formData);
+      
       const response = await diagnosisService.createDiagnosis(formData);
+      
+      console.log('Diagnosis response:', response);
       
       if (response.success || response.Success) {
         setSuccess('Diagnosis created successfully!');
         setShowModal(null);
         setFormData({});
+        setSelectedPatient(null);
+        
+        // Refresh patient history if the modal was open
+        if (selectedPatient) {
+          await handleViewPatientHistory(selectedPatient);
+        }
+        
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(response.message || response.Message || 'Failed to create diagnosis');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred while creating diagnosis');
       console.error('Diagnosis submission error:', err);
+      setError(err.message || 'An error occurred while creating diagnosis');
     } finally {
       setLoading(false);
     }
@@ -2534,172 +2562,115 @@ const toggleSymptom = (symptomId) => {
                 Back
               </button>
               <button
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: selectedSymptoms.length > 0 ? 'pointer' : 'not-allowed',
-                  opacity: selectedSymptoms.length > 0 ? 1 : 0.6,
-                }}
-                disabled={selectedSymptoms.length === 0}
-                onClick={async () => {
-                  await getPrediction();
-                  setCurrentStep(3);
-                }}
-              >
-                Get Prediction
-              </button>
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: selectedSymptoms.length > 0 ? 'pointer' : 'not-allowed',
+                opacity: selectedSymptoms.length > 0 ? 1 : 0.6,
+              }}
+              disabled={selectedSymptoms.length === 0}
+              onClick={async () => {
+                await getPrediction();
+                // Initialize form data with default values
+                setFormData({
+                  DiagnosisCode: '',
+                  Severity: 3,
+                  TreatmentPlan: '',
+                  Notes: ''
+                });
+                setDiagnosisTitle('');
+                setDiagnosisDescription('');
+                setDiagnosisStatus('Active');
+                setCurrentStep(3);
+              }}
+            >
+              Get Prediction
+            </button>
             </div>
           </>
         )}
 
         {/* Step 3: Prediction + Save */}
-        {currentStep === 3 && predictionResults && (
-          <>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
-              Diagnosis Prediction
-            </h2>
+{currentStep === 3 && predictionResults && (
+  <>
+    <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '1rem' }}>
+      Diagnosis Prediction Results
+    </h2>
 
-            <div
-              style={{
-                maxHeight: '220px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                marginBottom: '1rem',
-              }}
-            >
-              {Object.entries(predictionResults.predictions)
-                .sort((a, b) => b[1] - a[1])
-                .map(([cancer, probability], index) => (
-                  <div
-                    key={index}
-                    style={{
-                      padding: '0.75rem',
-                      backgroundColor: '#f9fafb',
-                      borderRadius: '6px',
-                      border: '1px solid #e5e7eb',
-                    }}
-                  >
-                    <p style={{ margin: 0, fontWeight: '600', color: '#111827' }}>{cancer}</p>
-                    <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
-                      Probability: {(probability * 100).toFixed(2)}%
-                    </p>
-                  </div>
-                ))}
-            </div>
+    <div
+      style={{
+        maxHeight: '220px',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.5rem',
+        marginBottom: '1rem',
+      }}
+    >
+      {Object.entries(predictionResults.predictions)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cancer, probability], index) => (
+          <div
+            key={index}
+            style={{
+              padding: '0.75rem',
+              backgroundColor: index === 0 ? '#dbeafe' : '#f9fafb',
+              borderRadius: '6px',
+              border: index === 0 ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: '600', color: '#111827' }}>{cancer}</p>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+              Probability: {(probability * 100).toFixed(2)}%
+            </p>
+          </div>
+        ))}
+    </div>
 
-            {/* Diagnosis Details Form */}
-            <div
-              style={{
-                backgroundColor: '#f9fafb',
-                padding: '1rem',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                marginBottom: '1rem',
-              }}
-            >
-              <h3 style={{ marginBottom: '0.5rem', fontSize: '1rem', fontWeight: '600' }}>
-                Diagnosis Details
-              </h3>
-              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>
-                Title
-              </label>
-              <input
-                type="text"
-                value={diagnosisTitle}
-                onChange={(e) => setDiagnosisTitle(e.target.value)}
-                placeholder="Enter diagnosis title"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  marginBottom: '0.75rem',
-                }}
-              />
+    {/* Prediction model bar */}
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+        <button
+          type="button"
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+          }}
+          onClick={() => setCurrentStep(2)}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          style={{
+            padding: '0.5rem 1rem',
+            backgroundColor: '#ef4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            setIsModalOpen(false);
+            setCurrentStep(1);
+            setSelectedPatient(null);
+            setSelectedSymptoms([]);
+            setSymptoms([]);
+            setPredictionResults(null);
+          }}
+        >
+          Exit Predication
+        </button>
+    </div>
 
-              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>
-                Description
-              </label>
-              <textarea
-                value={diagnosisDescription}
-                onChange={(e) => setDiagnosisDescription(e.target.value)}
-                placeholder="Enter diagnosis description"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  marginBottom: '0.75rem',
-                  resize: 'none',
-                  height: '80px',
-                }}
-              />
-
-              <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.25rem' }}>
-                Status
-              </label>
-              <select
-                value={diagnosisStatus}
-                onChange={(e) => setDiagnosisStatus(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-                <option value="Resolved">Resolved</option>
-              </select>
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <button
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setCurrentStep(1);
-                  setSelectedPatient(null);
-                  setSelectedSymptoms([]);
-                  setSymptoms([]);
-                  setPredictionResults(null);
-                }}
-              >
-                Close
-              </button>
-
-              <button
-                onClick={saveDiagnosis}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#16a34a',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-              >
-                Save Diagnosis
-              </button>
-            </div>
-          </>
-        )}
+  </>
+)}
       </div>
     </div>
   )}
