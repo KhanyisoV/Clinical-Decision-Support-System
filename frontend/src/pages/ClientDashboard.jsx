@@ -61,13 +61,17 @@ const apiService = {
   getLabResults: () => apiCall('/labresult'),
   getTreatments: () => apiCall('/treatment'),
   
+  // FIXED: Changed parameter names to match backend expectations
   sendMessage: (recipientUsername, recipientRole, content) => 
     apiCall('/message/send', {
       method: 'POST',
-      body: JSON.stringify({ recipientUsername, recipientRole, content })
+      body: JSON.stringify({ 
+        ReceiverUsername: recipientUsername,  
+        ReceiverRole: recipientRole,          
+        Content: content                      
+      })
     }),
   getMyDoctor: (username) => apiCall(`/client/profile/${username}`)
-
 };
 
 const styles = {
@@ -287,6 +291,21 @@ const styles = {
     flexDirection: 'column',
     gap: '0.75rem'
   },
+   addButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.625rem 1rem',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+  },
+  
   activityItem: {
     display: 'flex',
     alignItems: 'start',
@@ -1351,7 +1370,7 @@ const MessagesPage = ({
       <h2 style={styles.profileTitle}>Messages</h2>
       <button
         onClick={handleComposeMessage}
-        style={{...styles.editButton, backgroundColor: '#10b981', display: 'flex', alignItems: 'center', gap: '0.5rem'}}
+        style={{...styles.addButton, backgroundColor: '#10b981'}}
       >
         ✉️ Compose New Message
       </button>

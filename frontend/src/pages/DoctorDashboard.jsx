@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Calendar, FileText, Activity, Search, ChevronRight, 
   AlertCircle, LogOut, X, Save, Eye, Stethoscope, ClipboardList, 
-  Trash2, Edit, Clock, MapPin, Plus, Pill, Beaker 
+  Trash2, Edit, Clock, MapPin, Plus, Menu, Pill, Beaker 
 } from 'lucide-react';
 import ReactCalendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -36,6 +36,8 @@ const DoctorDashboard = () => {
     activeTreatments: 0
   });
 
+
+  const [showTabs, setShowTabs] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [observations, setObservations] = useState([]);
   const [selectedObservation, setSelectedObservation] = useState(null);
@@ -1987,31 +1989,44 @@ const toggleSymptom = (symptomId) => {
     <div className="dashboard-container">
       <style>{dashboardStyles}</style>
       
-      <header className="header">
-        <div className="header-left">
-          <h1 className="title">Doctor Dashboard</h1>
-          <p className="subtitle">
-            Welcome back, Dr. {user?.firstName || user?.userName}
-          </p>
-        </div>
-        <div className="header-right">
-          <div className="user-info">
-            <div className="avatar">
-              {(user?.firstName?.[0] || user?.userName?.[0] || 'D').toUpperCase()}
-            </div>
-            <div>
-              <div className="user-name">
-                Dr. {user?.firstName} {user?.lastName}
-              </div>
-              <div className="user-role">{user?.specialization || 'Medical Doctor'}</div>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="logout-btn">
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
-      </header>
+<header className="header" style={{
+  marginLeft: showTabs ? '250px' : '0',
+  transition: 'margin-left 0.3s ease'
+}}>
+  
+  <div className="header-left" style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+    {!showTabs && (
+  <button
+  onClick={() => setShowTabs(true)}
+  style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.5rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    outline: 'none',
+    cursor: 'pointer'
+  }}
+>
+  <Menu size={24} />
+</button>
+)}
+    <div>
+      <h1 className="title">Doctor Dashboard</h1>
+      <p className="subtitle">
+        Welcome back, Dr. {user?.firstName || user?.userName}
+      </p>
+    </div>
+  </div>
+
+  <div className="header-right">
+    <button onClick={handleLogout} className="logout-btn">
+      <LogOut size={18} />
+      Logout
+    </button>
+  </div>
+</header>
 
       {error && (
         <div className="error-banner">
@@ -2033,94 +2048,151 @@ const toggleSymptom = (symptomId) => {
         </div>
       )}
 
-      <div className="tabs">
-        <button
-          className={activeTab === 'overview' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={activeTab === 'treatments' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('treatments')}
-        >
-          Treatment Plans ({treatments.length})
-        </button>
-        <button
-          className={activeTab === 'patients' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('patients')}
-        >
-          My Patients ({patients.length})
-        </button>
-        <button
-          className={activeTab === 'appointments' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('appointments')}
-        >
-          Appointments ({appointments.length})
-        </button>
-        <button
-          className={activeTab === 'prescriptions' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('prescriptions')}
-        >
-          Prescriptions ({prescriptions.length})
-        </button>
-        <button
-          className={activeTab === 'labresults' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('labresults')}
-        >
-          Lab Results ({labResults.length})
-        </button>
-        <button
-          className={activeTab === 'observations' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('observations')}
-        >
-          Clinical Observations ({observations.length})
-        </button>
-        <button
-          className={activeTab === 'allergies' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('allergies')}
-        >
-          Allergies ({allergies.length})
-        </button>
 
-        <button
-          className={activeTab === 'symptoms' ? 'tab tab-active' : 'tab'}
-          onClick={() => setActiveTab('symptoms')}
-        >
-          Symptoms ({symptoms.length})
-        </button>
 
-        <button
-          className={activeTab === 'messages' ? 'tab tab-active' : 'tab'}
-          onClick={() => {
-            setActiveTab('messages');
-            setUnreadMessageCount(0); // Reset count when opening messages
-          }}
-          style={{position: 'relative'}}
-        >
-          Messages
-          {unreadMessageCount > 0 && (
-            <span style={{
-              position: 'absolute',
-              top: '50%',
-              right: '8px',
-              transform: 'translateY(-50%)',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              borderRadius: '12px',
-              padding: '2px 8px',
-              fontSize: '0.75rem',
-              fontWeight: '600',
-              minWidth: '20px',
-              textAlign: 'center'
-            }}>
-              {unreadMessageCount}
-            </span>
-          )}
-        </button>
-
-        
+        <div style={{
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e5e7eb',
+          padding: '0.5rem 2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          
       </div>
+
+
+{showTabs && (      
+<div className={showTabs ? 'tabs' : 'tabs hidden'}>
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '1rem 1.5rem',
+    marginBottom: '2rem'
+  }}>
+    <h2 style={{
+      margin: 0,
+      fontSize: '1.25rem',
+      fontWeight: 'bold',
+      color: 'white'
+    }}>
+      Ithemba CDSS
+    </h2>
+    <button
+      onClick={() => setShowTabs(!showTabs)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0.5rem',
+        backgroundColor: 'transparent',
+        color: 'white',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '1rem',
+        transition: 'all 0.2s',
+        width: '32px',
+        height: '32px'
+      }}
+    >
+      <X size={24} />
+    </button>
+  </div>
+  
+  <button
+    className={activeTab === 'overview' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('overview')}
+  >
+    Overview
+  </button>
+  <button
+    className={activeTab === 'treatments' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('treatments')}
+  >
+    Treatment Plans ({treatments.length})
+  </button>
+  <button
+    className={activeTab === 'plans' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('plans')}
+  >
+    Plans (0)
+  </button>
+  <button
+    className={activeTab === 'patients' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('patients')}
+  >
+    My Patients ({patients.length})
+  </button>
+  <button
+    className={activeTab === 'appointments' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('appointments')}
+  >
+    Appointments ({appointments.length})
+  </button>
+  <button
+    className={activeTab === 'prescriptions' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('prescriptions')}
+  >
+    Prescriptions ({prescriptions.length})
+  </button>
+  <button
+    className={activeTab === 'labresults' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('labresults')}
+  >
+    Lab Results ({labResults.length})
+  </button>
+  <button
+    className={activeTab === 'observations' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('observations')}
+  >
+    Clinical Observations ({observations.length})
+  </button>
+  <button
+    className={activeTab === 'allergies' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('allergies')}
+  >
+    Allergies ({allergies.length})
+  </button>
+  <button
+    className={activeTab === 'symptoms' ? 'tab tab-active' : 'tab'}
+    onClick={() => setActiveTab('symptoms')}
+  >
+    Symptoms ({symptoms.length})
+  </button>
+  <button
+    className={activeTab === 'messages' ? 'tab tab-active' : 'tab'}
+    onClick={() => {
+      setActiveTab('messages');
+      setUnreadMessageCount(0);
+    }}
+    style={{position: 'relative'}}
+  >
+    Messages
+    {unreadMessageCount > 0 && (
+      <span style={{
+        position: 'absolute',
+        top: '50%',
+        right: '1rem',
+        transform: 'translateY(-50%)',
+        backgroundColor: '#ef4444',
+        color: 'white',
+        borderRadius: '12px',
+        padding: '2px 8px',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        minWidth: '20px',
+        textAlign: 'center'
+      }}>
+        {unreadMessageCount}
+      </span>
+    )}
+  </button>
+</div>
+)}
+
+
 
       <main className="main">
         {activeTab === 'overview' && (
@@ -2135,6 +2207,13 @@ const toggleSymptom = (symptomId) => {
                   <div className="stat-label">Total Patients</div>
                 </div>
               </div>
+              {activeTab === 'plans' && (
+                <div className="empty-state">
+                  <span style={{fontSize: '3rem'}}>📋</span>
+                  <p className="empty-text">No plans yet</p>
+                  <p className="empty-subtext">Treatment plans will appear here</p>
+                </div>
+              )}
 
               <div className="stat-card">
                 <div className="stat-icon stat-icon-green">
@@ -2670,13 +2749,6 @@ const toggleSymptom = (symptomId) => {
   )}
 </>
 
-
-
-
-
-
-
-
             <div className="section">
               <div className="section-header">
                 <h2 className="section-title">Recent Patients</h2>
@@ -2802,8 +2874,8 @@ const toggleSymptom = (symptomId) => {
                   className="primary-btn"
                   style={{backgroundColor: '#10b981'}}
                 >
-                  <Plus size={16} />
-                  Compose New Message
+                  {/* <Plus size={16} /> */}
+                  ✉️ Compose New Message
                 </button>
               </div>
 
@@ -5939,6 +6011,7 @@ const dashboardStyles = `
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
   .tertiary-btn:hover {
     background-color: #e5e7eb;
@@ -5954,6 +6027,23 @@ const dashboardStyles = `
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   padding: 30px;
   transition: all 0.3s ease;
+}
+
+iconButton: {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '0.5rem',
+  backgroundColor: 'white',
+  color: '#1e3a8a',
+  cursor: 'pointer',
+  fontSize: '0.875rem',
+  fontWeight: '500',
+  transition: 'all 0.2s',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  outline: 'none'
 }
 
 /* Calendar navigation (month/year) */
@@ -6330,6 +6420,22 @@ const dashboardStyles = `
     justify-content: center;
     gap: 0.5rem;
     transition: all 0.2s;
+  }
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #ef4444;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  
+  .logout-btn:hover {
+    background-color: #dc2626;
   }
 
   .delete-btn-small:hover {
@@ -7374,40 +7480,63 @@ card-treatment {
     padding: 0.25rem;
   }
   
-  .tabs {
-    background-color: white;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    padding: 0 2rem;
-    gap: 1rem;
-  }
-  
-  .tab {
-    padding: 1rem 1.5rem;
-    background-color: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #6b7280;
-    transition: all 0.2s;
-  }
-  
-  .tab:hover {
-    color: #3b82f6;
-  }
-  
-  .tab-active {
-    color: #3b82f6;
-    border-bottom-color: #3b82f6;
-  }
+.tabs {
+  background-color: #1e3a8a;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+  width: 250px;
+  min-height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+  z-index: 100; /* Lower than the show button */
+}
+
+.tabs.hidden {
+  transform: translateX(-100%);
+}
+
+.tab {
+  padding: 1rem 1.5rem;
+  background-color: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  transition: all 0.2s;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #3b82f6;
+  background-color: #075fb7ff;
+}
+
+.tab-active {
+  background-color: rgba(255, 255, 255, 0.2);  /* More visible active state */
+  border-left-color: white;
+  color: white;
+  font-weight: 600;  /* Bolder font for active tab */
+}
   
   .main {
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
+    margin-left: 250px;
+    transition: margin-left 0.3s ease;
   }
+
+  .main.expanded {
+    margin-left: 0;}
   
   .overview {
     display: flex;

@@ -6,6 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Messages from '../components/Messages';
 import { adminService, messageService } from '../services/apiService';
+import { 
+  Users, Calendar, FileText, Activity, Search, ChevronRight, 
+  AlertCircle, LogOut, X, Save, Eye, Stethoscope, ClipboardList, 
+  Trash2, Edit, Clock, MapPin, Plus, Menu, Pill, Beaker 
+} from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -23,6 +28,8 @@ const AdminDashboard = () => {
     content: ''
   });
   const [allUsers, setAllUsers] = useState([]);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Data states
   const [appointments, setAppointments] = useState([]);
@@ -1096,10 +1103,19 @@ const renderMessagesTab = () => (
 
   return (
     <div style={styles.mainContainer}>
-      <div style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <h3>Ithemba CDSS</h3>
-        </div>
+  <div style={{
+    ...styles.sidebar,
+  width: sidebarOpen ? '220px' : '0',
+  padding: sidebarOpen ? '1.5rem 0' : '0',
+  overflow: 'hidden',
+  transition: 'width 0.3s ease, padding 0.3s ease'
+  }}>
+    <div style={{...styles.sidebarHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+      <h2 style={styles.sidebarTitle}>Ithemba CDSS</h2>
+      <button onClick={() => setSidebarOpen(false)} style={styles.iconButton}>
+        <X size={24} />
+      </button>
+    </div>
         
         <div style={styles.sidebarNav}>
           <SidebarNavItem
@@ -1140,22 +1156,47 @@ const renderMessagesTab = () => (
           />
         </div>
 
-        <button onClick={handleLogout} style={styles.logoutBtn}>
-          🚪 Logout
-        </button>
+       
       </div>
 
-      <div style={styles.mainContent}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>Admin Dashboard</h1>
-          <div style={styles.userInfo}>
-            <span>Welcome, {user?.firstName || user?.userName}</span>
-            <span style={styles.role}>({user?.role})</span>
-            <button onClick={handleLogout} style={styles.logoutButton}>
-              Logout
-            </button>
-          </div>
-        </div>
+      <div style={{
+        ...styles.mainContent,
+        marginLeft: sidebarOpen ? '220px' : '0',
+        transition: 'margin-left 0.3s ease'
+      }}>
+        <header style={styles.header}>
+  <div style={styles.headerContent}>
+    <div style={styles.headerLeft}>
+      {!sidebarOpen && (
+        <button 
+          onClick={() => setSidebarOpen(true)} 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0.5rem',
+            backgroundColor: 'transparent',
+            border: 'none',
+            outline: 'none',
+            cursor: 'pointer',
+            color: '#1f2937',
+            marginRight: '1rem'
+          }}
+        >
+          <Menu size={24} />
+        </button>
+      )}
+      <h1 style={styles.title}>Admin Dashboard</h1>
+    </div>
+    <div style={styles.userInfo}>
+      <span>Welcome, {user?.firstName || user?.userName}</span>
+      <span style={styles.role}>({user?.role})</span>
+      <button onClick={handleLogout} style={styles.logoutButton}>
+        Logout
+      </button>
+    </div>
+  </div>
+        </header>
 
         <div style={styles.content}>
           {renderContent()}
@@ -1175,22 +1216,45 @@ const styles = {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif'
   },
   sidebar: {
-    width: '220px',
-    backgroundColor: '#1e3a5f',
-    color: 'white',
-    padding: '1.5rem 0',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
-    position: 'fixed',
-    height: '100vh',
-    overflowY: 'auto'
-  },
+  width: '220px',
+  backgroundColor: '#1e3a8a',
+  color: 'white',
+  padding: '1.5rem 0',
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: '2px 0 8px rgba(0, 0, 0, 0.1)',
+  position: 'fixed',
+  height: '100vh',
+  overflowY: 'auto',
+  left: 0,
+  top: 0,
+  zIndex: 999
+},
+headerLeft: {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '1rem'
+},
+headerContent: {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  width: '100%'
+},
+
   sidebarHeader: {
-    padding: '0 1rem 2rem',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-    marginBottom: '1.5rem'
-  },
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 1rem',
+  marginBottom: '2rem'
+},
+sidebarTitle: {
+  fontSize: '1.25rem',
+  fontWeight: 'bold',
+  margin: 0
+},
+
   'sidebarHeader h3': {
     margin: 0,
     fontSize: '1.1rem',
@@ -1219,7 +1283,7 @@ const styles = {
     textAlign: 'left'
   },
   sidebarItemActive: {
-    backgroundColor: '#28a745',
+    backgroundColor: '#225babff',
     color: 'white',
     borderLeft: '4px solid #10b981'
   },
@@ -1227,6 +1291,16 @@ const styles = {
     fontSize: '1.2rem',
     width: '24px'
   },
+  iconButton: {
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'white',
+  padding: '0.5rem',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
+},
   logoutBtn: {
     margin: '1rem',
     padding: '0.75rem 1rem',
@@ -1240,11 +1314,13 @@ const styles = {
     transition: 'all 0.2s'
   },
   mainContent: {
-    flex: 1,
-    marginLeft: '220px',
-    display: 'flex',
-    flexDirection: 'column'
-  },
+  flex: 1,
+  marginLeft: '220px',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'margin-left 0.3s ease',
+  width: '100%'
+},
   header: {
     backgroundColor: '#ffffff',
     borderBottom: '1px solid #e5e7eb',

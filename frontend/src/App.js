@@ -6,7 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import LoginForm from './components/LoginForm';
 import AdminDashboard from './pages/AdminDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
-import ClientDashboard from './pages/client/ClientDashboard';
+import ClientDashboard from './pages/ClientDashboard';
 
 // Protected Route component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
