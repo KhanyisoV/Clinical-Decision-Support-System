@@ -36,7 +36,6 @@ const DoctorDashboard = () => {
     activeTreatments: 0
   });
 
-
   const [showTabs, setShowTabs] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [observations, setObservations] = useState([]);
@@ -57,135 +56,34 @@ const DoctorDashboard = () => {
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  
-// Diagnosis state variables
-const [diagnosisTitle, setDiagnosisTitle] = useState('');
-const [diagnosisDescription, setDiagnosisDescription] = useState('');
-const [diagnosisStatus, setDiagnosisStatus] = useState('Pending');
-
-// You may already have doctor info in context or local storage
-const doctor = JSON.parse(localStorage.getItem('user')); // example
-
-const saveDiagnosis = async () => {
-  if (!selectedPatient) {
-    alert('Please select a patient before saving the diagnosis.');
-    return;
-  }
-  const token = localStorage.getItem('token');
-  const storedUser = JSON.parse(localStorage.getItem('user'));
-
-  if (!storedUser || storedUser.role !== 'Doctor' || !token) {
-    alert('Doctor information or authentication token missing. Please log in again.');
-    return;
-  }
-
-  const doctor = storedUser;
-  const clientId = selectedPatient.id || selectedPatient.Id;
-
-  if (!clientId) {
-    alert('Patient ID not found. Please refresh and try again.');
-    return;
-  }
-
-  const payload = {
-    Title: diagnosisTitle || "Untitled Diagnosis",
-    Description: diagnosisDescription || "No description provided.",
-    DiagnosisCode: formData.DiagnosisCode || "",
-    Severity: formData.Severity || 3,
-    Status: diagnosisStatus || "Active",
-    TreatmentPlan: formData.TreatmentPlan || "",
-    Notes: formData.Notes || "",
-    ClientId: clientId,
-    ClientUsername: selectedPatient.userName || selectedPatient.UserName,
-    DoctorId: doctor.id || doctor.Id,
-    DiagnosedByDoctorId: doctor.id || doctor.Id,
-  };
-
-  try {
-    setLoading(true);
-    console.log("Saving diagnosis with payload:", payload);
-
-    const response = await diagnosisService.createDiagnosis(payload);
-
-    console.log("Diagnosis saved:", response);
-    
-    if (response.success || response.Success) {
-      setSuccess("✅ Diagnosis saved successfully!");
-      
-      // Reset state
-      setIsModalOpen(false);
-      setCurrentStep(1);
-      setSelectedPatient(null);
-      setSelectedSymptoms([]);
-      setSymptoms([]);
-      setPredictionResults(null);
-      setDiagnosisTitle('');
-      setDiagnosisDescription('');
-      setDiagnosisStatus('Active');
-      setFormData({});
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } else {
-      setError(response.message || response.Message || 'Failed to save diagnosis');
-      setTimeout(() => setError(null), 5000);
-    }
-  } catch (error) {
-    console.error("Error saving diagnosis:", error);
-    setError("❌ Failed to save diagnosis. Please ensure you are logged in and try again.");
-    setTimeout(() => setError(null), 5000);
-  } finally {
-    setLoading(false);
-
-  try {
-    const payload = {
-      title: diagnosisTitle || "Cancer Diagnosis",
-      description: diagnosisDescription || "Diagnosis result from AI model",
-      diagnosisCode: "DX-" + Math.floor(Math.random() * 10000),
-      severity: 5,
-      status: diagnosisStatus || "Pending",
-      treatmentPlan: "To be determined",
-      notes: "Auto-generated diagnosis entry",
-      clientId: selectedPatient.id,
-      clientUsername: selectedPatient.username,
-      doctorId: doctor?.id || 0,
-      diagnosedByDoctorId: doctor?.id || 0,
-      doctorUsername: doctor?.username || "Doctor"
-    };
-
-    const response = await diagnosisService.post('/api/Diagnosis/add-to-client', payload);
-    toast.success('Diagnosis saved successfully!');
-    console.log('Diagnosis saved:', response.data);
-  } catch (error) {
-    console.error('Error saving diagnosis:', error);
-    toast.error('Failed to save diagnosis.');
-  }
-};
-
+  // Diagnosis state variables
+  const [diagnosisTitle, setDiagnosisTitle] = useState('');
+  const [diagnosisDescription, setDiagnosisDescription] = useState('');
+  const [diagnosisStatus, setDiagnosisStatus] = useState('Pending');
 
   // Symptom selection and prediction states
-const [selectedSymptoms, setSelectedSymptoms] = useState(['']);  // List of chosen symptoms
-const [currentStep, setCurrentStep] = useState(1);             // For multi-step symptom selection
-const [predictionResults, setPredictionResults] = useState(null); // Stores AI prediction output
+  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [predictionResults, setPredictionResults] = useState(null);
 
-// Messaging feature states
-const [allUsers, setAllUsers] = useState([]);                   // List of all users for messaging
-const [showComposeModal, setShowComposeModal] = useState(false); // Controls the message compose modal
-const [messageForm, setMessageForm] = useState({                // Form for sending messages
-  recipient: "",
-  subject: "",
-  message: "",
-});
-const [selectedRecipient, setSelectedRecipient] = useState(null); // The person selected to receive the message
+  // Messaging feature states
+  const [allUsers, setAllUsers] = useState([]);
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [messageForm, setMessageForm] = useState({
+    recipient: "",
+    subject: "",
+    message: "",
+  });
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
 
-
+  // All useEffect hooks at component level
   useEffect(() => {
     initializeDashboard();
   }, []);
+
   useEffect(() => {
     if (appointments.length > 0) {
       checkAndUpdatePastAppointments();
-      
-      // Check every 5 minutes
       const interval = setInterval(checkAndUpdatePastAppointments, 5 * 60 * 1000);
       return () => clearInterval(interval);
     }
@@ -201,12 +99,8 @@ const [selectedRecipient, setSelectedRecipient] = useState(null); // The person 
   
   useEffect(() => {
     if (user) {
-      // Initial fetch
       fetchUnreadCount();
-      
-      // Poll every 30 seconds for new messages
       const interval = setInterval(fetchUnreadCount, 30000);
-      
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -214,20 +108,98 @@ const [selectedRecipient, setSelectedRecipient] = useState(null); // The person 
   useEffect(() => {
     if (appointments.length > 0) {
       checkDueAppointments();
-      
-      // Check every minute
       const interval = setInterval(checkDueAppointments, 60 * 1000);
       return () => clearInterval(interval);
     }
   }, [appointments]);
 
   useEffect(() => {
-  if (symptoms.length > 0) {
-    setSelectedSymptoms(symptoms.map((s) => s.id)); // select all by default
-  } else {
-    setSelectedSymptoms([]);
-  }
-}, [symptoms]);
+    if (symptoms.length > 0) {
+      setSelectedSymptoms(symptoms.map((s) => s.id));
+    } else {
+      setSelectedSymptoms([]);
+    }
+  }, [symptoms]);
+
+  useEffect(() => {
+    if (isModalOpen && user?.id) {
+      fetchPatientsForDoctor(user.id);
+    }
+  }, [isModalOpen, user]);
+
+  // saveDiagnosis function (WITHOUT any hooks inside!)
+  const saveDiagnosis = async () => {
+    if (!selectedPatient) {
+      alert('Please select a patient before saving the diagnosis.');
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const storedUser = JSON.parse(localStorage.getItem('user'));
+
+    if (!storedUser || storedUser.role !== 'Doctor' || !token) {
+      alert('Doctor information or authentication token missing. Please log in again.');
+      return;
+    }
+
+    const doctor = storedUser;
+    const clientId = selectedPatient.id || selectedPatient.Id;
+
+    if (!clientId) {
+      alert('Patient ID not found. Please refresh and try again.');
+      return;
+    }
+
+    const payload = {
+      Title: diagnosisTitle || "Untitled Diagnosis",
+      Description: diagnosisDescription || "No description provided.",
+      DiagnosisCode: formData.DiagnosisCode || "",
+      Severity: formData.Severity || 3,
+      Status: diagnosisStatus || "Active",
+      TreatmentPlan: formData.TreatmentPlan || "",
+      Notes: formData.Notes || "",
+      ClientId: clientId,
+      ClientUsername: selectedPatient.userName || selectedPatient.UserName,
+      DoctorId: doctor.id || doctor.Id,
+      DiagnosedByDoctorId: doctor.id || doctor.Id,
+    };
+
+    try {
+      setLoading(true);
+      console.log("Saving diagnosis with payload:", payload);
+
+      const response = await diagnosisService.createDiagnosis(payload);
+
+      console.log("Diagnosis saved:", response);
+      
+      if (response.success || response.Success) {
+        setSuccess("✅ Diagnosis saved successfully!");
+        
+        // Reset state
+        setIsModalOpen(false);
+        setCurrentStep(1);
+        setSelectedPatient(null);
+        setSelectedSymptoms([]);
+        setSymptoms([]);
+        setPredictionResults(null);
+        setDiagnosisTitle('');
+        setDiagnosisDescription('');
+        setDiagnosisStatus('Active');
+        setFormData({});
+        
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(response.message || response.Message || 'Failed to save diagnosis');
+        setTimeout(() => setError(null), 5000);
+      }
+    } catch (error) {
+      console.error("Error saving diagnosis:", error);
+      setError("❌ Failed to save diagnosis. Please ensure you are logged in and try again.");
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const initializeDashboard = async () => {
     try {
@@ -254,29 +226,6 @@ const [selectedRecipient, setSelectedRecipient] = useState(null); // The person 
       setLoading(false);
     }
   };
-
-  /*
-// Function to handle moving to the next step
-const handleNextStep = () => {
-  if (!selectedPatient) {
-    alert("Please select a patient before proceeding.");
-    return;
-  }
-
-  console.log("Proceeding with patient:", selectedPatient);
-  setIsModalOpen(false);
-  setCurrentStep(2);
-
-  // Example: You could navigate to another page or step here if needed
-  // navigate(`/diagnosis/${selectedPatient.id}`);
-};*/
-
-// Fetch patients assigned to this doctor when modal opens
-useEffect(() => {
-  if (isModalOpen && user?.id) {
-    fetchPatientsForDoctor(user.id);
-  }
-}, [isModalOpen, user]);
 
 // Fetch patients assigned to this doctor from API
 const fetchPatientsForDoctor = async (doctorId) => {
@@ -6031,8 +5980,6 @@ const toggleSymptom = (symptomId) => {
     </div> 
   );  
 };
-
-}
 
 const dashboardStyles = `
   * {
