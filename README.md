@@ -121,34 +121,34 @@ In alignment with the specifications document, the system is designed to evolve 
 ### Backend Setup
 
 
-# Navigate to backend folder
+#### Navigate to backend folder
 ```
 cd Clinical-Decision-Support-System
 ``` 
 
-# Restore NuGet packages
+#### Restore NuGet packages
 ```
 dotnet restore
 ```
 
-# Apply Entity Framework migrations and update the database
+#### Apply Entity Framework migrations and update the database
 ```
 dotnet ef database update
 ```
 
-# Run the backend server
+#### Run the backend server
 ```
 dotnet run
 ```
 
 ### Backend Setup( Machine Learning Model
 
-# Navigate to Python model folder
+#### Navigate to Python model folder
 ```
 cd "XGBoost multi-class classifier"
 ```
 
-# Create virtual environment
+#### Create virtual environment
 ```
 python -m venv venv
 ```
@@ -158,17 +158,17 @@ python -m venv venv
 ```
 venv\Scripts\activate
 ```
-# Mac/Linux
+#### Mac/Linux
 ```
 source venv/bin/activate
 ```
 
-# Install dependencies
+#### Install dependencies
 ```
 pip install -r requirements.txt
 ```
 
-# Run the symptom predictor script
+#### Run the symptom predictor script
 ```
 python run_symptom_predictor.py
 ```
@@ -176,17 +176,17 @@ python run_symptom_predictor.py
 
 ### Frontend Setup
 
-# Navigate to frontend
+#### Navigate to frontend
 ```
 cd frontend
 ```
 
-# Install dependencies
+#### Install dependencies
 ```
 npm install
 ```
 
-# Start the development server
+#### Start the development server
 ```
 npm start
 ```
