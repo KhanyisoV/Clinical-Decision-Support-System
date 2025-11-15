@@ -1,9 +1,26 @@
 # Ithemba Clinical Decision Support System (CDSS)
 
-A full‑stack web application designed to support cancer‑related clinical decision-making by combining the
-**implemented project features** (Patient–Nurse–Admin system, consultations, symptoms, appointments, notifications, secure login) with the 
-**intended system requirements** from the official specification (oncology workflows, cancer prediction model, specialist referral, analytics, structured examination flows, cancer knowledge base).
-This README provides a high‑level overview for academic evaluation.
+**Welcome to our Ithemba CDSS!**
+
+This **full‑stack web application** is designed to support healthcare professionals in **cancer-related decision making**. Our team has implemented several core features and aligned them with the **official system requirements**. Here's a quick overview:
+
+**Implemented Features:**
+
+* Patient–Nurse–Admin management system
+* Consultations and symptom tracking
+* Appointment scheduling
+* Notifications and alerts
+* Secure login and user authentication
+
+**System Requirements & Goals:**
+
+* Oncology workflow management
+* Cancer prediction and analytics
+* Specialist referrals
+* Structured examination flows
+* Comprehensive cancer knowledge base
+
+This README provides a **high-level overview** of our project, highlighting how our team has combined practical features with the intended system objectives to deliver an effective clinical decision support system.
 
 ---
 
