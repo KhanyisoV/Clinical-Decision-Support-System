@@ -46,18 +46,6 @@ In alignment with the specifications document, the system is designed to evolve 
 * System monitoring and oversight
 * View appointment activity
 
-### 2.2 Requirements‑Driven (Planned/Extended) Features
-
-These features appear in the system specification and guide the system’s intended evolution:
-
-* Cancer type probability prediction (ML model)
-* Evidence‑based diagnostic recommendations aligned with WHO/NCCN guidelines
-* Specialist referral to oncologists or radiologists
-* Detailed clinical exam recording (vital signs, red flags, attachments)
-* Analytics on patient outcomes, symptom frequency, and diagnostic trends
-* Cancer knowledge base (200+ types) with search functionality
-* Tracking patient journeys and follow‑ups over time
-
 ---
 
 ## Technology Stack
@@ -71,7 +59,6 @@ These features appear in the system specification and guide the system’s inten
 * ASP.NET Core Web API
 * Entity Framework Core
 * Identity + JWT Authentication
-* External Email API Integration (Resend or equivalent)
 * C#
 * Python
 
