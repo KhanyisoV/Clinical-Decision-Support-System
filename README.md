@@ -120,9 +120,11 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ### Backend Setup
 
-```
+
 # Navigate to backend folder
-cd Clinical-Decision-Support-System  # or the folder containing MyApp.csproj
+```
+cd Clinical-Decision-Support-System
+``` # or the folder containing MyApp.csproj
 
 # Restore NuGet packages
 dotnet restore
