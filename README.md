@@ -51,7 +51,11 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ---
 
-## 3. Technology Stack
+## 3. System Demo & Walkthrough
+
+---
+
+## 4. Technology Stack
 
 ### Frontend
 
@@ -78,7 +82,7 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ---
 
-## 4. System Architecture & Structure
+## 5. System Architecture & Structure
 
 ```
 /Clinical-Decision-Support-System
@@ -112,7 +116,7 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ---
 
-## 5. Setup & Installation
+## 6. Setup & Installation
 
 ### Backend Setup
 
@@ -144,7 +148,7 @@ Open: `http://localhost:4200/`
 
 ---
 
-## 6. Contributors
+## 7. Contributors
 
 * **Nkanini Avela**
 * **Nxam Asemahle**
@@ -154,6 +158,6 @@ Open: `http://localhost:4200/`
 
 ---
 
-## 7. License
+## 8. License
 
 This project is for academic use as part of a final‑year submission.
