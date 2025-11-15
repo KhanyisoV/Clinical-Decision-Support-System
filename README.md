@@ -47,7 +47,7 @@ In alignment with the specifications document, the system is designed to evolve 
 | - Capture symptoms and request consultations | - Capture symptoms, notes, and clinical information | - Assign consultations to nurses |
 | - View assigned nurse and consultation progress | - Complete consultations and generate prescriptions | - System monitoring and oversight |
 | - Receive email notifications | - Respond to notifications and updates | - View appointment activity |
-| - Access prescriptions after consultations | - . | - . |
+| - Access prescriptions after consultations |  | |
 
 ---
 
