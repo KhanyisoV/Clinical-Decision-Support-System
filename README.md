@@ -88,30 +88,157 @@ In alignment with the specifications document, the system is designed to evolve 
 /Clinical-Decision-Support-System
 │
 ├── Controllers/
+│   ├── AdminController.cs
+│   ├── AllergyController.cs
+│   ├── AnalyticsController.cs
+│   ├── AppointmentController.cs
+│   ├── AppointmentHistoryController.cs
+│   ├── AuthController.cs
+│   ├── ClientController.cs
+│   ├── ClientHistoryController.cs
+│   ├── ClinicalObservationController.cs
+│   ├── DiagnosisController.cs
+│   ├── DoctorController.cs
+│   ├── LabResultController.cs
+│   ├── MLPredictionController.cs
+│   ├── Message.cs
+│   ├── PredictionHistoryController.cs
+│   ├── PrescriptionController.cs
+│   ├── ProgressController.cs
+│   ├── RecommendationController.cs
+│   ├── SymptomController.cs
+│   └── TreatmentController.cs
 │
 ├── DTOs/
+│   └── DTOs.cs
 │
 ├── Data/
+│   └── AppDbContext.cs
 │
 ├── Migrations/
+│   └── [EF migration files]
 │
 ├── Models/
+│   ├── Admin.cs
+│   ├── Allergy.cs
+│   ├── Appointment.cs
+│   ├── AppointmentHistory.cs
+│   ├── Client.cs
+│   ├── ClinicalObservation.cs
+│   ├── Diagnosis.cs
+│   ├── Doctor.cs
+│   ├── IUser.cs
+│   ├── LabResult.cs
+│   ├── MLPrediction.cs
+│   ├── Message.cs
+│   ├── PredictionHistory.cs
+│   ├── Prescription.cs
+│   ├── Progress.cs
+│   ├── Recommendation.cs
+│   ├── Symtom.cs
+│   └── Treatment.cs
 │
 ├── Repositories/
+│   ├── AdminRepository.cs
+│   ├── AllergyRepository.cs
+│   ├── AppointmentHistoryRepository.cs
+│   ├── AppointmentRepository.cs
+│   ├── ClientRepository.cs
+│   ├── ClinicalObservationRepository.cs
+│   ├── DiagnosisRepository.cs
+│   ├── DoctorRepository.cs
+│   ├── IAllergyRepository.cs
+│   ├── IAppointmentHistoryRepository.cs
+│   ├── IAppointmentRepository.cs
+│   ├── IClientRepository.cs
+│   ├── IClinicalObservationRepository.cs
+│   ├── IDiagnosisRepository.cs
+│   ├── ILabResultRepository.cs
+│   ├── IMLPredictionRepository.cs
+│   ├── IPredictionHistoryRepository.cs
+│   ├── IPrescriptionRepository.cs
+│   ├── IProgressRepository.cs
+│   ├── IRecommendationRepository.cs
+│   ├── ISymptomRepository.cs
+│   ├── ITreatmentRepository.cs
+│   ├── LabResultRepository.cs
+│   ├── MLPredictionRepository.cs
+│   ├── PredictionHistoryRepository.cs
+│   ├── PrescriptionRepository.cs
+│   ├── ProgressRepository.cs
+│   ├── RecommendationRepository.cs
+│   ├── SymptomRepository.cs
+│   └── TreatmentRepository.cs
 │
 ├── Services/
+│   ├── IAnalyticsService.cs
+│   ├── IClientHistoryService.cs
+│   └── IMappingService.cs
 │
 ├── XGBoost multi-class classifier/
+│   ├── __pycache__/
+│   ├── api/
+│   │   └── __pycache__/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── schemas.py
+│   ├── README.md
+│   ├── cancer_model.pkl
+│   ├── feature_columns.pkl
+│   ├── filters.py
+│   ├── label_encoder.pkl
+│   ├── requirements.txt
+│   ├── run_symptom_predictor.py
+│   └── symptom_model.py
 │
 ├── frontend/
+│   ├── public/
+│   └── src/
+│       ├── components/
+│       │   └── admin/
+│       │       ├── AdminManagment.jsx
+│       │       ├── ClientManagement.jsx
+│       │       ├── DiagnosesManagement.jsx
+│       │       ├── DoctorManagement.jsx
+│       │       ├── SymptomsManagement.jsx
+│       │       ├── ClientRegisterForm.jsx
+│       │       ├── DebugAuth.jsx
+│       │       ├── DoctorRegisterForm.jsx
+│       │       ├── Layout.jsx
+│       │       ├── LoginForm.css
+│       │       ├── LoginForm.jsx
+│       │       ├── Messages.jsx
+│       │       ├── Navbar.jsx
+│       │       └── ProtectedRoute.jsx
+│       ├── context/
+│       │   └── AuthContext.jsx
+│       ├── pages/
+│       │   ├── AdminDashboard.css
+│       │   ├── AdminDashboard.jsx
+│       │   ├── ClientDashboard.jsx
+│       │   ├── DoctorDashboard.jsx
+│       │   └── NotFound.jsx
+│       ├── services/
+│       │   ├── api.jsx
+│       │   ├── apiService.js
+│       │   └── authService.js
+│       ├── types/
+│       │   └── auth.js
+│       ├── App.css
+│       ├── App.js
+│       ├── index.css
+│       └── index.js
 │
 ├── Clinical-Decision-Support-System.sln
 ├── MyApp.csproj
+├── MyApp.http
 ├── Program.cs
 ├── appsettings.json
 ├── appsettings.Development.json
 ├── package.json
-└── package-lock.json
+├── package-lock.json
+└── README.md
+
 ```
 
 ---
