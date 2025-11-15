@@ -1,5 +1,5 @@
 # Ithemba Clinical Decision Support System (CDSS)
-<img width="378" height="437" alt="image" src="https://github.com/user-attachments/assets/b03ce084-f24c-45f5-b5f3-b04802ea3fc1" />
+<img width="128" height="147" alt="image" src="https://github.com/user-attachments/assets/b03ce084-f24c-45f5-b5f3-b04802ea3fc1" />
 
 **Welcome to our Ithemba CDSS!**
 
