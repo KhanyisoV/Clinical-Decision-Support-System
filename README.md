@@ -318,7 +318,6 @@ npm install
 npm start
 ```
 
-```
 Open: `http://localhost:4200/`
 ---
 
