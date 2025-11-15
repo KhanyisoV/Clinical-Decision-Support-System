@@ -41,27 +41,22 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ## 2. Core Features
 
-**Patient Features**
+| **Role**    | **Features**                             |
+| ----------- | ---------------------------------------- |
+| **Patient** | - Register, log in, and access dashboard |
 
-* Register, log in, and access dashboard
 * Capture symptoms and request consultations
 * View assigned nurse and consultation progress
 * Receive email notifications
-* Access prescriptions after consultations
-
-**Nurse Features**
-
-* View assigned patients and upcoming consultations
+* Access prescriptions after consultations |
+  | **Nurse** | - View assigned patients and upcoming consultations
 * Capture symptoms, notes, and clinical information
 * Complete consultations and generate prescriptions
-* Respond to notifications and updates
-
-**Admin Features**
-
-* Manage users (nurses, patients)
+* Respond to notifications and updates |
+  | **Admin** | - Manage users (nurses, patients)
 * Assign consultations to nurses
 * System monitoring and oversight
-* View appointment activity
+* View appointment activity |
 
 ---
 
