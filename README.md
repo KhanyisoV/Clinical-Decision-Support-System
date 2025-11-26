@@ -287,7 +287,7 @@ dotnet ef database update
 dotnet run
 ```
 
-### Backend Setup( Machine Learning Model
+### Backend Setup( Machine Learning Model)
 
 #### Navigate to Python model folder
 ```
