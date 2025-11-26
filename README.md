@@ -67,7 +67,8 @@ In alignment with the specifications document, the system is designed to evolve 
   <tr>
     <td><img width="1027" height="506" alt="image" src="https://github.com/user-attachments/assets/3544376b-c32f-4737-89b1-4b2daddf3ee8" />
 </td>
-    <td><img width="1035" height="505" alt="image" src="https://github.com/user-attachments/assets/bea9ecb1-1b9e-4aab-9543-c69303a8362e" /></td>
+    <td><img width="1030" height="504" alt="image" src="https://github.com/user-attachments/assets/de8f886b-1638-4adf-9ade-126c8bff9c25" />
+</td>
   </tr>
 </table>
 
