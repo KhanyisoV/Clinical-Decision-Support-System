@@ -56,6 +56,21 @@ In alignment with the specifications document, the system is designed to evolve 
 
 [![Watch the video](https://github.com/user-attachments/assets/971d8440-76de-4618-b677-4d2a31654591)](https://youtu.be/yBjmgyRlS44)
 
+## System Screenshots
+
+<table>
+  <tr>
+    <td><img width="1035" height="505" alt="image" src="https://github.com/user-attachments/assets/bea9ecb1-1b9e-4aab-9543-c69303a8362e" /></td>
+    <td><img width="1022" height="503" alt="image" src="https://github.com/user-attachments/assets/41d32fea-cb31-4a3c-a593-e8f4c01f0735" />
+</td>
+  </tr>
+  <tr>
+    <td><img width="1027" height="506" alt="image" src="https://github.com/user-attachments/assets/3544376b-c32f-4737-89b1-4b2daddf3ee8" />
+</td>
+    <td><img width="1035" height="505" alt="image" src="https://github.com/user-attachments/assets/bea9ecb1-1b9e-4aab-9543-c69303a8362e" /></td>
+  </tr>
+</table>
+
 ---
 
 ## 4. Technology Stack
