@@ -54,8 +54,7 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ## 3. System Demo & Walkthrough
 
-[![Watch the video](<img width="1264" height="629" alt="image" src="https://github.com/user-attachments/assets/971d8440-76de-4618-b677-4d2a31654591" />
-)](https://youtu.be/yBjmgyRlS44)
+[![Watch the video](https://github.com/user-attachments/assets/971d8440-76de-4618-b677-4d2a31654591)](https://youtu.be/yBjmgyRlS44)
 
 ---
 
