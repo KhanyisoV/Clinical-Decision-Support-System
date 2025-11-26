@@ -54,6 +54,9 @@ In alignment with the specifications document, the system is designed to evolve 
 
 ## 3. System Demo & Walkthrough
 
+[![Watch the video](<img width="300" height="120" alt="image" src="https://github.com/user-attachments/assets/89233f62-e449-4cc4-8f14-9c89cea10511" />
+)](https://youtu.be/yBjmgyRlS44)
+
 ---
 
 ## 4. Technology Stack
