@@ -302,14 +302,12 @@ cd "XGBoost multi-class classifier"
 python -m venv venv
 ```
 
-### Activate virtual environment
-<hr style="border: 0; height: 1px; background: #ccc; margin: 8px 0;">
-
-#### Windows
+#### Activate virtual environment
+##### Windows
 ```
 venv\Scripts\activate
 ```
-#### Mac/Linux
+##### Mac/Linux
 ```
 source venv/bin/activate
 ```
