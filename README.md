@@ -265,7 +265,7 @@ In alignment with the specifications document, the system is designed to evolve 
 ## 6. Setup & Installation
 
 ### Backend Setup
-<hr style="border: 0; height: 2px; background: #ccc; margin: 12px 0;">
+<hr style="border: 0; height: 1px; background: #ccc; margin: 8px 0;">
 
 
 #### Navigate to backend folder
