@@ -289,6 +289,8 @@ dotnet run
 ```
 
 ### Backend Setup( Machine Learning Model)
+<hr style="border: 0; height: 1px; background: #ccc; margin: 8px 0;">
+
 
 #### Navigate to Python model folder
 ```
@@ -301,6 +303,8 @@ python -m venv venv
 ```
 
 ### Activate virtual environment
+<hr style="border: 0; height: 1px; background: #ccc; margin: 8px 0;">
+
 #### Windows
 ```
 venv\Scripts\activate
@@ -322,6 +326,8 @@ python run_symptom_predictor.py
 
 
 ### Frontend Setup
+<hr style="border: 0; height: 1px; background: #ccc; margin: 8px 0;">
+
 
 #### Navigate to frontend
 ```
