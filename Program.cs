@@ -144,6 +144,9 @@ app.MapGet("/api/test", () => new {
     port = "5011"
 });
 
+
+
+
 // Seed admin (optional dev only)
 using (var scope = app.Services.CreateScope())
 {
