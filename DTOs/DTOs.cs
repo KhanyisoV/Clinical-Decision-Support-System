@@ -29,7 +29,7 @@ namespace FinalYearProject.DTOs
         
         [EmailAddress]
         public string? Email { get; set; }
-    }
+    }   
 
     public class AdminUpdateDto
     {
