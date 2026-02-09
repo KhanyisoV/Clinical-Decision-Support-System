@@ -1,0 +1,9 @@
+bin/
+obj/
+publish/
+.vs/
+.git/
+.github/
+backend.zip
+frontend/node_modules/
+*.md
