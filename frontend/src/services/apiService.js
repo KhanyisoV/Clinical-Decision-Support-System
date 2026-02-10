@@ -42,13 +42,11 @@ export const authService = {
   login: async (credentials) => {
     try {
       const response = await API.post('/auth/login', credentials);
-      console.log('Login response:', response.data); // Debug log
+      console.log('Login response:', response.data);
 
-      // Handle the response structure from your backend
       if (response.data.success) {
         const responseData = response.data.data || response.data;
 
-        // Store token and user data
         localStorage.setItem('token', responseData.token);
         localStorage.setItem('user', JSON.stringify({
           userName: responseData.userName,
@@ -94,33 +92,30 @@ export const authService = {
   }
 };
 
-
 // Messages
 export const messageService = {
-  // Message Service
-sendMessage: async (receiverUsername, receiverRole, content) => {
-  try {
-    const response = await API.post('/message/send', {
-      ReceiverUsername: receiverUsername,  // Note: Capital R
-      ReceiverRole: receiverRole,          // Note: Capital R
-      Content: content                      // Note: Capital C
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { success: false, message: error.message };
-  }
-},
+  sendMessage: async (receiverUsername, receiverRole, content) => {
+    try {
+      const response = await API.post('/message/send', {
+        ReceiverUsername: receiverUsername,
+        ReceiverRole: receiverRole,
+        Content: content
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: error.message };
+    }
+  },
 
-getUnreadCount: async () => {
-  try {
-    const response = await API.get('/message/unread-count');
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { success: false, message: error.message };
-  }
-},
+  getUnreadCount: async () => {
+    try {
+      const response = await API.get('/message/unread-count');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { success: false, message: error.message };
+    }
+  },
 
-  // Get all conversations
   getConversations: async () => {
     try {
       const response = await API.get('/message/conversations');
@@ -130,7 +125,6 @@ getUnreadCount: async () => {
     }
   },
 
-  // Get messages in a specific conversation
   getConversationMessages: async (otherUsername, otherRole) => {
     try {
       const response = await API.get(`/message/conversation/${otherUsername}`, {
@@ -140,21 +134,11 @@ getUnreadCount: async () => {
     } catch (error) {
       throw error.response?.data || { success: false, message: error.message };
     }
-  },
-
-  // Get unread message count
-  getUnreadCount: async () => {
-    try {
-      const response = await API.get('/message/unread-count');
-      return response.data;
-    } catch (error) {
-      throw error.response?.data || { success: false, message: error.message };
-    }
   }
 };
+
 // Admin Service
 export const adminService = {
-  // Dashboard statistics
   getDashboardStats: async () => {
     try {
       const response = await API.get('/admin/dashboard/stats');
@@ -164,7 +148,6 @@ export const adminService = {
     }
   },
 
-  // Client Management
   getAllClients: async () => {
     try {
       const response = await API.get('/admin/clients');
@@ -201,7 +184,6 @@ export const adminService = {
     }
   },
 
-  // Doctor Management
   getAllDoctors: async () => {
     try {
       const response = await API.get('/admin/doctors');
@@ -238,7 +220,6 @@ export const adminService = {
     }
   },
 
-  // Admin Management
   getAllAdmins: async () => {
     try {
       const response = await API.get('/admin');
@@ -257,7 +238,6 @@ export const adminService = {
     }
   },
 
-  // Appointment Management (ADD THIS)
   getAllAppointments: async () => {
     try {
       const response = await API.get('/admin/appointments');
@@ -266,8 +246,6 @@ export const adminService = {
       throw new Error(error.response?.data?.message || 'Failed to fetch appointments');
     }
   }
-
-
 };
 
 // Client Service
@@ -374,6 +352,7 @@ export const symptomService = {
     }
   }
 };
+
 // Diagnosis Service
 export const diagnosisService = {
   createDiagnosis: async (diagnosisData) => {
@@ -421,9 +400,9 @@ export const diagnosisService = {
     }
   }
 };
+
 // Appointment Service
 export const appointmentService = {
-  // Get all appointments
   getAllAppointments: async () => {
     try {
       const response = await API.get('/appointment');
@@ -433,7 +412,6 @@ export const appointmentService = {
     }
   },
 
-  // Get appointment by ID
   getAppointmentById: async (appointmentId) => {
     try {
       const response = await API.get(`/appointment/${appointmentId}`);
@@ -443,7 +421,6 @@ export const appointmentService = {
     }
   },
 
-  // Create new appointment
   createAppointment: async (appointmentData) => {
     try {
       const response = await API.post('/appointment', appointmentData);
@@ -453,7 +430,6 @@ export const appointmentService = {
     }
   },
 
-  // Update appointment
   updateAppointment: async (appointmentId, appointmentData) => {
     try {
       const response = await API.put(`/appointment/${appointmentId}`, appointmentData);
@@ -463,7 +439,6 @@ export const appointmentService = {
     }
   },
 
-  // Delete appointment
   deleteAppointment: async (appointmentId) => {
     try {
       const response = await API.delete(`/appointment/${appointmentId}`);
@@ -473,7 +448,6 @@ export const appointmentService = {
     }
   },
 
-  // Cancel appointment
   cancelAppointment: async (appointmentId, cancellationReason) => {
     try {
       const response = await API.patch(`/appointment/${appointmentId}/cancel`, cancellationReason);
@@ -483,7 +457,6 @@ export const appointmentService = {
     }
   },
 
-  // Complete appointment
   completeAppointment: async (appointmentId) => {
     try {
       const response = await API.patch(`/appointment/${appointmentId}/complete`);
@@ -493,9 +466,9 @@ export const appointmentService = {
     }
   }
 };
+
 // Allergy Service
 export const allergyService = {
-  // Get all allergies (filtered by role on backend)
   getAllAllergies: async () => {
     try {
       const response = await API.get('/allergy');
@@ -505,7 +478,6 @@ export const allergyService = {
     }
   },
 
-  // Get allergy by ID
   getAllergyById: async (allergyId) => {
     try {
       const response = await API.get(`/allergy/${allergyId}`);
@@ -515,7 +487,6 @@ export const allergyService = {
     }
   },
 
-  // Get allergies by client ID
   getAllergiesByClientId: async (clientId) => {
     try {
       const response = await API.get(`/allergy/client/${clientId}`);
@@ -525,7 +496,6 @@ export const allergyService = {
     }
   },
 
-  // Get active allergies by client ID
   getActiveAllergiesByClientId: async (clientId) => {
     try {
       const response = await API.get(`/allergy/client/${clientId}/active`);
@@ -535,7 +505,6 @@ export const allergyService = {
     }
   },
 
-  // Create new allergy (Doctor and Client only)
   createAllergy: async (allergyData) => {
     try {
       const response = await API.post('/allergy', allergyData);
@@ -545,7 +514,6 @@ export const allergyService = {
     }
   },
 
-  // Update allergy (Doctor and Client only)
   updateAllergy: async (allergyId, allergyData) => {
     try {
       const response = await API.put(`/allergy/${allergyId}`, allergyData);
@@ -555,7 +523,6 @@ export const allergyService = {
     }
   },
 
-  // Delete allergy (Doctor and Client only)
   deleteAllergy: async (allergyId) => {
     try {
       const response = await API.delete(`/allergy/${allergyId}`);
@@ -565,9 +532,9 @@ export const allergyService = {
     }
   }
 };
+
 // Prescription Service
 export const prescriptionService = {
-  // Get all prescriptions (filtered by role on backend)
   getAllPrescriptions: async () => {
     try {
       const response = await API.get('/prescription');
@@ -577,7 +544,6 @@ export const prescriptionService = {
     }
   },
 
-  // Get prescription by ID
   getPrescriptionById: async (prescriptionId) => {
     try {
       const response = await API.get(`/prescription/${prescriptionId}`);
@@ -587,17 +553,15 @@ export const prescriptionService = {
     }
   },
 
-  // Get active prescriptions by client ID
   getActivePrescriptionsByClientId: async (clientId) => {
     try {
       const response = await API.get(`/prescription/client/${clientId}/active`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active prescriptions');      
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active prescriptions');
     }
   },
 
-  // Create new prescription (Doctor only)
   createPrescription: async (prescriptionData) => {
     try {
       const response = await API.post('/prescription', prescriptionData);
@@ -607,7 +571,6 @@ export const prescriptionService = {
     }
   },
 
-  // Update prescription (Doctor only)
   updatePrescription: async (prescriptionId, prescriptionData) => {
     try {
       const response = await API.put(`/prescription/${prescriptionId}`, prescriptionData);
@@ -617,7 +580,6 @@ export const prescriptionService = {
     }
   },
 
-  // Delete prescription (Doctor only)
   deletePrescription: async (prescriptionId) => {
     try {
       const response = await API.delete(`/prescription/${prescriptionId}`);
@@ -627,8 +589,9 @@ export const prescriptionService = {
     }
   }
 };
+
+// Lab Result Service
 export const labResultService = {
-  // Get all lab results (filtered by role on backend)
   getAllLabResults: async () => {
     try {
       const response = await API.get('/labresult');
@@ -638,7 +601,6 @@ export const labResultService = {
     }
   },
 
-  // Get lab result by ID
   getLabResultById: async (labResultId) => {
     try {
       const response = await API.get(`/labresult/${labResultId}`);
@@ -648,7 +610,6 @@ export const labResultService = {
     }
   },
 
-  // Get lab results by client ID
   getLabResultsByClientId: async (clientId) => {
     try {
       const response = await API.get(`/labresult/client/${clientId}`);
@@ -658,7 +619,6 @@ export const labResultService = {
     }
   },
 
-  // Create new lab result
   createLabResult: async (labResultData) => {
     try {
       const response = await API.post('/labresult', labResultData);
@@ -668,7 +628,6 @@ export const labResultService = {
     }
   },
 
-  // Update lab result
   updateLabResult: async (labResultId, labResultData) => {
     try {
       const response = await API.put(`/labresult/${labResultId}`, labResultData);
@@ -678,7 +637,6 @@ export const labResultService = {
     }
   },
 
-  // Delete lab result
   deleteLabResult: async (labResultId) => {
     try {
       const response = await API.delete(`/labresult/${labResultId}`);
@@ -688,9 +646,9 @@ export const labResultService = {
     }
   }
 };
+
 // Clinical Observation Service
 export const clinicalObservationService = {
-  // Get all observations (Admin only on backend, but we'll call it anyway)
   getAllObservations: async () => {
     try {
       const response = await API.get('/clinicalobservation');
@@ -700,7 +658,6 @@ export const clinicalObservationService = {
     }
   },
 
-  // Get observation by ID
   getObservationById: async (observationId) => {
     try {
       const response = await API.get(`/clinicalobservation/${observationId}`);
@@ -710,37 +667,33 @@ export const clinicalObservationService = {
     }
   },
 
-  // Get observations by client ID
   getObservationsByClientId: async (clientId) => {
     try {
       const response = await API.get(`/clinicalobservation/client/${clientId}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch client observations');       
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch client observations');
     }
   },
 
-  // Get observations by doctor ID
   getObservationsByDoctorId: async (doctorId) => {
     try {
       const response = await API.get(`/clinicalobservation/doctor/${doctorId}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch doctor observations');       
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch doctor observations');
     }
   },
 
-  // Get latest observation for client
   getLatestObservationByClientId: async (clientId) => {
     try {
       const response = await API.get(`/clinicalobservation/client/${clientId}/latest`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch latest observation');        
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch latest observation');
     }
   },
 
-  // Create new observation (Doctor only)
   createObservation: async (observationData) => {
     try {
       const response = await API.post('/clinicalobservation', observationData);
@@ -750,7 +703,6 @@ export const clinicalObservationService = {
     }
   },
 
-  // Update observation (Doctor only)
   updateObservation: async (observationId, observationData) => {
     try {
       const response = await API.put(`/clinicalobservation/${observationId}`, observationData);
@@ -760,7 +712,6 @@ export const clinicalObservationService = {
     }
   },
 
-  // Delete observation (Doctor only)
   deleteObservation: async (observationId) => {
     try {
       const response = await API.delete(`/clinicalobservation/${observationId}`);
@@ -770,9 +721,9 @@ export const clinicalObservationService = {
     }
   }
 };
+
 // Treatment Service
 export const treatmentService = {
-  // Get all treatments (filtered by role on backend)
   getAllTreatments: async () => {
     try {
       const response = await API.get('/treatment');
@@ -782,7 +733,6 @@ export const treatmentService = {
     }
   },
 
-  // Get treatment by ID
   getTreatmentById: async (treatmentId) => {
     try {
       const response = await API.get(`/treatment/${treatmentId}`);
@@ -792,7 +742,6 @@ export const treatmentService = {
     }
   },
 
-  // Get active treatments by client ID
   getActiveTreatmentsByClientId: async (clientId) => {
     try {
       const response = await API.get(`/treatment/client/${clientId}/active`);
@@ -802,7 +751,6 @@ export const treatmentService = {
     }
   },
 
-  // Get treatments by status
   getTreatmentsByStatus: async (status) => {
     try {
       const response = await API.get(`/treatment/status/${status}`);
@@ -812,7 +760,6 @@ export const treatmentService = {
     }
   },
 
-  // Create new treatment (Doctor only)
   createTreatment: async (treatmentData) => {
     try {
       const response = await API.post('/treatment', treatmentData);
@@ -822,7 +769,6 @@ export const treatmentService = {
     }
   },
 
-  // Update treatment (Doctor only)
   updateTreatment: async (treatmentId, treatmentData) => {
     try {
       const response = await API.put(`/treatment/${treatmentId}`, treatmentData);
@@ -832,7 +778,6 @@ export const treatmentService = {
     }
   },
 
-  // Delete treatment (Doctor only)
   deleteTreatment: async (treatmentId) => {
     try {
       const response = await API.delete(`/treatment/${treatmentId}`);
@@ -842,4 +787,5 @@ export const treatmentService = {
     }
   }
 };
+
 export default API;
