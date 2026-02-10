@@ -193,3 +193,5 @@ if (app.Environment.IsDevelopment())
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Run($"http://0.0.0.0:{port}");
+
+//THIS FILE WAS EDITED TO CHANGE THE CONNECTION STRING TO THE AZURE SQL DATABASE. THE ORIGINAL CONNECTION STRING POINTED TO A LOCAL SQL SERVER INSTANCE.`
