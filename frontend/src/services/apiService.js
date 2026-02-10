@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5011/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://corresponding-bibbye-khanyisov-2148b48e.koyeb.app/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -43,11 +43,11 @@ export const authService = {
     try {
       const response = await API.post('/auth/login', credentials);
       console.log('Login response:', response.data); // Debug log
-      
+
       // Handle the response structure from your backend
       if (response.data.success) {
         const responseData = response.data.data || response.data;
-        
+
         // Store token and user data
         localStorage.setItem('token', responseData.token);
         localStorage.setItem('user', JSON.stringify({
@@ -56,7 +56,7 @@ export const authService = {
           firstName: responseData.firstName,
           lastName: responseData.lastName
         }));
-        
+
         return {
           success: true,
           data: {
@@ -71,9 +71,9 @@ export const authService = {
       throw new Error(response.data.message || 'Login failed');
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.errors?.[0] || 
-                          error.message || 
+      const errorMessage = error.response?.data?.message ||
+                          error.response?.data?.errors?.[0] ||
+                          error.message ||
                           'Login failed';
       throw new Error(errorMessage);
     }
@@ -95,7 +95,7 @@ export const authService = {
 };
 
 
-// Messages 
+// Messages
 export const messageService = {
   // Message Service
 sendMessage: async (receiverUsername, receiverRole, content) => {
@@ -593,7 +593,7 @@ export const prescriptionService = {
       const response = await API.get(`/prescription/client/${clientId}/active`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active prescriptions');
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch active prescriptions');      
     }
   },
 
@@ -716,7 +716,7 @@ export const clinicalObservationService = {
       const response = await API.get(`/clinicalobservation/client/${clientId}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch client observations');
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch client observations');       
     }
   },
 
@@ -726,7 +726,7 @@ export const clinicalObservationService = {
       const response = await API.get(`/clinicalobservation/doctor/${doctorId}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch doctor observations');
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch doctor observations');       
     }
   },
 
@@ -736,7 +736,7 @@ export const clinicalObservationService = {
       const response = await API.get(`/clinicalobservation/client/${clientId}/latest`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch latest observation');
+      throw new Error(error.response?.data?.message || error.response?.data?.Message || 'Failed to fetch latest observation');        
     }
   },
 

@@ -1,7 +1,7 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5011/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://corresponding-bibbye-khanyisov-2148b48e.koyeb.app/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
