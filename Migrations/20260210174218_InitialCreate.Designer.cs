@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MyApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251004141217_AddAppointmentHistoryTable")]
-    partial class AddAppointmentHistoryTable
+    [Migration("20260210174218_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -64,6 +64,83 @@ namespace MyApp.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Admins");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.Allergy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllergyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AllergyType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CreatedByRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("DiagnosedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Reaction")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Treatment")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllergyType");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("DiagnosedDate");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Severity");
+
+                    b.ToTable("Allergies");
                 });
 
             modelBuilder.Entity("FinalYearProject.Models.Appointment", b =>
@@ -394,6 +471,261 @@ namespace MyApp.Migrations
                     b.ToTable("Doctors");
                 });
 
+            modelBuilder.Entity("FinalYearProject.Models.LabResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByAdmin")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsAbnormal")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("PerformedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReferenceRange")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("TestDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TestName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TestType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TestDate");
+
+                    b.ToTable("LabResults");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.MLPrediction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdditionalNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<double>("ConfidenceScore")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DiagnosisId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DoctorFeedback")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsReviewedByDoctor")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PredictedDiagnosis")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Symptoms")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("DiagnosisId");
+
+                    b.HasIndex("ReviewedByDoctorId");
+
+                    b.ToTable("MLPredictions");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.Message", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConversationId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReceiverRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReceiverUsername")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("SenderRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SenderUsername")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("IsRead");
+
+                    b.HasIndex("ReceiverUsername");
+
+                    b.HasIndex("SenderUsername");
+
+                    b.HasIndex("SentAt");
+
+                    b.ToTable("Messages");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.PredictionHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ActualDiagnosisId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ActualDiagnosisName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<double>("ConfidenceScore")
+                        .HasColumnType("float");
+
+                    b.Property<int>("MLPredictionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("PredictedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PredictedDiagnosis")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ReviewedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Symptoms")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("WasAccurate")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActualDiagnosisId");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("MLPredictionId");
+
+                    b.HasIndex("ReviewedByDoctorId");
+
+                    b.ToTable("PredictionHistories");
+                });
+
             modelBuilder.Entity("FinalYearProject.Models.Prescription", b =>
                 {
                     b.Property<int>("Id")
@@ -455,6 +787,68 @@ namespace MyApp.Migrations
                     b.HasIndex("PrescribedByDoctorId");
 
                     b.ToTable("Prescriptions");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.Progress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DateRecorded")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DiagnosisId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Observations")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProgressStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Recommendations")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("RecordedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("TreatmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("DiagnosisId");
+
+                    b.HasIndex("RecordedByDoctorId");
+
+                    b.HasIndex("TreatmentId");
+
+                    b.ToTable("Progresses");
                 });
 
             modelBuilder.Entity("FinalYearProject.Models.Recommendation", b =>
@@ -558,6 +952,90 @@ namespace MyApp.Migrations
                     b.ToTable("Symptoms");
                 });
 
+            modelBuilder.Entity("FinalYearProject.Models.Treatment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DiagnosisId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Goals")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("NextAppointmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PrescriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProgressNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProvidedByDoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TreatmentPlan")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("DiagnosisId");
+
+                    b.HasIndex("NextAppointmentId");
+
+                    b.HasIndex("PrescriptionId");
+
+                    b.HasIndex("ProvidedByDoctorId");
+
+                    b.ToTable("Treatments");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.Allergy", b =>
+                {
+                    b.HasOne("FinalYearProject.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("FinalYearProject.Models.Appointment", b =>
                 {
                     b.HasOne("FinalYearProject.Models.Client", "Client")
@@ -636,6 +1114,71 @@ namespace MyApp.Migrations
                     b.Navigation("DiagnosedByDoctor");
                 });
 
+            modelBuilder.Entity("FinalYearProject.Models.LabResult", b =>
+                {
+                    b.HasOne("FinalYearProject.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.MLPrediction", b =>
+                {
+                    b.HasOne("FinalYearProject.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinalYearProject.Models.Diagnosis", "Diagnosis")
+                        .WithMany()
+                        .HasForeignKey("DiagnosisId");
+
+                    b.HasOne("FinalYearProject.Models.Doctor", "ReviewedByDoctor")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByDoctorId");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Diagnosis");
+
+                    b.Navigation("ReviewedByDoctor");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.PredictionHistory", b =>
+                {
+                    b.HasOne("FinalYearProject.Models.Diagnosis", "ActualDiagnosis")
+                        .WithMany()
+                        .HasForeignKey("ActualDiagnosisId");
+
+                    b.HasOne("FinalYearProject.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinalYearProject.Models.MLPrediction", "MLPrediction")
+                        .WithMany()
+                        .HasForeignKey("MLPredictionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("FinalYearProject.Models.Doctor", "ReviewedByDoctor")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByDoctorId");
+
+                    b.Navigation("ActualDiagnosis");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("MLPrediction");
+
+                    b.Navigation("ReviewedByDoctor");
+                });
+
             modelBuilder.Entity("FinalYearProject.Models.Prescription", b =>
                 {
                     b.HasOne("FinalYearProject.Models.Client", "Client")
@@ -653,6 +1196,37 @@ namespace MyApp.Migrations
                     b.Navigation("Client");
 
                     b.Navigation("PrescribedByDoctor");
+                });
+
+            modelBuilder.Entity("FinalYearProject.Models.Progress", b =>
+                {
+                    b.HasOne("FinalYearProject.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinalYearProject.Models.Diagnosis", "Diagnosis")
+                        .WithMany()
+                        .HasForeignKey("DiagnosisId");
+
+                    b.HasOne("FinalYearProject.Models.Doctor", "RecordedByDoctor")
+                        .WithMany()
+                        .HasForeignKey("RecordedByDoctorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinalYearProject.Models.Treatment", "Treatment")
+                        .WithMany()
+                        .HasForeignKey("TreatmentId");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Diagnosis");
+
+                    b.Navigation("RecordedByDoctor");
+
+                    b.Navigation("Treatment");
                 });
 
             modelBuilder.Entity("FinalYearProject.Models.Recommendation", b =>
@@ -697,6 +1271,46 @@ namespace MyApp.Migrations
                     b.Navigation("Client");
                 });
 
+            modelBuilder.Entity("FinalYearProject.Models.Treatment", b =>
+                {
+                    b.HasOne("FinalYearProject.Models.Client", "Client")
+                        .WithMany("Treatments")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinalYearProject.Models.Diagnosis", "Diagnosis")
+                        .WithMany()
+                        .HasForeignKey("DiagnosisId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinalYearProject.Models.Appointment", "NextAppointment")
+                        .WithMany()
+                        .HasForeignKey("NextAppointmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinalYearProject.Models.Prescription", "Prescription")
+                        .WithMany()
+                        .HasForeignKey("PrescriptionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FinalYearProject.Models.Doctor", "ProvidedByDoctor")
+                        .WithMany("TreatmentsProvided")
+                        .HasForeignKey("ProvidedByDoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Diagnosis");
+
+                    b.Navigation("NextAppointment");
+
+                    b.Navigation("Prescription");
+
+                    b.Navigation("ProvidedByDoctor");
+                });
+
             modelBuilder.Entity("FinalYearProject.Models.Client", b =>
                 {
                     b.Navigation("Appointments");
@@ -708,6 +1322,8 @@ namespace MyApp.Migrations
                     b.Navigation("Recommendations");
 
                     b.Navigation("Symptoms");
+
+                    b.Navigation("Treatments");
                 });
 
             modelBuilder.Entity("FinalYearProject.Models.Diagnosis", b =>
@@ -728,6 +1344,8 @@ namespace MyApp.Migrations
                     b.Navigation("RecommendationsGiven");
 
                     b.Navigation("SymptomsAdded");
+
+                    b.Navigation("TreatmentsProvided");
                 });
 #pragma warning restore 612, 618
         }
