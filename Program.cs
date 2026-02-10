@@ -45,6 +45,9 @@ builder.Services.AddScoped<IClientHistoryService, ClientHistoryService>();
 // DTO's
 builder.Services.AddScoped<IMappingService, MappingService>();
 
+// Add HttpClient for ML predictions
+builder.Services.AddHttpClient();
+
 // JWT
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSection["Key"]!);
@@ -76,7 +79,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "MyApp API", Version = "v1" });
+    c.SwaggerDoc("v1", new() { Title = "CDSS API", Version = "v1" });
 
     // Add JWT Authentication
     c.AddSecurityDefinition(
@@ -111,66 +114,80 @@ builder.Services.AddSwaggerGen(c =>
     );
 });
 
+// CORS - Allow all for now (you can restrict later)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(
-        "AllowSpecificOrigin",
+        "AllowAll",
         policy =>
         {
-            policy
-                .WithOrigins(
-                    "http://localhost:3000", // Your React app
-                    "https://localhost:3000",
-                    "http://localhost:3001" // Alternative React port
-                )
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
         }
     );
 });
 
 var app = builder.Build();
 
+// Always enable Swagger (even in production for Koyeb)
 app.UseSwagger();
-app.UseSwaggerUI(c => // middleware to serve UI
+app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "MyApp API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CDSS API v1");
+    c.RoutePrefix = "swagger"; // Access at /swagger
 });
-app.UseCors("AllowSpecificOrigin");
-app.UseCors();
-app.UseHttpsRedirection();
+
+app.UseCors("AllowAll");
+
+// NO HTTPS redirection for Koyeb
+// app.UseHttpsRedirection();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Add health check endpoint
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-app.MapControllers();
-
-// Also add a test endpoint to verify the server is working:
+// Health check endpoint
 app.MapGet(
-    "/api/test",
+    "/",
     () =>
-        new
-        {
-            message = "Server is running!",
-            timestamp = DateTime.Now,
-            port = "5011",
-        }
+        Results.Ok(
+            new
+            {
+                message = "CDSS API is running",
+                version = "1.0",
+                timestamp = DateTime.UtcNow,
+            }
+        )
 );
 
-// Seed admin (optional dev only)
-using (var scope = app.Services.CreateScope())
+app.MapGet(
+    "/health",
+    () =>
+        Results.Ok(
+            new
+            {
+                status = "healthy",
+                timestamp = DateTime.UtcNow,
+                database = "connected",
+            }
+        )
+);
+
+app.MapControllers();
+
+// Seed admin (optional - only in development)
+if (app.Environment.IsDevelopment())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-    if (!db.Admins.Any())
+    using (var scope = app.Services.CreateScope())
     {
-        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Admin>>();
-        var admin = new Admin { UserName = "admin", Role = "Admin" };
-        admin.PasswordHash = hasher.HashPassword(admin, "Admin@123");
-        db.Admins.Add(admin);
-        db.SaveChanges();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.Migrate();
+        if (!db.Admins.Any())
+        {
+            var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Admin>>();
+            var admin = new Admin { UserName = "admin", Role = "Admin" };
+            admin.PasswordHash = hasher.HashPassword(admin, "Admin@123");
+            db.Admins.Add(admin);
+            db.SaveChanges();
+        }
     }
 }
 
