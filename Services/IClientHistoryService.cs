@@ -1,14 +1,20 @@
-using FinalYearProject.Repositories;
 using FinalYearProject.DTOs;
-using FinalYearProject.Services;
 using FinalYearProject.Models;
+using FinalYearProject.Repositories;
+using FinalYearProject.Services;
 
 namespace FinalYearProject.Services
 {
     public interface IClientHistoryService
     {
-        Task<ClientHistoryDto> GetClientHistoryAsync(int clientId, ClientHistoryFilterDto? filter = null);
-        Task<List<ClientTimelineEventDto>> GetClientTimelineAsync(int clientId, ClientHistoryFilterDto? filter = null);
+        Task<ClientHistoryDto> GetClientHistoryAsync(
+            int clientId,
+            ClientHistoryFilterDto? filter = null
+        );
+        Task<List<ClientTimelineEventDto>> GetClientTimelineAsync(
+            int clientId,
+            ClientHistoryFilterDto? filter = null
+        );
     }
 
     public class ClientHistoryService : IClientHistoryService
@@ -34,7 +40,8 @@ namespace FinalYearProject.Services
             IClinicalObservationRepository observationRepo,
             IRecommendationRepository recommendationRepo,
             IProgressRepository progressRepo,
-            IMappingService mappingService)
+            IMappingService mappingService
+        )
         {
             _clientRepo = clientRepo;
             _diagnosisRepo = diagnosisRepo;
@@ -48,28 +55,28 @@ namespace FinalYearProject.Services
             _mappingService = mappingService;
         }
 
-        public async Task<ClientHistoryDto> GetClientHistoryAsync(int clientId, ClientHistoryFilterDto? filter = null)
+        public async Task<ClientHistoryDto> GetClientHistoryAsync(
+            int clientId,
+            ClientHistoryFilterDto? filter = null
+        )
         {
             var client = _clientRepo.GetById(clientId);
             if (client == null)
                 throw new Exception("Client not found");
 
-            var history = new ClientHistoryDto
-            {
-                Client = _mappingService.ToClientDto(client)
-            };
+            var history = new ClientHistoryDto { Client = _mappingService.ToClientDto(client) };
 
             // Get all related data using existing repository methods
             var diagnoses = _diagnosisRepo.GetByClientId(clientId).AsEnumerable();
             var treatments = await _treatmentRepo.GetByClientIdAsync(clientId);
             var appointments = _appointmentRepo.GetByClientId(clientId).AsEnumerable();
             var prescriptions = await _prescriptionRepo.GetByClientIdAsync(clientId);
-            
+
             // Combine active and resolved symptoms
             var activeSymptoms = _symptomRepo.GetActiveSymptomsByClientId(clientId);
             var resolvedSymptoms = _symptomRepo.GetResolvedSymptomsByClientId(clientId);
             var symptoms = activeSymptoms.Concat(resolvedSymptoms);
-            
+
             var observations = _observationRepo.GetByClientId(clientId).AsEnumerable();
             var recommendations = _recommendationRepo.GetByClientId(clientId).AsEnumerable();
             var progressRecords = await _progressRepo.GetByClientIdAsync(clientId);
@@ -81,24 +88,40 @@ namespace FinalYearProject.Services
                 {
                     diagnoses = diagnoses.Where(d => d.DateDiagnosed >= filter.StartDate.Value);
                     treatments = treatments.Where(t => t.StartDate >= filter.StartDate.Value);
-                    appointments = appointments.Where(a => a.AppointmentDate >= filter.StartDate.Value);
+                    appointments = appointments.Where(a =>
+                        a.AppointmentDate >= filter.StartDate.Value
+                    );
                     prescriptions = prescriptions.Where(p => p.StartDate >= filter.StartDate.Value);
                     symptoms = symptoms.Where(s => s.DateReported >= filter.StartDate.Value);
-                    observations = observations.Where(o => o.ObservationDate >= filter.StartDate.Value);
-                    recommendations = recommendations.Where(r => r.DateGiven >= filter.StartDate.Value);
-                    progressRecords = progressRecords.Where(p => p.DateRecorded >= filter.StartDate.Value);
+                    observations = observations.Where(o =>
+                        o.ObservationDate >= filter.StartDate.Value
+                    );
+                    recommendations = recommendations.Where(r =>
+                        r.DateGiven >= filter.StartDate.Value
+                    );
+                    progressRecords = progressRecords.Where(p =>
+                        p.DateRecorded >= filter.StartDate.Value
+                    );
                 }
 
                 if (filter.EndDate.HasValue)
                 {
                     diagnoses = diagnoses.Where(d => d.DateDiagnosed <= filter.EndDate.Value);
                     treatments = treatments.Where(t => t.StartDate <= filter.EndDate.Value);
-                    appointments = appointments.Where(a => a.AppointmentDate <= filter.EndDate.Value);
+                    appointments = appointments.Where(a =>
+                        a.AppointmentDate <= filter.EndDate.Value
+                    );
                     prescriptions = prescriptions.Where(p => p.StartDate <= filter.EndDate.Value);
                     symptoms = symptoms.Where(s => s.DateReported <= filter.EndDate.Value);
-                    observations = observations.Where(o => o.ObservationDate <= filter.EndDate.Value);
-                    recommendations = recommendations.Where(r => r.DateGiven <= filter.EndDate.Value);
-                    progressRecords = progressRecords.Where(p => p.DateRecorded <= filter.EndDate.Value);
+                    observations = observations.Where(o =>
+                        o.ObservationDate <= filter.EndDate.Value
+                    );
+                    recommendations = recommendations.Where(r =>
+                        r.DateGiven <= filter.EndDate.Value
+                    );
+                    progressRecords = progressRecords.Where(p =>
+                        p.DateRecorded <= filter.EndDate.Value
+                    );
                 }
 
                 if (!filter.IncludeInactive)
@@ -112,14 +135,26 @@ namespace FinalYearProject.Services
 
                 if (filter.DoctorId.HasValue)
                 {
-                    diagnoses = diagnoses.Where(d => d.DiagnosedByDoctorId == filter.DoctorId.Value);
-                    treatments = treatments.Where(t => t.ProvidedByDoctorId == filter.DoctorId.Value);
+                    diagnoses = diagnoses.Where(d =>
+                        d.DiagnosedByDoctorId == filter.DoctorId.Value
+                    );
+                    treatments = treatments.Where(t =>
+                        t.ProvidedByDoctorId == filter.DoctorId.Value
+                    );
                     appointments = appointments.Where(a => a.DoctorId == filter.DoctorId.Value);
-                    prescriptions = prescriptions.Where(p => p.PrescribedByDoctorId == filter.DoctorId.Value);
+                    prescriptions = prescriptions.Where(p =>
+                        p.PrescribedByDoctorId == filter.DoctorId.Value
+                    );
                     symptoms = symptoms.Where(s => s.AddedByDoctorId == filter.DoctorId.Value);
-                    observations = observations.Where(o => o.RecordedByDoctorId == filter.DoctorId.Value);
-                    recommendations = recommendations.Where(r => r.DoctorId == filter.DoctorId.Value);
-                    progressRecords = progressRecords.Where(p => p.RecordedByDoctorId == filter.DoctorId.Value);
+                    observations = observations.Where(o =>
+                        o.RecordedByDoctorId == filter.DoctorId.Value
+                    );
+                    recommendations = recommendations.Where(r =>
+                        r.DoctorId == filter.DoctorId.Value
+                    );
+                    progressRecords = progressRecords.Where(p =>
+                        p.RecordedByDoctorId == filter.DoctorId.Value
+                    );
                 }
             }
 
@@ -129,8 +164,12 @@ namespace FinalYearProject.Services
             history.Appointments = appointments.Select(a => MapAppointmentToDto(a)).ToList();
             history.Prescriptions = prescriptions.Select(p => MapPrescriptionToDto(p)).ToList();
             history.Symptoms = symptoms.Select(s => _mappingService.ToSymptomDto(s)).ToList();
-            history.ClinicalObservations = observations.Select(o => MapObservationToDto(o)).ToList();
-            history.Recommendations = recommendations.Select(r => MapRecommendationToDto(r)).ToList();
+            history.ClinicalObservations = observations
+                .Select(o => MapObservationToDto(o))
+                .ToList();
+            history.Recommendations = recommendations
+                .Select(r => MapRecommendationToDto(r))
+                .ToList();
             history.ProgressRecords = progressRecords.Select(p => MapProgressToDto(p)).ToList();
 
             // Calculate summary
@@ -139,7 +178,10 @@ namespace FinalYearProject.Services
             return history;
         }
 
-        public async Task<List<ClientTimelineEventDto>> GetClientTimelineAsync(int clientId, ClientHistoryFilterDto? filter = null)
+        public async Task<List<ClientTimelineEventDto>> GetClientTimelineAsync(
+            int clientId,
+            ClientHistoryFilterDto? filter = null
+        )
         {
             var history = await GetClientHistoryAsync(clientId, filter);
             var timeline = new List<ClientTimelineEventDto>();
@@ -147,117 +189,140 @@ namespace FinalYearProject.Services
             // Add diagnoses to timeline
             foreach (var diagnosis in history.Diagnoses)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = diagnosis.DateDiagnosed,
-                    EventType = "Diagnosis",
-                    Title = diagnosis.Title,
-                    Description = diagnosis.Description,
-                    Status = diagnosis.Status,
-                    DoctorName = $"{diagnosis.DiagnosedByDoctor.FirstName} {diagnosis.DiagnosedByDoctor.LastName}".Trim()
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = diagnosis.DateDiagnosed,
+                        EventType = "Diagnosis",
+                        Title = diagnosis.Title,
+                        Description = diagnosis.Description,
+                        Status = diagnosis.Status,
+                        DoctorName =
+                            $"{diagnosis.DiagnosedByDoctor.FirstName} {diagnosis.DiagnosedByDoctor.LastName}".Trim(),
+                    }
+                );
             }
 
             // Add treatments to timeline
             foreach (var treatment in history.Treatments)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = treatment.StartDate,
-                    EventType = "Treatment",
-                    Title = treatment.Title,
-                    Description = treatment.Description,
-                    Status = treatment.Status,
-                    DoctorName = $"{treatment.ProvidedByDoctor.FirstName} {treatment.ProvidedByDoctor.LastName}".Trim(),
-                    RelatedId = treatment.Id
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = treatment.StartDate,
+                        EventType = "Treatment",
+                        Title = treatment.Title,
+                        Description = treatment.Description,
+                        Status = treatment.Status,
+                        DoctorName =
+                            $"{treatment.ProvidedByDoctor.FirstName} {treatment.ProvidedByDoctor.LastName}".Trim(),
+                        RelatedId = treatment.Id,
+                    }
+                );
             }
 
             // Add appointments to timeline
             foreach (var appointment in history.Appointments)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = appointment.AppointmentDate,
-                    EventType = "Appointment",
-                    Title = appointment.Title,
-                    Description = appointment.Description ?? "",
-                    Status = appointment.Status,
-                    DoctorName = $"{appointment.Doctor.FirstName} {appointment.Doctor.LastName}".Trim(),
-                    RelatedId = appointment.Id
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = appointment.AppointmentDate,
+                        EventType = "Appointment",
+                        Title = appointment.Title,
+                        Description = appointment.Description ?? "",
+                        Status = appointment.Status,
+                        DoctorName =
+                            $"{appointment.Doctor.FirstName} {appointment.Doctor.LastName}".Trim(),
+                        RelatedId = appointment.Id,
+                    }
+                );
             }
 
             // Add prescriptions to timeline
             foreach (var prescription in history.Prescriptions)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = prescription.StartDate,
-                    EventType = "Prescription",
-                    Title = prescription.MedicationName,
-                    Description = $"{prescription.Dosage}, {prescription.Frequency}",
-                    Status = prescription.Status,
-                    DoctorName = $"{prescription.PrescribedByDoctor.FirstName} {prescription.PrescribedByDoctor.LastName}".Trim(),
-                    RelatedId = prescription.Id
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = prescription.StartDate,
+                        EventType = "Prescription",
+                        Title = prescription.MedicationName,
+                        Description = $"{prescription.Dosage}, {prescription.Frequency}",
+                        Status = prescription.Status,
+                        DoctorName =
+                            $"{prescription.PrescribedByDoctor.FirstName} {prescription.PrescribedByDoctor.LastName}".Trim(),
+                        RelatedId = prescription.Id,
+                    }
+                );
             }
 
             // Add symptoms to timeline
             foreach (var symptom in history.Symptoms)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = symptom.DateReported,
-                    EventType = "Symptom",
-                    Title = symptom.Name,
-                    Description = symptom.Description ?? "",
-                    Status = symptom.IsActive ? "Active" : "Resolved",
-                    DoctorName = $"{symptom.AddedByDoctor.FirstName} {symptom.AddedByDoctor.LastName}".Trim()
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = symptom.DateReported,
+                        EventType = "Symptom",
+                        Title = symptom.Name,
+                        Description = symptom.Description ?? "",
+                        Status = symptom.IsActive ? "Active" : "Resolved",
+                        DoctorName =
+                            $"{symptom.AddedByDoctor.FirstName} {symptom.AddedByDoctor.LastName}".Trim(),
+                    }
+                );
             }
 
             // Add clinical observations to timeline
             foreach (var observation in history.ClinicalObservations)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = observation.ObservationDate,
-                    EventType = "Clinical Observation",
-                    Title = observation.ObservationType,
-                    Description = observation.Value,
-                    DoctorName = $"{observation.RecordedByDoctor.FirstName} {observation.RecordedByDoctor.LastName}".Trim(),
-                    RelatedId = observation.Id
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = observation.ObservationDate,
+                        EventType = "Clinical Observation",
+                        Title = observation.ObservationType,
+                        Description = observation.Value,
+                        DoctorName =
+                            $"{observation.RecordedByDoctor.FirstName} {observation.RecordedByDoctor.LastName}".Trim(),
+                        RelatedId = observation.Id,
+                    }
+                );
             }
 
             // Add recommendations to timeline
             foreach (var recommendation in history.Recommendations)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = recommendation.DateGiven,
-                    EventType = "Recommendation",
-                    Title = recommendation.Title,
-                    Description = recommendation.Description,
-                    Status = recommendation.IsActive ? "Active" : "Inactive",
-                    DoctorName = $"{recommendation.Doctor.FirstName} {recommendation.Doctor.LastName}".Trim()
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = recommendation.DateGiven,
+                        EventType = "Recommendation",
+                        Title = recommendation.Title,
+                        Description = recommendation.Description,
+                        Status = recommendation.IsActive ? "Active" : "Inactive",
+                        DoctorName =
+                            $"{recommendation.Doctor.FirstName} {recommendation.Doctor.LastName}".Trim(),
+                    }
+                );
             }
 
             // Add progress records to timeline
             foreach (var progress in history.ProgressRecords)
             {
-                timeline.Add(new ClientTimelineEventDto
-                {
-                    EventDate = progress.DateRecorded,
-                    EventType = "Progress Note",
-                    Title = progress.Title,
-                    Description = progress.Notes,
-                    Status = progress.ProgressStatus,
-                    DoctorName = progress.DoctorName,
-                    RelatedId = progress.Id
-                });
+                timeline.Add(
+                    new ClientTimelineEventDto
+                    {
+                        EventDate = progress.DateRecorded,
+                        EventType = "Progress Note",
+                        Title = progress.Title,
+                        Description = progress.Notes,
+                        Status = progress.ProgressStatus,
+                        DoctorName = progress.DoctorName,
+                        RelatedId = progress.Id,
+                    }
+                );
             }
 
             // Sort by date descending (most recent first)
@@ -267,19 +332,21 @@ namespace FinalYearProject.Services
         private ClientHistorySummaryDto CalculateSummary(ClientHistoryDto history)
         {
             var now = DateTime.UtcNow;
-            var upcomingAppointments = history.Appointments
-                .Where(a => a.AppointmentDate >= now && a.Status != "Cancelled")
+            var upcomingAppointments = history
+                .Appointments.Where(a => a.AppointmentDate >= now && a.Status != "Cancelled")
                 .OrderBy(a => a.AppointmentDate)
                 .ToList();
 
-            var completedAppointments = history.Appointments
-                .Where(a => a.Status == "Completed" || a.AppointmentDate < now)
+            var completedAppointments = history
+                .Appointments.Where(a => a.Status == "Completed" || a.AppointmentDate < now)
                 .ToList();
 
             var doctors = new HashSet<string>();
             if (history.Client.AssignedDoctor != null)
             {
-                doctors.Add($"{history.Client.AssignedDoctor.FirstName} {history.Client.AssignedDoctor.LastName} ({history.Client.AssignedDoctor.Specialization})".Trim());
+                doctors.Add(
+                    $"{history.Client.AssignedDoctor.FirstName} {history.Client.AssignedDoctor.LastName} ({history.Client.AssignedDoctor.Specialization})".Trim()
+                );
             }
 
             return new ClientHistorySummaryDto
@@ -298,15 +365,17 @@ namespace FinalYearProject.Services
                 TotalObservations = history.ClinicalObservations.Count,
                 TotalRecommendations = history.Recommendations.Count,
                 TotalProgressRecords = history.ProgressRecords.Count,
-                LastAppointmentDate = history.Appointments
-                    .Where(a => a.AppointmentDate < now)
+                LastAppointmentDate = history
+                    .Appointments.Where(a => a.AppointmentDate < now)
                     .OrderByDescending(a => a.AppointmentDate)
-                    .FirstOrDefault()?.AppointmentDate,
+                    .FirstOrDefault()
+                    ?.AppointmentDate,
                 NextAppointmentDate = upcomingAppointments.FirstOrDefault()?.AppointmentDate,
-                LastObservationDate = history.ClinicalObservations
-                    .OrderByDescending(o => o.ObservationDate)
-                    .FirstOrDefault()?.ObservationDate,
-                CurrentDoctors = doctors.ToList()
+                LastObservationDate = history
+                    .ClinicalObservations.OrderByDescending(o => o.ObservationDate)
+                    .FirstOrDefault()
+                    ?.ObservationDate,
+                CurrentDoctors = doctors.ToList(),
             };
         }
 
@@ -329,17 +398,17 @@ namespace FinalYearProject.Services
                 {
                     UserName = d.Client.UserName,
                     FirstName = d.Client.FirstName,
-                    LastName = d.Client.LastName
+                    LastName = d.Client.LastName,
                 },
                 DiagnosedByDoctor = new DoctorBasicDto
                 {
                     UserName = d.DiagnosedByDoctor.UserName,
                     FirstName = d.DiagnosedByDoctor.FirstName,
                     LastName = d.DiagnosedByDoctor.LastName,
-                    Specialization = d.DiagnosedByDoctor.Specialization
+                    Specialization = d.DiagnosedByDoctor.Specialization,
                 },
                 CreatedAt = d.CreatedAt,
-                UpdatedAt = d.UpdatedAt
+                UpdatedAt = d.UpdatedAt,
             };
         }
 
@@ -360,17 +429,17 @@ namespace FinalYearProject.Services
                 {
                     UserName = t.Client.UserName,
                     FirstName = t.Client.FirstName,
-                    LastName = t.Client.LastName
+                    LastName = t.Client.LastName,
                 },
                 ProvidedByDoctor = new DoctorBasicDto
                 {
                     UserName = t.ProvidedByDoctor.UserName,
                     FirstName = t.ProvidedByDoctor.FirstName,
                     LastName = t.ProvidedByDoctor.LastName,
-                    Specialization = t.ProvidedByDoctor.Specialization
+                    Specialization = t.ProvidedByDoctor.Specialization,
                 },
                 CreatedAt = t.CreatedAt,
-                UpdatedAt = t.UpdatedAt
+                UpdatedAt = t.UpdatedAt,
             };
         }
 
@@ -391,17 +460,17 @@ namespace FinalYearProject.Services
                 {
                     UserName = a.Client.UserName,
                     FirstName = a.Client.FirstName,
-                    LastName = a.Client.LastName
+                    LastName = a.Client.LastName,
                 },
                 Doctor = new DoctorBasicDto
                 {
                     UserName = a.Doctor.UserName,
                     FirstName = a.Doctor.FirstName,
                     LastName = a.Doctor.LastName,
-                    Specialization = a.Doctor.Specialization
+                    Specialization = a.Doctor.Specialization,
                 },
                 CreatedAt = a.CreatedAt,
-                UpdatedAt = a.UpdatedAt
+                UpdatedAt = a.UpdatedAt,
             };
         }
 
@@ -423,17 +492,17 @@ namespace FinalYearProject.Services
                 {
                     UserName = p.Client.UserName,
                     FirstName = p.Client.FirstName,
-                    LastName = p.Client.LastName
+                    LastName = p.Client.LastName,
                 },
                 PrescribedByDoctor = new DoctorBasicDto
                 {
                     UserName = p.PrescribedByDoctor.UserName,
                     FirstName = p.PrescribedByDoctor.FirstName,
                     LastName = p.PrescribedByDoctor.LastName,
-                    Specialization = p.PrescribedByDoctor.Specialization
+                    Specialization = p.PrescribedByDoctor.Specialization,
                 },
                 CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
+                UpdatedAt = p.UpdatedAt,
             };
         }
 
@@ -456,17 +525,17 @@ namespace FinalYearProject.Services
                 {
                     UserName = o.Client.UserName,
                     FirstName = o.Client.FirstName,
-                    LastName = o.Client.LastName
+                    LastName = o.Client.LastName,
                 },
                 RecordedByDoctor = new DoctorBasicDto
                 {
                     UserName = o.RecordedByDoctor.UserName,
                     FirstName = o.RecordedByDoctor.FirstName,
                     LastName = o.RecordedByDoctor.LastName,
-                    Specialization = o.RecordedByDoctor.Specialization
+                    Specialization = o.RecordedByDoctor.Specialization,
                 },
                 CreatedAt = o.CreatedAt,
-                UpdatedAt = o.UpdatedAt
+                UpdatedAt = o.UpdatedAt,
             };
         }
 
@@ -482,17 +551,17 @@ namespace FinalYearProject.Services
                 {
                     UserName = r.Client.UserName,
                     FirstName = r.Client.FirstName,
-                    LastName = r.Client.LastName
+                    LastName = r.Client.LastName,
                 },
                 Doctor = new DoctorBasicDto
                 {
                     UserName = r.Doctor.UserName,
                     FirstName = r.Doctor.FirstName,
                     LastName = r.Doctor.LastName,
-                    Specialization = r.Doctor.Specialization
+                    Specialization = r.Doctor.Specialization,
                 },
                 CreatedAt = r.CreatedAt,
-                UpdatedAt = r.UpdatedAt
+                UpdatedAt = r.UpdatedAt,
             };
         }
 
@@ -514,7 +583,7 @@ namespace FinalYearProject.Services
                 ClientName = p.Client?.UserName ?? "Unknown",
                 DoctorName = p.RecordedByDoctor?.UserName ?? "Unknown",
                 DiagnosisName = p.Diagnosis?.Title ?? "No Diagnosis",
-                TreatmentName = p.Treatment?.Title ?? "No Treatment"
+                TreatmentName = p.Treatment?.Title ?? "No Treatment",
             };
         }
     }

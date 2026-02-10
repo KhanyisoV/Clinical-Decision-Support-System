@@ -1,5 +1,5 @@
-using FinalYearProject.Models;
 using FinalYearProject.DTOs;
+using FinalYearProject.Models;
 
 // Create this file as: Services/MappingService.cs in your project
 namespace FinalYearProject.Services
@@ -47,7 +47,7 @@ namespace FinalYearProject.Services
                 LastName = admin.LastName,
                 Email = admin.Email,
                 CreatedAt = admin.CreatedAt,
-                UpdatedAt = admin.UpdatedAt
+                UpdatedAt = admin.UpdatedAt,
             };
         }
 
@@ -59,7 +59,7 @@ namespace FinalYearProject.Services
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
                 Email = dto.Email,
-                Role = "Admin"
+                Role = "Admin",
             };
         }
 
@@ -67,13 +67,13 @@ namespace FinalYearProject.Services
         {
             if (!string.IsNullOrEmpty(dto.UserName))
                 admin.UserName = dto.UserName;
-            
+
             if (!string.IsNullOrEmpty(dto.FirstName))
                 admin.FirstName = dto.FirstName;
-            
+
             if (!string.IsNullOrEmpty(dto.LastName))
                 admin.LastName = dto.LastName;
-            
+
             if (!string.IsNullOrEmpty(dto.Email))
                 admin.Email = dto.Email;
 
@@ -91,9 +91,10 @@ namespace FinalYearProject.Services
                 LastName = client.LastName,
                 Email = client.Email,
                 DateOfBirth = client.DateOfBirth,
-                AssignedDoctor = client.AssignedDoctor != null ? ToDoctorBasicDto(client.AssignedDoctor) : null,
+                AssignedDoctor =
+                    client.AssignedDoctor != null ? ToDoctorBasicDto(client.AssignedDoctor) : null,
                 CreatedAt = client.CreatedAt,
-                UpdatedAt = client.UpdatedAt
+                UpdatedAt = client.UpdatedAt,
             };
         }
 
@@ -103,7 +104,7 @@ namespace FinalYearProject.Services
             {
                 UserName = client.UserName,
                 FirstName = client.FirstName,
-                LastName = client.LastName
+                LastName = client.LastName,
             };
         }
 
@@ -117,7 +118,7 @@ namespace FinalYearProject.Services
                 Email = dto.Email,
                 DateOfBirth = dto.DateOfBirth,
                 AssignedDoctorId = dto.AssignedDoctorId,
-                Role = "Client"
+                Role = "Client",
             };
         }
 
@@ -125,19 +126,19 @@ namespace FinalYearProject.Services
         {
             if (!string.IsNullOrEmpty(dto.UserName))
                 client.UserName = dto.UserName;
-            
+
             if (!string.IsNullOrEmpty(dto.FirstName))
                 client.FirstName = dto.FirstName;
-            
+
             if (!string.IsNullOrEmpty(dto.LastName))
                 client.LastName = dto.LastName;
-            
+
             if (!string.IsNullOrEmpty(dto.Email))
                 client.Email = dto.Email;
-            
+
             if (dto.DateOfBirth.HasValue)
                 client.DateOfBirth = dto.DateOfBirth;
-            
+
             if (dto.AssignedDoctorId.HasValue)
                 client.AssignedDoctorId = dto.AssignedDoctorId;
 
@@ -157,7 +158,7 @@ namespace FinalYearProject.Services
                 Specialization = doctor.Specialization,
                 LicenseNumber = doctor.LicenseNumber,
                 CreatedAt = doctor.CreatedAt,
-                UpdatedAt = doctor.UpdatedAt
+                UpdatedAt = doctor.UpdatedAt,
             };
         }
 
@@ -168,7 +169,7 @@ namespace FinalYearProject.Services
                 UserName = doctor.UserName,
                 FirstName = doctor.FirstName,
                 LastName = doctor.LastName,
-                Specialization = doctor.Specialization
+                Specialization = doctor.Specialization,
             };
         }
 
@@ -182,7 +183,7 @@ namespace FinalYearProject.Services
                 Email = dto.Email,
                 Specialization = dto.Specialization,
                 LicenseNumber = dto.LicenseNumber,
-                Role = "Doctor"
+                Role = "Doctor",
             };
         }
 
@@ -190,19 +191,19 @@ namespace FinalYearProject.Services
         {
             if (!string.IsNullOrEmpty(dto.UserName))
                 doctor.UserName = dto.UserName;
-            
+
             if (!string.IsNullOrEmpty(dto.FirstName))
                 doctor.FirstName = dto.FirstName;
-            
+
             if (!string.IsNullOrEmpty(dto.LastName))
                 doctor.LastName = dto.LastName;
-            
+
             if (!string.IsNullOrEmpty(dto.Email))
                 doctor.Email = dto.Email;
-            
+
             if (!string.IsNullOrEmpty(dto.Specialization))
                 doctor.Specialization = dto.Specialization;
-            
+
             if (!string.IsNullOrEmpty(dto.LicenseNumber))
                 doctor.LicenseNumber = dto.LicenseNumber;
 
@@ -224,7 +225,7 @@ namespace FinalYearProject.Services
                 Client = ToClientBasicDto(symptom.Client),
                 AddedByDoctor = ToDoctorBasicDto(symptom.AddedByDoctor),
                 CreatedAt = symptom.CreatedAt,
-                UpdatedAt = symptom.UpdatedAt
+                UpdatedAt = symptom.UpdatedAt,
             };
         }
 
@@ -237,7 +238,7 @@ namespace FinalYearProject.Services
                 SeverityLevel = dto.SeverityLevel,
                 Notes = dto.Notes,
                 ClientId = dto.ClientId,
-                AddedByDoctorId = dto.AddedByDoctorId
+                AddedByDoctorId = dto.AddedByDoctorId,
             };
         }
 
@@ -245,19 +246,19 @@ namespace FinalYearProject.Services
         {
             if (!string.IsNullOrEmpty(dto.Name))
                 symptom.Name = dto.Name;
-            
+
             if (!string.IsNullOrEmpty(dto.Description))
                 symptom.Description = dto.Description;
-            
+
             if (dto.SeverityLevel.HasValue)
                 symptom.SeverityLevel = dto.SeverityLevel.Value;
-            
+
             if (dto.DateResolved.HasValue)
                 symptom.DateResolved = dto.DateResolved;
-            
+
             if (dto.IsActive.HasValue)
                 symptom.IsActive = dto.IsActive.Value;
-            
+
             if (!string.IsNullOrEmpty(dto.Notes))
                 symptom.Notes = dto.Notes;
 
@@ -282,7 +283,7 @@ namespace FinalYearProject.Services
                 Client = ToClientBasicDto(diagnosis.Client),
                 DiagnosedByDoctor = ToDoctorBasicDto(diagnosis.DiagnosedByDoctor),
                 CreatedAt = diagnosis.CreatedAt,
-                UpdatedAt = diagnosis.UpdatedAt
+                UpdatedAt = diagnosis.UpdatedAt,
             };
         }
 
@@ -298,7 +299,7 @@ namespace FinalYearProject.Services
                 TreatmentPlan = dto.TreatmentPlan,
                 Notes = dto.Notes,
                 ClientId = dto.ClientId,
-                DiagnosedByDoctorId = dto.DiagnosedByDoctorId
+                DiagnosedByDoctorId = dto.DiagnosedByDoctorId,
             };
         }
 
@@ -306,28 +307,28 @@ namespace FinalYearProject.Services
         {
             if (!string.IsNullOrEmpty(dto.Title))
                 diagnosis.Title = dto.Title;
-            
+
             if (!string.IsNullOrEmpty(dto.Description))
                 diagnosis.Description = dto.Description;
-            
+
             if (!string.IsNullOrEmpty(dto.DiagnosisCode))
                 diagnosis.DiagnosisCode = dto.DiagnosisCode;
-            
+
             if (dto.Severity.HasValue)
                 diagnosis.Severity = dto.Severity.Value;
-            
+
             if (!string.IsNullOrEmpty(dto.Status))
                 diagnosis.Status = dto.Status;
-            
+
             if (!string.IsNullOrEmpty(dto.TreatmentPlan))
                 diagnosis.TreatmentPlan = dto.TreatmentPlan;
-            
+
             if (!string.IsNullOrEmpty(dto.Notes))
                 diagnosis.Notes = dto.Notes;
-            
+
             if (dto.IsActive.HasValue)
                 diagnosis.IsActive = dto.IsActive.Value;
-            
+
             if (dto.DateResolved.HasValue)
                 diagnosis.DateResolved = dto.DateResolved;
 

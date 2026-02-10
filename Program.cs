@@ -174,20 +174,18 @@ app.MapGet(
 app.MapControllers();
 
 // Seed admin (optional - only in development)
-if (app.Environment.IsDevelopment())
+
+using (var scope = app.Services.CreateScope())
 {
-    using (var scope = app.Services.CreateScope())
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+    if (!db.Admins.Any())
     {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        db.Database.Migrate();
-        if (!db.Admins.Any())
-        {
-            var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Admin>>();
-            var admin = new Admin { UserName = "admin", Role = "Admin" };
-            admin.PasswordHash = hasher.HashPassword(admin, "Admin@123");
-            db.Admins.Add(admin);
-            db.SaveChanges();
-        }
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Admin>>();
+        var admin = new Admin { UserName = "admin", Role = "Admin" };
+        admin.PasswordHash = hasher.HashPassword(admin, "Admin@123");
+        db.Admins.Add(admin);
+        db.SaveChanges();
     }
 }
 

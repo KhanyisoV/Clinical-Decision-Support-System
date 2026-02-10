@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using FinalYearProject.Data;
-using FinalYearProject.Models;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using FinalYearProject.Data;
 using FinalYearProject.DTOs;
+using FinalYearProject.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinalYearProject.Controllers
 {
@@ -19,10 +19,11 @@ namespace FinalYearProject.Controllers
         private readonly IPasswordHasher<Doctor> _doctorHasher;
 
         public AdminController(
-            AppDbContext db, 
+            AppDbContext db,
             IPasswordHasher<Admin> adminHasher,
             IPasswordHasher<Client> clientHasher,
-            IPasswordHasher<Doctor> doctorHasher)
+            IPasswordHasher<Doctor> doctorHasher
+        )
         {
             _db = db;
             _adminHasher = adminHasher;
@@ -36,8 +37,8 @@ namespace FinalYearProject.Controllers
         {
             try
             {
-                var admins = await _db.Admins
-                    .Select(a => new AdminDto
+                var admins = await _db
+                    .Admins.Select(a => new AdminDto
                     {
                         UserName = a.UserName,
                         Role = a.Role,
@@ -45,25 +46,30 @@ namespace FinalYearProject.Controllers
                         LastName = a.LastName,
                         Email = a.Email,
                         CreatedAt = a.CreatedAt,
-                        UpdatedAt = a.UpdatedAt
+                        UpdatedAt = a.UpdatedAt,
                     })
                     .ToListAsync();
 
-                return Ok(new ApiResponseDto<List<AdminDto>>
-                {
-                    Success = true,
-                    Data = admins,
-                    Message = "Admins retrieved successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<List<AdminDto>>
+                    {
+                        Success = true,
+                        Data = admins,
+                        Message = "Admins retrieved successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while retrieving admins",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while retrieving admins",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
@@ -74,21 +80,23 @@ namespace FinalYearProject.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Invalid data provided",
-                        Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                    });
+                    return BadRequest(
+                        new ApiResponseDto
+                        {
+                            Success = false,
+                            Message = "Invalid data provided",
+                            Errors = ModelState
+                                .Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                                .ToList(),
+                        }
+                    );
                 }
 
                 if (await _db.Admins.AnyAsync(a => a.UserName == request.UserName))
                 {
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Username already exists"
-                    });
+                    return BadRequest(
+                        new ApiResponseDto { Success = false, Message = "Username already exists" }
+                    );
                 }
 
                 var admin = new Admin
@@ -98,7 +106,7 @@ namespace FinalYearProject.Controllers
                     FirstName = request.FirstName,
                     LastName = request.LastName,
                     Email = request.Email,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
                 };
 
                 admin.PasswordHash = _adminHasher.HashPassword(admin, request.Password);
@@ -113,166 +121,188 @@ namespace FinalYearProject.Controllers
                     FirstName = admin.FirstName,
                     LastName = admin.LastName,
                     Email = admin.Email,
-                    CreatedAt = admin.CreatedAt
+                    CreatedAt = admin.CreatedAt,
                 };
 
-                return Ok(new ApiResponseDto<AdminDto>
-                {
-                    Success = true,
-                    Data = adminDto,
-                    Message = "Admin created successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<AdminDto>
+                    {
+                        Success = true,
+                        Data = adminDto,
+                        Message = "Admin created successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while creating admin",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while creating admin",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
         [HttpGet("dashboard/stats")]
-public async Task<IActionResult> GetDashboardStats()
-{
-    try
-    {
-        var today = DateTime.UtcNow.Date;
-        var thisWeek = today.AddDays(-7);
-        var thisMonth = today.AddDays(-30);
-
-        // Calculate all stats
-        var totalClients = await _db.Clients.CountAsync();
-        var totalDoctors = await _db.Doctors.CountAsync();
-        var totalAdmins = await _db.Admins.CountAsync();
-        var activeDiagnoses = await _db.Diagnoses.CountAsync(d => d.IsActive);
-        var recentRegistrations = await _db.Clients
-            .Where(c => c.CreatedAt >= thisMonth)
-            .CountAsync();
-
-        var stats = new
+        public async Task<IActionResult> GetDashboardStats()
         {
-            TotalClients = totalClients,
-            TotalDoctors = totalDoctors,
-            TotalAdmins = totalAdmins,
-            ActiveDiagnoses = activeDiagnoses,
-            RecentRegistrations = recentRegistrations,
-            
-            // Additional appointment statistics
-            TotalAppointments = await _db.Appointments.CountAsync(),
-            UpcomingAppointments = await _db.Appointments
-                .CountAsync(a => a.AppointmentDate >= today && a.Status == "Scheduled"),
-            TodaysAppointments = await _db.Appointments
-                .CountAsync(a => a.AppointmentDate.Date == today && a.Status == "Scheduled"),
-            CompletedAppointmentsThisWeek = await _db.Appointments
-                .CountAsync(a => a.AppointmentDate >= thisWeek && a.Status == "Completed"),
-            CancelledAppointmentsThisMonth = await _db.Appointments
-                .CountAsync(a => a.AppointmentDate >= thisMonth && a.Status == "Cancelled"),
-            
-            // Recent Appointments
-            RecentAppointments = await _db.Appointments
-                .Include(a => a.Client)
-                .Include(a => a.Doctor)
-                .Where(a => a.AppointmentDate >= today)
-                .OrderBy(a => a.AppointmentDate)
-                .ThenBy(a => a.StartTime)
-                .Take(5)
-                .Select(a => new
-                {
-                    a.Id,
-                    a.Title,
-                    a.AppointmentDate,
-                    a.StartTime,
-                    a.Status,
-                    ClientName = (a.Client.FirstName ?? "") + " " + (a.Client.LastName ?? ""),
-                    DoctorName = (a.Doctor.FirstName ?? "") + " " + (a.Doctor.LastName ?? "")
-                })
-                .ToListAsync()
-        };
-
-        Console.WriteLine($"Dashboard Stats Calculated:");
-        Console.WriteLine($"- Total Clients: {totalClients}");
-        Console.WriteLine($"- Total Doctors: {totalDoctors}");
-        Console.WriteLine($"- Total Admins: {totalAdmins}");
-        Console.WriteLine($"- Active Diagnoses: {activeDiagnoses}");
-        Console.WriteLine($"- Recent Registrations: {recentRegistrations}");
-
-        return Ok(new ApiResponseDto<object>
-        {
-            Success = true,
-            Data = stats,
-            Message = "Dashboard statistics retrieved successfully"
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Dashboard stats error: {ex.Message}");
-        Console.WriteLine($"Stack trace: {ex.StackTrace}");
-        if (ex.InnerException != null)
-        {
-            Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-        }
-        
-        return StatusCode(500, new ApiResponseDto
-        {
-            Success = false,
-            Message = "An error occurred while retrieving dashboard statistics",
-            Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" }
-        });
-    }
-}
-
-
-[HttpGet("appointments")]
-public async Task<IActionResult> GetAllAppointments()
-{
-    try
-    {
-        var appointments = await _db.Appointments
-            .Include(a => a.Client)
-            .Include(a => a.Doctor)
-            .OrderByDescending(a => a.AppointmentDate)
-            .ThenByDescending(a => a.StartTime)
-            .Select(a => new
+            try
             {
-                a.Id,
-                a.Title,
-                a.Description,
-                a.AppointmentDate,
-                a.StartTime,
-                a.EndTime,
-                a.Status,
-                a.Location,
-                a.Notes,
-                ClientName = (a.Client.FirstName ?? "") + " " + (a.Client.LastName ?? ""),
-                ClientUsername = a.Client.UserName,
-                DoctorName = (a.Doctor.FirstName ?? "") + " " + (a.Doctor.LastName ?? ""),
-                DoctorUsername = a.Doctor.UserName,
-                DoctorSpecialization = a.Doctor.Specialization,
-                a.CreatedAt,
-                a.UpdatedAt
-            })
-            .ToListAsync();
+                var today = DateTime.UtcNow.Date;
+                var thisWeek = today.AddDays(-7);
+                var thisMonth = today.AddDays(-30);
 
-        return Ok(new ApiResponseDto<object>
+                // Calculate all stats
+                var totalClients = await _db.Clients.CountAsync();
+                var totalDoctors = await _db.Doctors.CountAsync();
+                var totalAdmins = await _db.Admins.CountAsync();
+                var activeDiagnoses = await _db.Diagnoses.CountAsync(d => d.IsActive);
+                var recentRegistrations = await _db
+                    .Clients.Where(c => c.CreatedAt >= thisMonth)
+                    .CountAsync();
+
+                var stats = new
+                {
+                    TotalClients = totalClients,
+                    TotalDoctors = totalDoctors,
+                    TotalAdmins = totalAdmins,
+                    ActiveDiagnoses = activeDiagnoses,
+                    RecentRegistrations = recentRegistrations,
+
+                    // Additional appointment statistics
+                    TotalAppointments = await _db.Appointments.CountAsync(),
+                    UpcomingAppointments = await _db.Appointments.CountAsync(a =>
+                        a.AppointmentDate >= today && a.Status == "Scheduled"
+                    ),
+                    TodaysAppointments = await _db.Appointments.CountAsync(a =>
+                        a.AppointmentDate.Date == today && a.Status == "Scheduled"
+                    ),
+                    CompletedAppointmentsThisWeek = await _db.Appointments.CountAsync(a =>
+                        a.AppointmentDate >= thisWeek && a.Status == "Completed"
+                    ),
+                    CancelledAppointmentsThisMonth = await _db.Appointments.CountAsync(a =>
+                        a.AppointmentDate >= thisMonth && a.Status == "Cancelled"
+                    ),
+
+                    // Recent Appointments
+                    RecentAppointments = await _db
+                        .Appointments.Include(a => a.Client)
+                        .Include(a => a.Doctor)
+                        .Where(a => a.AppointmentDate >= today)
+                        .OrderBy(a => a.AppointmentDate)
+                        .ThenBy(a => a.StartTime)
+                        .Take(5)
+                        .Select(a => new
+                        {
+                            a.Id,
+                            a.Title,
+                            a.AppointmentDate,
+                            a.StartTime,
+                            a.Status,
+                            ClientName = (a.Client.FirstName ?? "")
+                                + " "
+                                + (a.Client.LastName ?? ""),
+                            DoctorName = (a.Doctor.FirstName ?? "")
+                                + " "
+                                + (a.Doctor.LastName ?? ""),
+                        })
+                        .ToListAsync(),
+                };
+
+                Console.WriteLine($"Dashboard Stats Calculated:");
+                Console.WriteLine($"- Total Clients: {totalClients}");
+                Console.WriteLine($"- Total Doctors: {totalDoctors}");
+                Console.WriteLine($"- Total Admins: {totalAdmins}");
+                Console.WriteLine($"- Active Diagnoses: {activeDiagnoses}");
+                Console.WriteLine($"- Recent Registrations: {recentRegistrations}");
+
+                return Ok(
+                    new ApiResponseDto<object>
+                    {
+                        Success = true,
+                        Data = stats,
+                        Message = "Dashboard statistics retrieved successfully",
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Dashboard stats error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                }
+
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while retrieving dashboard statistics",
+                        Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" },
+                    }
+                );
+            }
+        }
+
+        [HttpGet("appointments")]
+        public async Task<IActionResult> GetAllAppointments()
         {
-            Success = true,
-            Data = appointments,
-            Message = "Appointments retrieved successfully"
-        });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new ApiResponseDto
-        {
-            Success = false,
-            Message = "An error occurred while retrieving appointments",
-            Errors = new List<string> { ex.Message }
-        });
-    }
-}
+            try
+            {
+                var appointments = await _db
+                    .Appointments.Include(a => a.Client)
+                    .Include(a => a.Doctor)
+                    .OrderByDescending(a => a.AppointmentDate)
+                    .ThenByDescending(a => a.StartTime)
+                    .Select(a => new
+                    {
+                        a.Id,
+                        a.Title,
+                        a.Description,
+                        a.AppointmentDate,
+                        a.StartTime,
+                        a.EndTime,
+                        a.Status,
+                        a.Location,
+                        a.Notes,
+                        ClientName = (a.Client.FirstName ?? "") + " " + (a.Client.LastName ?? ""),
+                        ClientUsername = a.Client.UserName,
+                        DoctorName = (a.Doctor.FirstName ?? "") + " " + (a.Doctor.LastName ?? ""),
+                        DoctorUsername = a.Doctor.UserName,
+                        DoctorSpecialization = a.Doctor.Specialization,
+                        a.CreatedAt,
+                        a.UpdatedAt,
+                    })
+                    .ToListAsync();
+
+                return Ok(
+                    new ApiResponseDto<object>
+                    {
+                        Success = true,
+                        Data = appointments,
+                        Message = "Appointments retrieved successfully",
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while retrieving appointments",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
+            }
+        }
 
         // Client Management
         [HttpGet("clients")]
@@ -280,8 +310,8 @@ public async Task<IActionResult> GetAllAppointments()
         {
             try
             {
-                var clients = await _db.Clients
-                    .Include(c => c.AssignedDoctor)
+                var clients = await _db
+                    .Clients.Include(c => c.AssignedDoctor)
                     .Select(c => new ClientDto
                     {
                         UserName = c.UserName,
@@ -290,34 +320,42 @@ public async Task<IActionResult> GetAllAppointments()
                         LastName = c.LastName,
                         Email = c.Email,
                         DateOfBirth = c.DateOfBirth,
-                        AssignedDoctor = c.AssignedDoctor != null ? new DoctorBasicDto
-                        {
-                            Id = c.AssignedDoctor.Id,
-                            UserName = c.AssignedDoctor.UserName,
-                            FirstName = c.AssignedDoctor.FirstName,
-                            LastName = c.AssignedDoctor.LastName,
-                            Specialization = c.AssignedDoctor.Specialization
-                        } : null,
+                        AssignedDoctor =
+                            c.AssignedDoctor != null
+                                ? new DoctorBasicDto
+                                {
+                                    Id = c.AssignedDoctor.Id,
+                                    UserName = c.AssignedDoctor.UserName,
+                                    FirstName = c.AssignedDoctor.FirstName,
+                                    LastName = c.AssignedDoctor.LastName,
+                                    Specialization = c.AssignedDoctor.Specialization,
+                                }
+                                : null,
                         CreatedAt = c.CreatedAt,
-                        UpdatedAt = c.UpdatedAt
+                        UpdatedAt = c.UpdatedAt,
                     })
                     .ToListAsync();
 
-                return Ok(new ApiResponseDto<List<ClientDto>>
-                {
-                    Success = true,
-                    Data = clients,
-                    Message = "Clients retrieved successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<List<ClientDto>>
+                    {
+                        Success = true,
+                        Data = clients,
+                        Message = "Clients retrieved successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while retrieving clients",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while retrieving clients",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
@@ -328,50 +366,54 @@ public async Task<IActionResult> GetAllAppointments()
             {
                 if (!ModelState.IsValid)
                 {
-                    var errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList();
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Invalid data provided",
-                        Errors = errors
-                    });
+                    var errors = ModelState
+                        .Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                        .ToList();
+                    return BadRequest(
+                        new ApiResponseDto
+                        {
+                            Success = false,
+                            Message = "Invalid data provided",
+                            Errors = errors,
+                        }
+                    );
                 }
 
                 if (await _db.Clients.AnyAsync(c => c.UserName == request.UserName))
                 {
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Username already exists"
-                    });
+                    return BadRequest(
+                        new ApiResponseDto { Success = false, Message = "Username already exists" }
+                    );
                 }
 
                 // Validate password
-                if(string.IsNullOrWhiteSpace(request.Password))
+                if (string.IsNullOrWhiteSpace(request.Password))
                 {
-                    return BadRequest(new ApiResponseDto 
-                    {
-                        Success = false,
-                        Message = "Password is required"
-                    });
+                    return BadRequest(
+                        new ApiResponseDto { Success = false, Message = "Password is required" }
+                    );
                 }
 
                 // Validate doctor assignment if provided
                 Doctor? assignedDoctor = null;
                 int? doctorId = null;
-                
+
                 if (request.AssignedDoctorId.HasValue && request.AssignedDoctorId.Value > 0)
                 {
-                    assignedDoctor = await _db.Doctors
-                        .FirstOrDefaultAsync(d => d.Id == request.AssignedDoctorId.Value);
-                    
+                    assignedDoctor = await _db.Doctors.FirstOrDefaultAsync(d =>
+                        d.Id == request.AssignedDoctorId.Value
+                    );
+
                     if (assignedDoctor == null)
                     {
-                        return BadRequest(new ApiResponseDto
-                        {
-                            Success = false,
-                            Message = $"Assigned doctor with ID {request.AssignedDoctorId.Value} not found"
-                        });
+                        return BadRequest(
+                            new ApiResponseDto
+                            {
+                                Success = false,
+                                Message =
+                                    $"Assigned doctor with ID {request.AssignedDoctorId.Value} not found",
+                            }
+                        );
                     }
                     doctorId = request.AssignedDoctorId.Value;
                 }
@@ -385,7 +427,7 @@ public async Task<IActionResult> GetAllAppointments()
                     Email = request.Email?.Trim(),
                     DateOfBirth = request.DateOfBirth,
                     AssignedDoctorId = doctorId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
                 };
 
                 // Hash Password
@@ -395,8 +437,8 @@ public async Task<IActionResult> GetAllAppointments()
                 await _db.SaveChangesAsync();
 
                 // Reload the client with doctor info
-                var createdClient = await _db.Clients
-                    .Include(c => c.AssignedDoctor)
+                var createdClient = await _db
+                    .Clients.Include(c => c.AssignedDoctor)
                     .FirstOrDefaultAsync(c => c.UserName == client.UserName);
 
                 var clientDto = new ClientDto
@@ -407,53 +449,62 @@ public async Task<IActionResult> GetAllAppointments()
                     LastName = createdClient.LastName,
                     Email = createdClient.Email,
                     DateOfBirth = createdClient.DateOfBirth,
-                    AssignedDoctor = createdClient.AssignedDoctor != null ? new DoctorBasicDto
-                    {
-                        Id = createdClient.AssignedDoctor.Id,
-                        UserName = createdClient.AssignedDoctor.UserName,
-                        FirstName = createdClient.AssignedDoctor.FirstName,
-                        LastName = createdClient.AssignedDoctor.LastName,
-                        Specialization = createdClient.AssignedDoctor.Specialization
-                    } : null,
-                    CreatedAt = createdClient.CreatedAt
+                    AssignedDoctor =
+                        createdClient.AssignedDoctor != null
+                            ? new DoctorBasicDto
+                            {
+                                Id = createdClient.AssignedDoctor.Id,
+                                UserName = createdClient.AssignedDoctor.UserName,
+                                FirstName = createdClient.AssignedDoctor.FirstName,
+                                LastName = createdClient.AssignedDoctor.LastName,
+                                Specialization = createdClient.AssignedDoctor.Specialization,
+                            }
+                            : null,
+                    CreatedAt = createdClient.CreatedAt,
                 };
 
-                return Ok(new ApiResponseDto<ClientDto>
-                {
-                    Success = true,
-                    Data = clientDto,
-                    Message = "Client created successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<ClientDto>
+                    {
+                        Success = true,
+                        Data = clientDto,
+                        Message = "Client created successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error creating client: {ex}");
-                
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while creating client",
-                    Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" }
-                });
+
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while creating client",
+                        Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" },
+                    }
+                );
             }
         }
 
         [HttpPut("clients/{username}")]
-        public async Task<IActionResult> UpdateClient(string username, [FromBody] ClientUpdateDto request)
+        public async Task<IActionResult> UpdateClient(
+            string username,
+            [FromBody] ClientUpdateDto request
+        )
         {
             try
             {
-                var client = await _db.Clients
-                    .Include(c => c.AssignedDoctor)
+                var client = await _db
+                    .Clients.Include(c => c.AssignedDoctor)
                     .FirstOrDefaultAsync(c => c.UserName == username);
-                    
+
                 if (client == null)
                 {
-                    return NotFound(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Client not found"
-                    });
+                    return NotFound(
+                        new ApiResponseDto { Success = false, Message = "Client not found" }
+                    );
                 }
 
                 // Update fields if provided
@@ -461,11 +512,13 @@ public async Task<IActionResult> GetAllAppointments()
                 {
                     if (await _db.Clients.AnyAsync(c => c.UserName == request.UserName))
                     {
-                        return BadRequest(new ApiResponseDto
-                        {
-                            Success = false,
-                            Message = "Username already exists"
-                        });
+                        return BadRequest(
+                            new ApiResponseDto
+                            {
+                                Success = false,
+                                Message = "Username already exists",
+                            }
+                        );
                     }
                     client.UserName = request.UserName;
                 }
@@ -475,26 +528,34 @@ public async Task<IActionResult> GetAllAppointments()
                     client.PasswordHash = _clientHasher.HashPassword(client, request.Password);
                 }
 
-                if (request.FirstName != null) client.FirstName = request.FirstName;
-                if (request.LastName != null) client.LastName = request.LastName;
-                if (request.Email != null) client.Email = request.Email;
-                if (request.DateOfBirth.HasValue) client.DateOfBirth = request.DateOfBirth;
-                
+                if (request.FirstName != null)
+                    client.FirstName = request.FirstName;
+                if (request.LastName != null)
+                    client.LastName = request.LastName;
+                if (request.Email != null)
+                    client.Email = request.Email;
+                if (request.DateOfBirth.HasValue)
+                    client.DateOfBirth = request.DateOfBirth;
+
                 // Handle doctor assignment
                 if (request.AssignedDoctorId.HasValue)
                 {
-                    var doctor = await _db.Doctors
-                        .FirstOrDefaultAsync(d => d.Id == request.AssignedDoctorId.Value);
-                        
+                    var doctor = await _db.Doctors.FirstOrDefaultAsync(d =>
+                        d.Id == request.AssignedDoctorId.Value
+                    );
+
                     if (doctor == null)
                     {
-                        return BadRequest(new ApiResponseDto
-                        {
-                            Success = false,
-                            Message = $"Doctor with ID {request.AssignedDoctorId.Value} not found"
-                        });
+                        return BadRequest(
+                            new ApiResponseDto
+                            {
+                                Success = false,
+                                Message =
+                                    $"Doctor with ID {request.AssignedDoctorId.Value} not found",
+                            }
+                        );
                     }
-                    
+
                     client.AssignedDoctorId = request.AssignedDoctorId;
                 }
 
@@ -511,33 +572,41 @@ public async Task<IActionResult> GetAllAppointments()
                     LastName = client.LastName,
                     Email = client.Email,
                     DateOfBirth = client.DateOfBirth,
-                    AssignedDoctor = client.AssignedDoctor != null ? new DoctorBasicDto
-                    {
-                        Id = client.AssignedDoctor.Id,
-                        UserName = client.AssignedDoctor.UserName,
-                        FirstName = client.AssignedDoctor.FirstName,
-                        LastName = client.AssignedDoctor.LastName,
-                        Specialization = client.AssignedDoctor.Specialization
-                    } : null,
+                    AssignedDoctor =
+                        client.AssignedDoctor != null
+                            ? new DoctorBasicDto
+                            {
+                                Id = client.AssignedDoctor.Id,
+                                UserName = client.AssignedDoctor.UserName,
+                                FirstName = client.AssignedDoctor.FirstName,
+                                LastName = client.AssignedDoctor.LastName,
+                                Specialization = client.AssignedDoctor.Specialization,
+                            }
+                            : null,
                     CreatedAt = client.CreatedAt,
-                    UpdatedAt = client.UpdatedAt
+                    UpdatedAt = client.UpdatedAt,
                 };
 
-                return Ok(new ApiResponseDto<ClientDto>
-                {
-                    Success = true,
-                    Data = clientDto,
-                    Message = "Client updated successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<ClientDto>
+                    {
+                        Success = true,
+                        Data = clientDto,
+                        Message = "Client updated successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while updating client",
-                    Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while updating client",
+                        Errors = new List<string> { ex.Message, ex.InnerException?.Message ?? "" },
+                    }
+                );
             }
         }
 
@@ -549,30 +618,29 @@ public async Task<IActionResult> GetAllAppointments()
                 var client = await _db.Clients.FirstOrDefaultAsync(c => c.UserName == username);
                 if (client == null)
                 {
-                    return NotFound(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Client not found"
-                    });
+                    return NotFound(
+                        new ApiResponseDto { Success = false, Message = "Client not found" }
+                    );
                 }
 
                 _db.Clients.Remove(client);
                 await _db.SaveChangesAsync();
 
-                return Ok(new ApiResponseDto
-                {
-                    Success = true,
-                    Message = "Client deleted successfully"
-                });
+                return Ok(
+                    new ApiResponseDto { Success = true, Message = "Client deleted successfully" }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while deleting client",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while deleting client",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
@@ -581,8 +649,8 @@ public async Task<IActionResult> GetAllAppointments()
         {
             try
             {
-                var doctors = await _db.Doctors
-                    .Select(d => new
+                var doctors = await _db
+                    .Doctors.Select(d => new
                     {
                         Id = d.Id,
                         UserName = d.UserName,
@@ -593,25 +661,30 @@ public async Task<IActionResult> GetAllAppointments()
                         Specialization = d.Specialization,
                         LicenseNumber = d.LicenseNumber,
                         CreatedAt = d.CreatedAt,
-                        UpdatedAt = d.UpdatedAt
+                        UpdatedAt = d.UpdatedAt,
                     })
                     .ToListAsync();
 
-                return Ok(new ApiResponseDto<object>
-                {
-                    Success = true,
-                    Data = doctors,
-                    Message = "Doctors retrieved successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<object>
+                    {
+                        Success = true,
+                        Data = doctors,
+                        Message = "Doctors retrieved successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while retrieving doctors",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while retrieving doctors",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
@@ -622,21 +695,23 @@ public async Task<IActionResult> GetAllAppointments()
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Invalid data provided",
-                        Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList()
-                    });
+                    return BadRequest(
+                        new ApiResponseDto
+                        {
+                            Success = false,
+                            Message = "Invalid data provided",
+                            Errors = ModelState
+                                .Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                                .ToList(),
+                        }
+                    );
                 }
 
                 if (await _db.Doctors.AnyAsync(d => d.UserName == request.UserName))
                 {
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Username already exists"
-                    });
+                    return BadRequest(
+                        new ApiResponseDto { Success = false, Message = "Username already exists" }
+                    );
                 }
 
                 var doctor = new Doctor
@@ -648,7 +723,7 @@ public async Task<IActionResult> GetAllAppointments()
                     Email = request.Email,
                     Specialization = request.Specialization,
                     LicenseNumber = request.LicenseNumber,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
                 };
 
                 doctor.PasswordHash = _doctorHasher.HashPassword(doctor, request.Password);
@@ -666,40 +741,46 @@ public async Task<IActionResult> GetAllAppointments()
                     Email = doctor.Email,
                     Specialization = doctor.Specialization,
                     LicenseNumber = doctor.LicenseNumber,
-                    CreatedAt = doctor.CreatedAt
+                    CreatedAt = doctor.CreatedAt,
                 };
 
-                return Ok(new ApiResponseDto<DoctorDto>
-                {
-                    Success = true,
-                    Data = doctorDto,
-                    Message = "Doctor created successfully"
-                });
+                return Ok(
+                    new ApiResponseDto<DoctorDto>
+                    {
+                        Success = true,
+                        Data = doctorDto,
+                        Message = "Doctor created successfully",
+                    }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while creating doctor",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while creating doctor",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
         [HttpPut("doctors/{username}")]
-        public async Task<IActionResult> UpdateDoctor(string username, [FromBody] DoctorUpdateDto request)
+        public async Task<IActionResult> UpdateDoctor(
+            string username,
+            [FromBody] DoctorUpdateDto request
+        )
         {
             try
             {
                 var doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.UserName == username);
                 if (doctor == null)
                 {
-                    return NotFound(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Doctor not found"
-                    });
+                    return NotFound(
+                        new ApiResponseDto { Success = false, Message = "Doctor not found" }
+                    );
                 }
 
                 // Update fields if provided
@@ -707,11 +788,13 @@ public async Task<IActionResult> GetAllAppointments()
                 {
                     if (await _db.Doctors.AnyAsync(d => d.UserName == request.UserName))
                     {
-                        return BadRequest(new ApiResponseDto
-                        {
-                            Success = false,
-                            Message = "Username already exists"
-                        });
+                        return BadRequest(
+                            new ApiResponseDto
+                            {
+                                Success = false,
+                                Message = "Username already exists",
+                            }
+                        );
                     }
                     doctor.UserName = request.UserName;
                 }
@@ -721,30 +804,36 @@ public async Task<IActionResult> GetAllAppointments()
                     doctor.PasswordHash = _doctorHasher.HashPassword(doctor, request.Password);
                 }
 
-                if (request.FirstName != null) doctor.FirstName = request.FirstName;
-                if (request.LastName != null) doctor.LastName = request.LastName;
-                if (request.Email != null) doctor.Email = request.Email;
-                if (request.Specialization != null) doctor.Specialization = request.Specialization;
-                if (request.LicenseNumber != null) doctor.LicenseNumber = request.LicenseNumber;
+                if (request.FirstName != null)
+                    doctor.FirstName = request.FirstName;
+                if (request.LastName != null)
+                    doctor.LastName = request.LastName;
+                if (request.Email != null)
+                    doctor.Email = request.Email;
+                if (request.Specialization != null)
+                    doctor.Specialization = request.Specialization;
+                if (request.LicenseNumber != null)
+                    doctor.LicenseNumber = request.LicenseNumber;
 
                 doctor.UpdatedAt = DateTime.UtcNow;
 
                 await _db.SaveChangesAsync();
 
-                return Ok(new ApiResponseDto
-                {
-                    Success = true,
-                    Message = "Doctor updated successfully"
-                });
+                return Ok(
+                    new ApiResponseDto { Success = true, Message = "Doctor updated successfully" }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while updating doctor",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while updating doctor",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
 
@@ -756,30 +845,29 @@ public async Task<IActionResult> GetAllAppointments()
                 var doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.UserName == username);
                 if (doctor == null)
                 {
-                    return NotFound(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = "Doctor not found"
-                    });
+                    return NotFound(
+                        new ApiResponseDto { Success = false, Message = "Doctor not found" }
+                    );
                 }
 
                 _db.Doctors.Remove(doctor);
                 await _db.SaveChangesAsync();
 
-                return Ok(new ApiResponseDto
-                {
-                    Success = true,
-                    Message = "Doctor deleted successfully"
-                });
+                return Ok(
+                    new ApiResponseDto { Success = true, Message = "Doctor deleted successfully" }
+                );
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new ApiResponseDto
-                {
-                    Success = false,
-                    Message = "An error occurred while deleting doctor",
-                    Errors = new List<string> { ex.Message }
-                });
+                return StatusCode(
+                    500,
+                    new ApiResponseDto
+                    {
+                        Success = false,
+                        Message = "An error occurred while deleting doctor",
+                        Errors = new List<string> { ex.Message },
+                    }
+                );
             }
         }
     }
