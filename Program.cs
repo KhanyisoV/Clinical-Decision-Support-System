@@ -173,18 +173,53 @@ app.MapGet(
 
 app.MapControllers();
 
-// Seed admin (optional - only in development)
-
+// Seed default users (Admin, Doctor, Client)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+
+    // Seed Admin
     if (!db.Admins.Any())
     {
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Admin>>();
         var admin = new Admin { UserName = "admin", Role = "Admin" };
         admin.PasswordHash = hasher.HashPassword(admin, "Admin@123");
         db.Admins.Add(admin);
+        db.SaveChanges();
+    }
+
+    // Seed Doctor
+    if (!db.Doctors.Any())
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Doctor>>();
+        var doctor = new Doctor
+        {
+            UserName = "doctor",
+            Role = "Doctor",
+            FirstName = "Default",
+            LastName = "Doctor",
+            Email = "doctor@example.com"
+        };
+        doctor.PasswordHash = hasher.HashPassword(doctor, "Doctor@123");
+        db.Doctors.Add(doctor);
+        db.SaveChanges();
+    }
+
+    // Seed Client
+    if (!db.Clients.Any())
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<Client>>();
+        var client = new Client
+        {
+            UserName = "client",
+            Role = "Client",
+            FirstName = "Default",
+            LastName = "Client",
+            Email = "client@example.com"
+        };
+        client.PasswordHash = hasher.HashPassword(client, "Client@123");
+        db.Clients.Add(client);
         db.SaveChanges();
     }
 }
