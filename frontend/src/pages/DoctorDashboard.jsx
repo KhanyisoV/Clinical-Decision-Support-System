@@ -2020,45 +2020,52 @@ const toggleSymptom = (symptomId) => {
   return (
     <div className="dashboard-container">
       <style>{dashboardStyles}</style>
-      
-    <header className="header" style={{
-        marginLeft: showTabs ? '250px' : '0',
-        transition: 'margin-left 0.3s ease'
-        }}>
-        
-        <div className="header-left" style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-          {!showTabs && (
-            <button
-              onClick={() => setShowTabs(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0.5rem',
-                backgroundColor: 'transparent',
-                border: 'none',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <Menu size={24} />
-            </button>
-          )}
-          <div>
-            <h1 className="title">Doctor Dashboard</h1>
-            <p className="subtitle">
-              Welcome back, Dr. {user?.firstName || user?.userName}
-            </p>
-          </div>
-        </div>
+      <header className="header" style={{
+  marginLeft: showTabs ? '250px' : '0',
+  transition: 'margin-left 0.3s ease',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  padding: '1rem 2rem'
+}}>
+  
+  <div className="header-left" style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+    {!showTabs && (
+      <button
+        onClick={() => setShowTabs(true)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0.5rem',
+          backgroundColor: '#3b82f6',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          color: 'white',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+      >
+        <Menu size={24} />
+      </button>
+    )}
+    <div>
+      <h1 className="title">Doctor Dashboard</h1>
+      <p className="subtitle">
+        Welcome back, Dr. {user?.firstName || user?.userName}
+      </p>
+    </div>
+  </div>
 
-        <div className="header-right" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>
-          <button onClick={handleLogout} className="logout-btn">
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
-      </header>
+  <div className="header-right" style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>
+    <button onClick={handleLogout} className="logout-btn">
+      <LogOut size={18} />
+      Logout
+    </button>
+  </div>
+</header>
+    
 
       {error && (
         <div className="error-banner">
