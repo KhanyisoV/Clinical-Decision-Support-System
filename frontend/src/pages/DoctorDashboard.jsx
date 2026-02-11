@@ -8240,6 +8240,101 @@ card-treatment {
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
+
+  @media (max-width: 768px) {
+  .header {
+    padding: 1rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  .header-left {
+    flex: 1 !important;
+    min-width: 200px !important;
+  }
+
+  .header-right {
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+  }
+
+  .logout-btn {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .tabs {
+    width: 100% !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    transform: translateX(-100%) !important;
+  }
+
+  .tabs.hidden {
+    transform: translateX(-100%) !important;
+  }
+
+  .main {
+    margin-left: 0 !important;
+    padding: 1rem !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .patients-grid,
+  .appointments-grid,
+  .prescriptions-grid,
+  .labresults-grid,
+  .observations-grid,
+  .allergies-grid,
+  .symptoms-grid,
+  .treatments-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .modal {
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    max-height: 100vh !important;
+  }
+
+  .section-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .primary-btn,
+  .secondary-btn,
+  .tertiary-btn {
+    width: 100% !important;
+  }
+
+  .patient-card-actions {
+    flex-direction: column !important;
+  }
+
+  .observation-vitals-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-calendar {
+    padding: 1rem !important;
+  }
+
+  .react-calendar__tile {
+    height: 50px !important;
+    font-size: 0.75rem !important;
+  }
+}
 `;
 
 export default DoctorDashboard;

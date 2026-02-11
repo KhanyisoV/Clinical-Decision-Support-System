@@ -196,7 +196,7 @@ using (var scope = app.Services.CreateScope())
         var doctor = new Doctor
         {
             UserName = "doctor",
-            Role = "Doctor",
+            Role = "doctor",
             FirstName = "Default",
             LastName = "Doctor",
             Email = "doctor@example.com"
@@ -213,7 +213,7 @@ using (var scope = app.Services.CreateScope())
         var client = new Client
         {
             UserName = "client",
-            Role = "Client",
+            Role = "client",
             FirstName = "Default",
             LastName = "Client",
             Email = "client@example.com"
