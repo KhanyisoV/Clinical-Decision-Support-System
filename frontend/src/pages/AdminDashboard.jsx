@@ -1,5 +1,4 @@
-// Updated AdminDashboard component with new layout and styling
-// This creates a two-column layout with sidebar navigation
+
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -1165,37 +1164,37 @@ const renderMessagesTab = () => (
         transition: 'margin-left 0.3s ease'
       }}>
         <header style={styles.header}>
-  <div style={styles.headerContent}>
-    <div style={styles.headerLeft}>
-      {!sidebarOpen && (
-        <button 
-          onClick={() => setSidebarOpen(true)} 
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0.5rem',
-            backgroundColor: 'transparent',
-            border: 'none',
-            outline: 'none',
-            cursor: 'pointer',
-            color: '#1f2937',
-            marginRight: '1rem'
-          }}
-        >
-          <Menu size={24} />
-        </button>
-      )}
-      <h1 style={styles.title}>Admin Dashboard</h1>
-    </div>
-    <div style={styles.userInfo}>
-      <span>Welcome, {user?.firstName || user?.userName}</span>
-      <span style={styles.role}>({user?.role})</span>
-      <button onClick={handleLogout} style={styles.logoutButton}>
-        Logout
-      </button>
-    </div>
-  </div>
+          <div style={styles.headerContent}>
+            <div style={styles.headerLeft}>
+              {!sidebarOpen && (
+                <button 
+                  onClick={() => setSidebarOpen(true)} 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0.5rem',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    color: '#1f2937',
+                    marginRight: '1rem'
+                  }}
+                >
+                  <Menu size={24} />
+                </button>
+              )}
+              <h1 style={styles.title}>Admin Dashboard</h1>
+            </div>
+            <div style={{...styles.userInfo, flexWrap: 'wrap'}}>
+              <span>Welcome, {user?.firstName || user?.userName}</span>
+              <span style={styles.role}>({user?.role})</span>
+              <button onClick={handleLogout} style={styles.logoutButton}>
+                Logout
+              </button>
+            </div>
+          </div>
         </header>
 
         <div style={styles.content}>

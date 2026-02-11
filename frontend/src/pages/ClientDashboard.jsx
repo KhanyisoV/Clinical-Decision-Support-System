@@ -745,23 +745,42 @@ const ClientDashboardApp = () => {
       {/* Main Content */}
       <div style={styles.mainContent}>
         {/* Header */}
-        <header style={styles.header}>
-          <div style={styles.headerContent}>
-            <div style={styles.headerLeft}>
-              {!sidebarOpen && (
-                <button onClick={() => setSidebarOpen(true)} style={styles.iconButton}>
-                  <Menu size={24} />
-                </button>
-              )}
-              <h1 style={styles.headerTitle}>Patient Dashboard</h1>
-            </div>
-            <div style={styles.headerRight}>
-              <span style={styles.welcomeText}>Welcome, {user?.firstName} {user?.lastName}</span>
-              <button onClick={handleLogout} style={styles.logoutButton}>
-                <LogOut size={18} />
-                Logout
+        <header className="header" style={{
+          marginLeft: showTabs ? '250px' : '0',
+          transition: 'margin-left 0.3s ease'
+        }}>
+          
+          <div className="header-left" style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+            {!showTabs && (
+              <button
+                onClick={() => setShowTabs(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0.5rem',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <Menu size={24} />
               </button>
+            )}
+            <div>
+              <h1 className="title">Patient Dashboard</h1>
+              <p className="subtitle">
+                Welcome back, {user?.firstName || user?.userName}
+              </p>
             </div>
+          </div>
+
+          <div className="header-right" style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
+            <button onClick={handleLogout} className="logout-btn">
+              <LogOut size={18} />
+              Logout
+            </button>
           </div>
         </header>
 
