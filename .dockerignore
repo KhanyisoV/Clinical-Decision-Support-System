@@ -1,0 +1,12 @@
+bin/
+obj/
+publish/
+.vs/
+.git/
+.github/
+backend.zip
+frontend/
+XGBoost multi-class classifier/
+*.md
+.dockerignore
+Dockerfile

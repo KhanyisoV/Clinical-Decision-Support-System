@@ -1,0 +1,25 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build folders
+bin/
+obj/
+
+# Node/npm
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+
+# Others
+*.DS_Store
+"__pycache__/" 
+
+
+publish/
+backend.zip
+appsettings.Development.json
+.config/

@@ -1,0 +1,101 @@
+/* AdminDashboard.css - Add this file to your src/pages/ or src/styles/ directory */
+
+.admin-table-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.admin-input:focus {
+  border-color: #007bff !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.admin-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.admin-edit-button:hover {
+  background-color: #138496 !important;
+}
+
+.admin-delete-button:hover {
+  background-color: #c82333 !important;
+}
+
+.admin-stat-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.admin-tab-button:hover:not(.admin-tab-active) {
+  background-color: #f8f9fa;
+  color: #495057;
+}
+
+.admin-modal-enter {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.admin-modal-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
+}
+
+.admin-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.admin-loading::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .admin-action-buttons {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .admin-form-row {
+    flex-direction: column !important;
+  }
+  
+  .admin-table-container {
+    overflow-x: auto;
+  }
+  
+  .admin-modal {
+    width: 95% !important;
+    margin: 1rem !important;
+  }
+  
+  .admin-form-actions {
+    flex-direction: column !important;
+  }
+  
+  .admin-management-header {
+    flex-direction: column !important;
+    gap: 1rem;
+    text-align: center;
+  }
+}
